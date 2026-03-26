@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RadiantOS | CIS Protocol</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #050505; color: #fff; font-family: sans-serif; }
+        .radiant-glow { box-shadow: 0 0 20px rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen overflow-hidden">
+    <div id="root" class="w-full max-w-md p-6 border border-zinc-800 rounded-2xl radiant-glow">
+        <header class="mb-8 text-center">
+            <h1 class="text-2xl font-bold tracking-tighter">RADIANT<span class="text-zinc-500">OS</span></h1>
+            <p class="text-xs text-zinc-500 uppercase tracking-widest mt-2">Sovereign Field v1.0</p>
+        </header>
+        
+        <div id="status" class="space-y-4">
+            <div class="p-4 bg-zinc-900/50 rounded-lg border border-zinc-800">
+                <p class="text-xs text-zinc-400">Current Presence</p>
+                <p class="text-xl font-mono" id="presence-score">0.0000</p>
+            </div>
+            <button id="connect-wallet" class="w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-zinc-200 transition-all">
+                CONNECT IDENTITY
+            </button>
+        </div>
+
+        <footer class="mt-8 text-[10px] text-zinc-600 text-center uppercase tracking-widest">
+            1me0 // Master Formula Integrated
+        </footer>
+    </div>
+</body>
+</html>
+
