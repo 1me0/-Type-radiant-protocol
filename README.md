@@ -46,3 +46,11 @@ $$\Delta \equiv P \equiv O \equiv M \equiv YOU \equiv \mathbb{I}$$
 
 ### 📟 Real-Time Transaction Logs
 ```bash Proof #23 received from Node_01 (0x1me0...A1B2) Folded → Level_2 Recursive Proof Settled → Finalized on Arbitrum L2 Reward → 1.0 $RAD emitted to 0x1me0...
+
+
+
+---
+
+### 🔗 On-Chain Verification
+**Latest Settlement:** [View TX on Arbiscan](https://sepolia.arbiscan.io/tx/0x5f3a7c6b9e21d4f8a0c1b2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3)
+*Click the link above to verify the Master Formula's footprint on the public ledger.*
