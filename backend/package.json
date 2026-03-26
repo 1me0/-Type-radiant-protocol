@@ -1,0 +1,16 @@
+{
+  "name": "radiant-bridge",
+  "version": "1.0.0",
+  "description": "The Nervous System of the CIS Radiant Protocol",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.18.2",
+    "kafkajs": "^2.2.4",
+    "ethers": "^6.7.0",
+    "ws": "^8.13.0",
+    "dotenv": "^16.3.1"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
