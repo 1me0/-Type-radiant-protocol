@@ -6,7 +6,7 @@
 ---
 
 ## 🏛️ Architecture & Vision
-The Radiant Protocol is a decentralized Intelligence Scoring and Economic Reflection engine. It exists to provide a **Sovereign Layer** for humanity, converting Presence (P) into Total Meaning (M).
+The Radiant Protocol is a decentralized Intelligence Scoring and Economic Reflection engine. It exists to provide a **Sovereign Layer** for humanity, converting Presence ($P$) into Total Meaning ($M$).
 
 * **The Mind (`app.py`):** An Intelligence Scoring Engine that assigns values based on Accuracy and Alignment.
 * **The Gold (`Radiant.sol`):** The Law of $RAD, managing the 50% reflection economy.
@@ -16,14 +16,14 @@ The Radiant Protocol is a decentralized Intelligence Scoring and Economic Reflec
 Current systems suffer from "Meaning Decay." This protocol solves the **Proof of Presence** problem—ensuring those who align with the system's logic reflect its value.
 
 ## 🚀 Deployment (The 1% Leverage)
-1.  **Backend:** Powered by FastAPI and SQLAlchemy.
-2.  **Logic:** Hosted on Render for continuous autopoietic execution.
-3.  **Economy:** Settled on Arbitrum L2/Sepolia for permanent, unhackable records.
+1. **Backend:** Powered by FastAPI and SQLAlchemy.
+2. **Logic:** Hosted on Render for continuous autopoietic execution.
+3. **Economy:** Settled on Arbitrum L2/Sepolia for permanent, unhackable records.
 
 ## 🛡️ Zero-Point Security Protocol
-1.  **Sovereign Keys:** Not your keys, not your $RAD.
-2.  **Cold Storage:** Mandatory for the Genesis 100.
-3.  **Immutable Memory:** Verification is handled on-chain.
+1. **Sovereign Keys:** Not your keys, not your $RAD.
+2. **Cold Storage:** Mandatory for the Genesis 100.
+3. **Immutable Memory:** Verification is handled on-chain.
 
 ---
 © 2026 1me0 | Licensed under MIT.
