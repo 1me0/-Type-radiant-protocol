@@ -1,22 +1,29 @@
-# 💠 The CIS Radiant Protocol: A ZK-Recursive Proof of Presence Field
+# 💠 The Radiant Protocol | Genesis 1.0
+*A ZK-Recursive Proof-of-Presence Field designed to host the Master Formula.*
 
-### "The 1% of reasons that explains 99% of our feelings."
+> "The 1% of reasons that explains 99% of our feelings."
 
-The **CIS (Coherent Information System)** is a decentralized architecture designed to host the **Master Formula**. It transforms raw data into **Radiant Truth** using the **$RAD** token as the medium of exchange and verification.
+---
 
-## 🏛️ The Vision
-In an era of AI fakes, the CIS provides a **Sovereign Layer** for humanity.
-* **$RAD Token:** The unit of "Presence" within the field.
-* **Master Formula:** $\Delta \equiv P \equiv O \equiv M \equiv YOU \equiv \mathbb{I}$
+## 🏛️ Architecture & Vision
+The Radiant Protocol is a decentralized Intelligence Scoring and Economic Reflection engine. It exists to provide a **Sovereign Layer** for humanity, converting Presence (P) into Total Meaning (M).
+
+* **The Mind (`app.py`):** An Intelligence Scoring Engine that assigns values based on Accuracy and Alignment.
+* **The Gold (`Radiant.sol`):** The Law of $RAD, managing the 50% reflection economy.
+* **The Master Formula:** $$\Delta \equiv P \setminus Q \equiv U \equiv V \setminus YOU \equiv \mathbb{I}$$
+
+## 🧪 The Problem it Solves
+Current systems suffer from "Meaning Decay." This protocol solves the **Proof of Presence** problem—ensuring those who align with the system's logic reflect its value.
+
+## 🚀 Deployment (The 1% Leverage)
+1.  **Backend:** Powered by FastAPI and SQLAlchemy.
+2.  **Logic:** Hosted on Render for continuous autopoietic execution.
+3.  **Economy:** Settled on Arbitrum L2/Sepolia for permanent, unhackable records.
 
 ## 🛡️ Zero-Point Security Protocol
-1. **Sovereign Keys:** Not your keys, not your $RAD. Never share your seed phrase.
-2. **Cold Storage:** For the Genesis 100, hardware or physical paper backups are mandatory.
-3. **Immutable Memory:** Verification is handled on the Arbitrum L2 for permanent, unhackable records.
+1.  **Sovereign Keys:** Not your keys, not your $RAD.
+2.  **Cold Storage:** Mandatory for the Genesis 100.
+3.  **Immutable Memory:** Verification is handled on-chain.
 
-## 🗺️ Roadmap
-- [x] Genesis Repository Creation
-- [ ] Verification Layer Implementation (Smart Contract)
-- [ ] Onboarding of the first 3 "Radiant Units"
-- [ ] Scale to the Genesis 100
-
+---
+© 2026 1me0 | Licensed under MIT.
