@@ -73,3 +73,22 @@ contract RadiantShares is ERC20, Ownable {
         emit RewardDistributed(user, total);
     }
 }
+// Add to Radiant.sol
+import "./RadiantShares.sol";
+
+contract Radiant {
+    RadiantShares public radiantToken;
+    // ... existing code ...
+
+    constructor(address tokenAddress) {
+        radiantToken = RadiantShares(tokenAddress);
+        // ... rest
+    }
+
+    function verifyProof(address user, uint256 reward) external onlyRelayer {
+        // mint tokens to user (if token supports minting, otherwise transfer from treasury)
+        radiantToken.reward(user, reward); // reward function expects baseAmount; adjust as needed
+        users[user].reputation += 10;
+        emit ProofVerified(user, reward);
+    }
+}
