@@ -28,3 +28,4 @@ services:
     build: ./worker
     # ... existing config ...
     docker-compose up ganache
+docker-compose up --build
