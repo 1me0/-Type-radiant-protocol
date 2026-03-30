@@ -314,3 +314,11 @@ And in that system:
 
 > Clarity is value. Understanding is power. Truth is measurable.
 [![Live Demo](https://img.shields.io/badge/demo-live-green)](https://radiant-demo.vercel.app)
+[![GitHub release](https://img.shields.io/github/v/release/1me0/Type-radiant-protocol)](https://github.com/1me0/Type-radiant-protocol/releases)
+[![Demo](https://img.shields.io/badge/demo-live-green)](https://radiant-demo.vercel.app)
+[![Contributing](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
+
+## Quick Start
+- [Run Locally with Docker](docs/tutorial.md)
+- [Live Demo](https://radiant-demo.vercel.app)
+- [API Docs](http://localhost:8000/docs)
