@@ -10,3 +10,4 @@ const RadiantDeploy = buildModule("RadiantDeploy", (m) => {
 export default RadiantDeploy;
 npx hardhat ignition deploy ignition/modules/RadiantDeploy.ts --network ganache
 npx hardhat ignition deploy ignition/modules/RadiantDeploy.ts --network sepolia
+npx hardhat ignition deploy ignition/modules/RadiantDeploy.ts --network sepolia
