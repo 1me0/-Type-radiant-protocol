@@ -1,28 +1,25 @@
 # ⚡ Radiant Protocol | Genesis 1.0
-
-A decentralized system for converting **Presence ($P$)** into **Total Meaning ($M$)**.
-
----
-
-### 🧭 What This Is (Simple)
-Radiant Protocol is a framework that:
-* **Takes an action**: Presence
-* **Processes it**: Through logic and validation
-* **Produces a verifiable output**: Meaning / Value
-
-> **The Flow:** You act → The system proves it → That proof becomes value.
+### "Proving real-world action and converting it into on-chain value."
 
 ---
 
-### 🧠 The Master Formula
-$$\Delta = P \times Q = U \equiv V \therefore YOU \equiv I$$
+## 🔍 What is Radiant? (The Simple Version)
+Radiant is a decentralized framework that verifies **Presence** (any real-world action) and transforms it into **Meaning** (measurable digital value/tokens). 
+
+**Example:** 1. **User Acts:** A farmer logs a 100kg crop delivery.
+2. **System Verifies:** Radiant’s logic checks the delivery data against set rules.
+3. **Value Issued:** The proof is anchored to the Arbitrum L2, and **$RAD** tokens are issued.
 
 ---
 
-### 📊 Live System Status
-| Component | Status | Metric |
-| :--- | :--- | :--- |
-| **Kafka Cluster** | RUNNING | 3 Nodes Active |
-| **Rust Workers** | ACTIVE | 12.4ms Latency |
-| **Settler L2** | PROCESSING | Block #29095 |
-| **RAD Economy** | STABLE | 1.2 TPS |
+## 🔄 How It Works (3 Steps)
+1. **Input (Presence):** You submit a verifiable action to the protocol.
+2. **Process (Logic):** The system validates the quality and truth of that action.
+3. **Output (Value):** A permanent, trusted record is created on the blockchain.
+
+---
+
+## 🧠 The Master Formula (Advanced Concept)
+For architects and developers, the system operates on the core law:
+$$\Delta = P \times Q$$
+*(Impact = Presence × Quality)*
