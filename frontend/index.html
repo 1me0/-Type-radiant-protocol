@@ -1,61 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant Intelligence Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: sans-serif; background: #0b0e11; color: white; text-align: center; }
-        .container { width: 90%; max-width: 800px; margin: 20px auto; padding: 20px; border: 1px solid #f39c12; border-radius: 10px; }
-        .maturity-bar { width: 100%; background: #333; border-radius: 5px; margin: 20px 0; }
-        .progress { height: 20px; background: linear-gradient(90deg, #f39c12, #e67e22); border-radius: 5px; width: 0%; transition: width 0.5s; }
-        h1 { color: #f39c12; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Radiance Wave</h1>
-        <canvas id="radianceChart"></canvas>
-        
-        <h3>Maturity Progress</h3>
-        <div class="maturity-bar">
-            <div id="pBar" class="progress"></div>
-        </div>
-        <p id="maturityText">0 / 1000 Points until $RAD Materialization</p>
-    </div>
-
-    <script>
-        // Fetch data from the API you just built in app.py
-        fetch('/api/intelligence-trend')
-            .then(res => res.json())
-            .then(data => {
-                const ctx = document.getElementById('radianceChart').getContext('2d');
-                
-                // Calculate Total for Maturity Bar
-                const totalPoints = data.reduce((sum, item) => sum + item.score, 0);
-                const progressPercent = Math.min((totalPoints / 1000) * 100, 100);
-                document.getElementById('pBar').style.width = progressPercent + '%';
-                document.getElementById('maturityText').innerText = `${totalPoints.toFixed(2)} / 1000 Points`;
-
-                // Draw the Wave
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.map(i => new Date(i.timestamp).toLocaleDateString()),
-                        datasets: [{
-                            label: 'Intelligence Score',
-                            data: data.map(i => i.score),
-                            borderColor: '#f39c12',
-                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        }]
-                    },
-                    options: { scales: { y: { beginAtZero: true, max: 10 } } }
-                });
-            });
-    </script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Radiant Dashboard</title>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
-
