@@ -1,20 +1,5 @@
-# Environment Variables
+node_modules
+__pycache__
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Dependency Directories
-node_modules/
-jspm_packages/
-
-# Build Outputs
-dist/
-build/
-
-# IDE / System Files
-.DS_Store
-.vscode/
-.idea/
-
+dist
+build
