@@ -106,3 +106,19 @@ function App() {
 }
 
 export default App;
+// Inside your Component
+const [userScore, setUserScore] = useState(0); // Fetched from the Law/Contract
+
+return (
+  <div className="radiant-dashboard">
+    {userScore >= 100 ? (
+      <Leaderboard user={currentUser} />
+    ) : (
+      <div className="gate-overlay">
+        <h3>Leaderboard Locked</h3>
+        <p>Current Radiance: {userScore} / 100</p>
+        <span>Refine your Presence to see your rank among the Sovereigns.</span>
+      </div>
+    )}
+  </div>
+);
