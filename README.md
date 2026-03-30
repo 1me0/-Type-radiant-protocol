@@ -322,3 +322,4 @@ And in that system:
 - [Run Locally with Docker](docs/tutorial.md)
 - [Live Demo](https://radiant-demo.vercel.app)
 - [API Docs](http://localhost:8000/docs)
+[![Live Demo](https://img.shields.io/badge/demo-live-green)](https://radiant-demo.vercel.app)
