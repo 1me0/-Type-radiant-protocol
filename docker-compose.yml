@@ -1,34 +1,82 @@
 version: '3.8'
 
 services:
-  # The Message Backbone (Kafka)
-  broker:
-    image: apache/kafka:latest
-    container_name: radiant-broker
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
     ports:
       - "9092:9092"
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-  # The Truth Engine (Your Rust Worker)
-  radiant-worker:
-    image: rust:latest
-    container_name: cis-worker-alpha
+  ganache:
+    image: trufflesuite/ganache:latest
+    ports:
+      - "8545:8545"
+    command: --host 0.0.0.0 --port 8545 --deterministic --mnemonic "test test test test test test test test test test test junk"
+
+  relayer:
+    build: ./relayer
     depends_on:
-      - broker
-    volumes:
-      - .:/usr/src/app
-    command: echo "Worker Alpha: Syncing with Master Formula... Field Active."
-
-  # The Settlement Layer (Database)
-  db:
-    image: postgres:15-alpine
-    container_name: cis-ledger
+      - ganache
+      - kafka
     environment:
-      POSTGRES_PASSWORD: radiant_password
-      
+      RPC_URL: http://ganache:8545
+      CONTRACT_ADDRESS: <your_deployed_contract>
+      RELAYER_PRIVATE_KEY: 0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
+    volumes:
+      - ./relayer:/app
+      - ./contracts:/contracts
+    working_dir: /app
+    command: node index.js
+
+  worker:
+    build: ./worker
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKER: kafka:9092
+    volumes:
+      - ./worker:/app
+    working_dir: /app
+
+  websocket:
+    build: ./websocket
+    ports:
+      - "4000:4000"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKER: kafka:9092
+    volumes:
+      - ./websocket:/app
+    working_dir: /app
+    command: node index.js
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - websocket
+    environment:
+      REACT_APP_WS_URL: ws://localhost:4000
+      REACT_APP_CONTRACT_ADDRESS: <your_deployed_contract>
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app.py:/app/app.py
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
