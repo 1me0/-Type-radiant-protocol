@@ -1,20 +1,22 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// Law III: Conditional Dominance
+function distributeRadiantValue(uint256 actionValue, uint8 qualityScore) public {
+    // Law I: Value = Action x Quality
+    // (Scaling reward based on 0-5 score)
+    uint256 totalReward = (actionValue * qualityScore) / 5;
+    
+    uint256 architectShare;
+    uint256 userShare;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-
-contract RadiantToken is ERC20, Ownable {
-    mapping(bytes32 => bool) public processedHashes;
-    uint256 public constant RADIANCE_REWARD = 10 * 10**18; // 10 $RAD
-
-    constructor() ERC20("Radiant Protocol", "RAD") Ownable(msg.sender) {}
-
-    // The Master Formula in Code: Validating Presence
-    function participateGenesis(bytes32 proofHash) external {
-        require(!processedHashes[proofHash], "Presence already recorded.");
-        
-        processedHashes[proofHash] = true;
-        _mint(msg.sender, RADIANCE_REWARD);
+    // Law III: Dominance = Conditional
+    if (actionValue > address(this).balance) {
+        // The Eclipse: User takes 70%
+        userShare = (totalReward * 70) / 100;
+        architectShare = (totalReward * 30) / 100;
+    } else {
+        // Law II: Ownership = Shared (50/50 Mirror)
+        architectShare = totalReward / 2;
+        userShare = totalReward / 2;
     }
+
+    // Transfer logic for $RAD or ETH reflections follows...
 }
