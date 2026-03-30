@@ -1,0 +1,8 @@
+{
+  "name": "relayer",
+  "version": "1.0.0",
+  "dependencies": {
+    "ethers": "^6.7.0",
+    "kafkajs": "^2.2.4"
+  }
+}
