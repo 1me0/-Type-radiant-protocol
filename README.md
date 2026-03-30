@@ -1,25 +1,32 @@
-# ⚡ Radiant Protocol | Genesis 1.0
-### "Proving real-world action and converting it into on-chain value."
+# Radiant Protocol – Communication Intelligence System
 
----
+A decentralized protocol that measures, verifies, and rewards communication clarity using ZK‑recursive proofs.
 
-## 🔍 What is Radiant? (The Simple Version)
-Radiant is a decentralized framework that verifies **Presence** (any real-world action) and transforms it into **Meaning** (measurable digital value/tokens). 
+## Features
 
-**Example:** 1. **User Acts:** A farmer logs a 100kg crop delivery.
-2. **System Verifies:** Radiant’s logic checks the delivery data against set rules.
-3. **Value Issued:** The proof is anchored to the Arbitrum L2, and **$RAD** tokens are issued.
+- Staking, reputation, and reward system on Ethereum.
+- Real‑time scoring via CIS formula (Alignment, Understanding, Accuracy, Distortion).
+- Kafka‑based proof pipeline with Rust workers.
+- WebSocket dashboard for live updates.
+- React frontend with wallet integration.
 
----
+## Getting Started
 
-## 🔄 How It Works (3 Steps)
-1. **Input (Presence):** You submit a verifiable action to the protocol.
-2. **Process (Logic):** The system validates the quality and truth of that action.
-3. **Output (Value):** A permanent, trusted record is created on the blockchain.
+1. Clone the repository.
+2. Deploy the contract to Ganache (or a testnet) and update `docker-compose.yml` with the contract address.
+3. Run `docker-compose up --build`.
+4. Open `http://localhost:3000` to view the dashboard.
+5. Use `http://localhost:8000/docs` for the scoring API.
 
----
+## Architecture
 
-## 🧠 The Master Formula (Advanced Concept)
-For architects and developers, the system operates on the core law:
-$$\Delta = P \times Q$$
-*(Impact = Presence × Quality)*
+- **Smart Contract** – Handles staking, proofs, and rewards.
+- **Relayer** – Listens for contract events and pushes to Kafka.
+- **Worker** – Validates proofs (simulated) and publishes results.
+- **WebSocket Server** – Broadcasts validation results to frontend.
+- **Frontend** – React app with wallet connection and live updates.
+- **Backend API** – FastAPI server for CIS scoring and trends.
+
+## License
+
+MIT
