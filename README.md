@@ -313,3 +313,4 @@ It is:
 And in that system:
 
 > Clarity is value. Understanding is power. Truth is measurable.
+[![Live Demo](https://img.shields.io/badge/demo-live-green)](https://radiant-demo.vercel.app)
