@@ -33,3 +33,38 @@ contract Radiant {
         emit RewardsDistributed(user, userShare, architectShare);
     }
 }
+// Council for emergency actions
+mapping(address => bool) public isCouncil;
+uint256 public requiredVotes = 2; // e.g., 2 out of 3
+
+event CouncilMemberAdded(address indexed member);
+event CouncilMemberRemoved(address indexed member);
+event EmergencyActionExecuted(bytes32 indexed actionId);
+
+modifier onlyCouncil() {
+    require(isCouncil[msg.sender], "Not council");
+    _;
+}
+
+function addCouncilMember(address member) external onlyOwner {
+    isCouncil[member] = true;
+    emit CouncilMemberAdded(member);
+}
+
+function removeCouncilMember(address member) external onlyOwner {
+    isCouncil[member] = false;
+    emit CouncilMemberRemoved(member);
+}
+
+// Example emergency function: pause staking
+bool public stakingPaused;
+function emergencyPauseStaking() external onlyCouncil {
+    stakingPaused = true;
+    emit EmergencyActionExecuted(keccak256("pause_staking"));
+}
+
+// In stake() function, check if paused
+function stake() external payable {
+    require(!stakingPaused, "Staking paused");
+    // ... rest
+}
