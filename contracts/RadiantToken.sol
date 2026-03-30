@@ -92,3 +92,55 @@ contract Radiant {
         emit ProofVerified(user, reward);
     }
 }
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "./RadiantShares.sol";
+
+contract Radiant {
+    // 1. STATE (The Foundation - KEEP THIS)
+    address public architect;
+    RadiantShares public radiantToken;
+    uint256 public constant ARCHITECT_FEE_BPS = 5000; // 50% split
+
+    struct User {
+        uint256 stake;
+        uint256 reputation;
+    }
+    mapping(address => User) public users;
+
+    // 2. EVENTS (The Record - ADD NEW ONES HERE)
+    event RewardsDistributed(address indexed user, uint256 userAmount, uint256 architectAmount);
+    event Slashed(address indexed user, uint256 amount);
+    event ProofVerified(address indexed user, uint256 reward);
+
+    // 3. CONSTRUCTOR (The Origin - UPDATE TO LINK TOKEN)
+    constructor(address tokenAddress) {
+        architect = msg.sender;
+        radiantToken = RadiantShares(tokenAddress);
+    }
+
+    // 4. ACCESS CONTROL (The Guard)
+    modifier onlyRelayer() {
+        // In production, require(msg.sender == trustedRelayer);
+        _;
+    }
+
+    // 5. FUNCTIONS (The Executive - ADD NEW LOGIC HERE)
+    
+    // The Reward Logic
+    function verifyProof(address user, uint256 reward) external onlyRelayer {
+        radiantToken.reward(user, reward); 
+        users[user].reputation += 10;
+        
+        // Apply the 50/50 Architect split logic here if needed
+        emit ProofVerified(user, reward);
+    }
+
+    // The Defense Logic (The Slasher)
+    function slash(address user, uint256 amount) external onlyRelayer {
+        require(users[user].stake >= amount, "Insufficient stake");
+        users[user].stake -= amount;
+        emit Slashed(user, amount);
+    }
+}
