@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Radiant Social Feed – CIS‑gated Content</title>
+    <style>
+        body { font-family: system-ui; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; border-radius: 24px; padding: 24px; }
+        .post { border: 1px solid #e2e8f0; border-radius: 20px; padding: 16px; margin-bottom: 20px; }
+        .post img, .post video { max-width: 100%; border-radius: 16px; margin: 8px 0; }
+        .actions { margin-top: 12px; display: flex; gap: 16px; align-items: center; }
+        button { background: #1a2a3a; color: white; border: none; padding: 6px 12px; border-radius: 30px; cursor: pointer; }
+        button:disabled { background: #b0c4de; cursor: not-allowed; }
+        .score-input { width: 60px; margin-left: 8px; }
+        .badge { font-size: 0.7rem; background: #e6f0ff; border-radius: 20px; padding: 2px 8px; display: inline-block; margin-left: 10px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📸 Radiant Social Feed</h1>
+    <div id="userInfo"></div>
+    <hr>
+    <div id="feed"></div>
+    <hr>
+    <h3>➕ Create Post (public option)</h3>
+    <input type="text" id="mediaUrl" placeholder="Image or video URL" style="width: 70%;">
+    <select id="mediaType">
+        <option value="image">Image</option>
+        <option value="video">Video</option>
+    </select>
+    <textarea id="description" rows="2" placeholder="Description"></textarea>
+    <button id="createPostBtn">Post</button>
+</div>
+
+<script>
+    // ---------- IndexedDB ----------
+    const DB_NAME = "RadiantFeedDB";
+    const DB_VERSION = 1;
+    let db = null;
+
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                db = request.result;
+                resolve(db);
+            };
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains("users")) {
+                    db.createObjectStore("users", { keyPath: "id" });
+                }
+                if (!db.objectStoreNames.contains("posts")) {
+                    db.createObjectStore("posts", { keyPath: "id", autoIncrement: true });
+                }
+                if (!db.objectStoreNames.contains("ratings")) {
+                    db.createObjectStore("ratings", { keyPath: "id", autoIncrement: true });
+                }
+            };
+        });
+    }
+
+    async function getStore(storeName, mode = "readonly") {
+        if (!db) await openDB();
+        return db.transaction(storeName, mode).objectStore(storeName);
+    }
+
+    async function saveUser(user) { return (await getStore("users", "readwrite")).put(user); }
+    async function getUser(userId) { return (await getStore("users")).get(userId); }
+    async function savePost(post) { return (await getStore("posts", "readwrite")).add(post); }
+    async function getAllPosts() { return (await getStore("posts")).getAll(); }
+    async function saveRating(rating) { return (await getStore("ratings", "readwrite")).add(rating); }
+    async function getRatingsForPost(postId) { return (await getStore("ratings")).getAll().then(ratings => ratings.filter(r => r.postId === postId)); }
+
+    // ---------- Helper: update post counts ----------
+    async function updatePostCounts(post) {
+        const store = await getStore("posts", "readwrite");
+        await store.put(post);
+    }
+
+    // ---------- Create a demo user with high CIS if needed ----------
+    async function ensureDemoUser() {
+        let user = await getUser("demo_user");
+        if (!user) {
+            user = {
+                id: "demo_user",
+                name: "Elite Viewer",
+                totalCIS: 1_200_000, // meets the 1,000,000 threshold
+            };
+            await saveUser(user);
+        }
+        return user;
+    }
+
+    // ---------- Create a post ----------
+    async function createPost(userId, mediaUrl, mediaType, description) {
+        const post = {
+            userId,
+            mediaUrl,
+            mediaType,
+            description,
+            createdAt: Date.now(),
+            isPublic: false,
+            viewCount: 0,
+            highScoreViewCount: 0,
+            likeCount: 0,
+        };
+        const id = await savePost(post);
+        renderFeed(); // refresh
+    }
+
+    // ---------- Rate a post (CIS score) ----------
+    async function ratePost(postId, userId, score) {
+        // Check if user already rated this post
+        const ratings = await getRatingsForPost(postId);
+        const existing = ratings.find(r => r.userId === userId);
+        if (existing) {
+            alert("You have already rated this post.");
+            return;
+        }
+
+        // Fetch post
+        const allPosts = await getAllPosts();
+        const post = allPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        // Only allow rating if post is not public and user has high enough CIS
+        const user = await getUser(userId);
+        if (!user || user.totalCIS < 1_000_000) {
+            alert("You need a total CIS score of 1,000,000 to rate this post.");
+            return;
+        }
+        if (post.isPublic) {
+            alert("This post is already public; only likes are allowed.");
+            return;
+        }
+
+        // Save rating
+        await saveRating({ postId, userId, cisScore: score, timestamp: Date.now() });
+        post.viewCount++;
+
+        if (score >= 7.5) {
+            post.highScoreViewCount++;
+        }
+
+        // Check if it becomes public
+        if (post.highScoreViewCount >= 1000 && !post.isPublic) {
+            post.isPublic = true;
+        }
+
+        await updatePostCounts(post);
+        renderFeed(); // refresh
+    }
+
+    // ---------- Like a post (only when public) ----------
+    async function likePost(postId) {
+        const allPosts = await getAllPosts();
+        const post = allPosts.find(p => p.id === postId);
+        if (!post) return;
+        if (!post.isPublic) {
+            alert("Only public posts can be liked.");
+            return;
+        }
+        post.likeCount++;
+        await updatePostCounts(post);
+        renderFeed();
+    }
+
+    // ---------- Render feed ----------
+    async function renderFeed() {
+        const currentUser = await ensureDemoUser(); // for demo, use the demo user
+        const allPosts = await getAllPosts();
+        // Sort newest first
+        allPosts.sort((a,b) => b.createdAt - a.createdAt);
+
+        const feedDiv = document.getElementById('feed');
+        feedDiv.innerHTML = '';
+
+        for (const post of allPosts) {
+            // Determine visibility
+            let visible = false;
+            if (post.userId === currentUser.id) visible = true; // own post
+            else if (post.isPublic) visible = true;
+            else if (currentUser.totalCIS >= 1_000_000) visible = true; // elite viewers can see pending posts
+
+            if (!visible) continue;
+
+            const postDiv = document.createElement('div');
+            postDiv.className = 'post';
+
+            let mediaHtml = '';
+            if (post.mediaType === 'image') {
+                mediaHtml = `<img src="${post.mediaUrl}" alt="post image" style="max-width:100%">`;
+            } else if (post.mediaType === 'video') {
+                mediaHtml = `<video controls src="${post.mediaUrl}" style="max-width:100%"></video>`;
+            }
+
+            postDiv.innerHTML = `
+                <div><strong>User ${post.userId}</strong> <span class="badge">${post.isPublic ? '🔓 Public' : '🔒 Limited'}</span></div>
+                <div>${post.description || ''}</div>
+                ${mediaHtml}
+                <div class="actions">
+                    ${!post.isPublic && currentUser.totalCIS >= 1_000_000 ? `
+                        <div>
+                            Rate CIS:
+                            <input type="number" step="0.1" min="0" max="10" id="score-${post.id}" class="score-input" value="7.5">
+                            <button data-post="${post.id}" data-action="rate">Submit Rating</button>
+                        </div>
+                    ` : ''}
+                    ${post.isPublic ? `
+                        <div>
+                            <button data-post="${post.id}" data-action="like">❤️ Like (${post.likeCount})</button>
+                        </div>
+                    ` : ''}
+                    <div>👁️ Views: ${post.viewCount} | ⭐ 7.5+ ratings: ${post.highScoreViewCount}</div>
+                </div>
+            `;
+            feedDiv.appendChild(postDiv);
+        }
+
+        // Attach event listeners
+        document.querySelectorAll('[data-action="rate"]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const postId = parseInt(btn.getAttribute('data-post'));
+                const scoreInput = document.getElementById(`score-${postId}`);
+                const score = parseFloat(scoreInput.value);
+                if (isNaN(score) || score < 0 || score > 10) {
+                    alert("Enter a score between 0 and 10.");
+                    return;
+                }
+                await ratePost(postId, currentUser.id, score);
+            });
+        });
+
+        document.querySelectorAll('[data-action="like"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const postId = parseInt(btn.getAttribute('data-post'));
+                await likePost(postId);
+            });
+        });
+    }
+
+    // ---------- Create new post ----------
+    document.getElementById('createPostBtn').addEventListener('click', async () => {
+        const mediaUrl = document.getElementById('mediaUrl').value.trim();
+        const mediaType = document.getElementById('mediaType').value;
+        const description = document.getElementById('description').value.trim();
+        if (!mediaUrl) {
+            alert("Please enter a media URL.");
+            return;
+        }
+        const currentUser = await ensureDemoUser();
+        await createPost(currentUser.id, mediaUrl, mediaType, description);
+        document.getElementById('mediaUrl').value = '';
+        document.getElementById('description').value = '';
+    });
+
+    // ---------- Display user info ----------
+    async function displayUserInfo() {
+        const user = await ensureDemoUser();
+        document.getElementById('userInfo').innerHTML = `
+            👤 ${user.name} | Total CIS: ${user.totalCIS.toLocaleString()}
+        `;
+    }
+
+    // Initialize
+    openDB().then(async () => {
+        await ensureDemoUser();
+        await displayUserInfo();
+        await renderFeed();
+    }).catch(console.error);
+</script>
+</body>
+  </html>
