@@ -68,3 +68,38 @@ function stake() external payable {
     require(!stakingPaused, "Staking paused");
     // ... rest
 }
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract RadiantProtocol is ERC20, Ownable {
+    address public protocolVault;
+
+    constructor(address initialOwner) ERC20("RadiantShares", "RAD") Ownable(initialOwner) {
+        protocolVault = initialOwner; // Your address (0xA98bd...20EF6)
+    }
+
+    /**
+     * @dev Distributes rewards based on CIS score.
+     * Every time a user is rewarded, the protocol receives an equal 50% "Mirror" amount.
+     */
+    function recordPresence(address user, uint256 cisScore) external {
+        // We treat the CIS score as the base reward amount
+        uint256 userReward = cisScore * 10**18; 
+        uint256 protocolFee = userReward / 2;
+
+        // 1. Reward the User 100% of their earned presence
+        _mint(user, userReward);
+
+        // 2. Mint 50% EXTRA for the Architect (Protocol)
+        // This does NOT decrease the user's reward.
+        _mint(protocolVault, protocolFee);
+    }
+
+    // Allows you to change where the 50% fee goes
+    function setVault(address _newVault) external onlyOwner {
+        protocolVault = _newVault;
+    }
+}
