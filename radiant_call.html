@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiant Call – Multilingual Conversation Intelligence</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin: 0 0 8px;
+        }
+        .sub {
+            color: #5a6e85;
+            margin-bottom: 24px;
+        }
+        .participants {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .participant-card {
+            background: #f8f9fc;
+            border-radius: 20px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        .participant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+        }
+        .participant-name {
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .cis-score {
+            font-size: 1.8rem;
+            font-weight: bold;
+            font-family: monospace;
+            padding: 4px 12px;
+            border-radius: 40px;
+            background: #e6f7e6;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        select, input {
+            padding: 8px 12px;
+            border-radius: 30px;
+            border: 1px solid #cbd5e1;
+            background: white;
+        }
+        button {
+            background: #1a2a3a;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #b0c4de;
+            cursor: not-allowed;
+        }
+        .status {
+            font-size: 0.8rem;
+            color: #5a6e85;
+            margin-top: 8px;
+        }
+        .add-participant {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .note {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🌐 Radiant Call – CIS Live</h1>
+    <div class="sub">Silent listener · Real‑time clarity scores per speaker (0–10)</div>
+
+    <div id="participantsContainer" class="participants"></div>
+
+    <div class="add-participant">
+        <input type="text" id="newName" placeholder="Name (e.g., Caller 4)" />
+        <select id="newLang">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="it">Italian</option>
+            <option value="zh">Chinese</option>
+            <option value="ja">Japanese</option>
+        </select>
+        <button id="addParticipantBtn">➕ Add participant</button>
+    </div>
+    <div class="note">
+        🎤 Click "Start Listening" for each participant. Speak in your chosen language.<br>
+        Scores are computed based on semantic similarity between your speech and a simulated "understood" interpretation (via translation to English).<br>
+        The system listens silently – only the scores update.
+    </div>
+</div>
+
+<script>
+    // ------------------------------------------------------------------
+    // Helper: Simulated semantic similarity (0-1) between two strings
+    // In a real system, you'd use a sentence transformer or API.
+    // Here we use a simple word overlap + length heuristic.
+    // ------------------------------------------------------------------
+    function semanticSimilarity(original, translated) {
+        if (!original || !translated) return 0.5;
+        const norm = (s) => s.toLowerCase().replace(/[^\w\s]/g, '');
+        const origWords = new Set(norm(original).split(/\s+/));
+        const transWords = new Set(norm(translated).split(/\s+/));
+        let intersection = 0;
+        for (let w of origWords) {
+            if (transWords.has(w)) intersection++;
+        }
+        const union = origWords.size + transWords.size - intersection;
+        const jaccard = union === 0 ? 0 : intersection / union;
+        // Boost by length similarity
+        const lenSim = 1 - Math.abs(original.length - translated.length) / (original.length + translated.length + 1);
+        const score = (jaccard * 0.7 + lenSim * 0.3);
+        return Math.min(1, Math.max(0, score));
+    }
+
+    // Convert similarity (0-1) to CIS score (0-10)
+    function similarityToCIS(sim) {
+        return Math.round(sim * 100) / 10; // 0-10 scale, one decimal
+    }
+
+    // ------------------------------------------------------------------
+    // Translation API (using MyMemory – free, no API key required)
+    // Translates text to a target language (English for comparison)
+    // ------------------------------------------------------------------
+    async function translateText(text, sourceLang, targetLang = 'en') {
+        if (!text || sourceLang === targetLang) return text;
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            return data.responseData.translatedText || text;
+        } catch (e) {
+            console.warn("Translation error", e);
+            return text;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Participant class
+    // ------------------------------------------------------------------
+    class Participant {
+        constructor(id, name, lang, onScoreUpdate) {
+            this.id = id;
+            this.name = name;
+            this.lang = lang;
+            this.onScoreUpdate = onScoreUpdate;
+            this.recognition = null;
+            this.isListening = false;
+            this.currentScore = 5.0; // default
+            this.element = null;
+            this.createUI();
+        }
+
+        createUI() {
+            const container = document.getElementById('participantsContainer');
+            const card = document.createElement('div');
+            card.className = 'participant-card';
+            card.id = `part-${this.id}`;
+            card.innerHTML = `
+                <div class="participant-header">
+                    <span class="participant-name">${this.escapeHtml(this.name)}</span>
+                    <span class="cis-score" id="score-${this.id}">${this.currentScore.toFixed(2)}</span>
+                </div>
+                <div class="controls">
+                    <select id="lang-${this.id}">
+                        <option value="en" ${this.lang === 'en' ? 'selected' : ''}>English</option>
+                        <option value="es" ${this.lang === 'es' ? 'selected' : ''}>Spanish</option>
+                        <option value="fr" ${this.lang === 'fr' ? 'selected' : ''}>French</option>
+                        <option value="de" ${this.lang === 'de' ? 'selected' : ''}>German</option>
+                        <option value="it" ${this.lang === 'it' ? 'selected' : ''}>Italian</option>
+                        <option value="zh" ${this.lang === 'zh' ? 'selected' : ''}>Chinese</option>
+                        <option value="ja" ${this.lang === 'ja' ? 'selected' : ''}>Japanese</option>
+                    </select>
+                    <button id="listen-${this.id}" class="listen-btn">🎤 Start Listening</button>
+                </div>
+                <div class="status" id="status-${this.id}">Ready</div>
+            `;
+            container.appendChild(card);
+            this.element = card;
+
+            // attach listeners
+            const langSelect = document.getElementById(`lang-${this.id}`);
+            langSelect.addEventListener('change', (e) => {
+                this.lang = e.target.value;
+                this.updateScoreDisplay();
+            });
+
+            const listenBtn = document.getElementById(`listen-${this.id}`);
+            listenBtn.addEventListener('click', () => this.toggleListening());
+        }
+
+        escapeHtml(str) {
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        updateScoreDisplay() {
+            const scoreSpan = document.getElementById(`score-${this.id}`);
+            if (scoreSpan) scoreSpan.innerText = this.currentScore.toFixed(2);
+            if (this.onScoreUpdate) this.onScoreUpdate(this.id, this.currentScore);
+        }
+
+        async processUtterance(transcript) {
+            const statusDiv = document.getElementById(`status-${this.id}`);
+            statusDiv.innerText = `Translating...`;
+            // Translate to English for comparison
+            const translated = await translateText(transcript, this.lang, 'en');
+            // Simulate "understanding" – here we use the translated text as the understood version
+            // In a real system, you'd compare with a separate interpretation. For demo, we compute similarity between original and translated.
+            const similarity = semanticSimilarity(transcript, translated);
+            const newScore = similarityToCIS(similarity);
+            this.currentScore = newScore;
+            this.updateScoreDisplay();
+            statusDiv.innerText = `Last: "${transcript.substring(0, 50)}..." → score ${newScore.toFixed(2)}`;
+            setTimeout(() => {
+                if (statusDiv.innerText.includes("Last:")) statusDiv.innerText = "Listening...";
+            }, 3000);
+        }
+
+        toggleListening() {
+            if (this.isListening) {
+                this.stopListening();
+            } else {
+                this.startListening();
+            }
+        }
+
+        startListening() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert("Speech recognition not supported in this browser. Please use Chrome/Edge.");
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            this.recognition = new SpeechRecognition();
+            this.recognition.lang = this.lang === 'zh' ? 'zh-CN' : (this.lang === 'ja' ? 'ja-JP' : this.lang);
+            this.recognition.interimResults = false;
+            this.recognition.continuous = true;
+            this.recognition.onresult = async (event) => {
+                const last = event.results.length - 1;
+                const transcript = event.results[last][0].transcript;
+                await this.processUtterance(transcript);
+            };
+            this.recognition.onerror = (event) => {
+                console.error("Recognition error", event.error);
+                const statusDiv = document.getElementById(`status-${this.id}`);
+                statusDiv.innerText = `Error: ${event.error}`;
+                this.stopListening();
+            };
+            this.recognition.onend = () => {
+                if (this.isListening) {
+                    // restart if still intended to listen
+                    this.recognition.start();
+                }
+            };
+            this.recognition.start();
+            this.isListening = true;
+            const btn = document.getElementById(`listen-${this.id}`);
+            btn.innerText = "🔴 Stop Listening";
+            const statusDiv = document.getElementById(`status-${this.id}`);
+            statusDiv.innerText = "Listening...";
+        }
+
+        stopListening() {
+            if (this.recognition) {
+                this.recognition.stop();
+                this.recognition = null;
+            }
+            this.isListening = false;
+            const btn = document.getElementById(`listen-${this.id}`);
+            if (btn) btn.innerText = "🎤 Start Listening";
+            const statusDiv = document.getElementById(`status-${this.id}`);
+            if (statusDiv) statusDiv.innerText = "Stopped";
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // App state
+    // ------------------------------------------------------------------
+    let participants = [];
+    let nextId = 1;
+    let groupScores = {}; // id -> score
+
+    function updateAllScores() {
+        // In a group call, you could compute a group average or just show each.
+        // The UI already shows individual scores.
+    }
+
+    function addParticipant(name, lang) {
+        const id = nextId++;
+        const participant = new Participant(id, name, lang, (pid, score) => {
+            groupScores[pid] = score;
+            updateAllScores();
+        });
+        participants.push(participant);
+    }
+
+    // Initial default participants: "You" and "Caller 1"
+    addParticipant("You", "en");
+    addParticipant("Caller 1", "es");
+
+    // Add participant button
+    document.getElementById('addParticipantBtn').addEventListener('click', () => {
+        const nameInput = document.getElementById('newName');
+        const langSelect = document.getElementById('newLang');
+        let name = nameInput.value.trim();
+        if (!name) name = `Caller ${participants.length + 1}`;
+        addParticipant(name, langSelect.value);
+        nameInput.value = '';
+    });
+</script>
+</body>
+  </html>
