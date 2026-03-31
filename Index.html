@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiant AI – Adaptive Conversation Intelligence</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            margin: 0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+        .flex {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .chat-panel {
+            flex: 2;
+            min-width: 300px;
+        }
+        .side-panel {
+            flex: 1;
+            min-width: 280px;
+            background: #f8f9fc;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .user-info {
+            background: #e6f0ff;
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 20px;
+        }
+        .score-badge {
+            font-size: 1.8rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        button, input, select, textarea {
+            padding: 8px 12px;
+            border-radius: 30px;
+            border: 1px solid #cbd5e1;
+            background: white;
+        }
+        button {
+            background: #1a2a3a;
+            color: white;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #b0c4de;
+            cursor: not-allowed;
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: #ffffff;
+        }
+        .message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            max-width: 80%;
+        }
+        .user-message {
+            background: #e6f7e6;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .ai-message {
+            background: #f1f5f9;
+            align-self: flex-start;
+        }
+        .cis-score {
+            font-size: 0.7rem;
+            color: #5a6e85;
+        }
+        .graph-canvas {
+            width: 100%;
+            height: 200px;
+            margin-top: 12px;
+        }
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 12px 0;
+        }
+        .public-users {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+        .public-user {
+            cursor: pointer;
+            padding: 6px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .public-user:hover {
+            background: #e2e8f0;
+        }
+        .premium-badge {
+            background: #ffd966;
+            color: #2c3e50;
+            border-radius: 20px;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            display: inline-block;
+            margin-left: 8px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h1>🤖 Radiant AI – Adaptive Intelligence</h1>
+    <div class="flex">
+        <div class="chat-panel">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="flex" style="gap: 8px; margin-bottom: 8px;">
+                <textarea id="userInput" rows="2" style="flex:1;" placeholder="Type your message..."></textarea>
+                <button id="sendBtn">Send</button>
+            </div>
+            <div class="toggle-switch">
+                <input type="checkbox" id="premiumModeToggle" disabled>
+                <label for="premiumModeToggle">✨ Highest Response AI (costs 1000 points/day)</label>
+                <span id="pointsDisplay" style="margin-left: auto;">Points: 0</span>
+            </div>
+            <div class="user-info">
+                <strong>Your Stats</strong><br>
+                <div id="userStats"></div>
+                <div id="premiumStatus"></div>
+            </div>
+        </div>
+        <div class="side-panel">
+            <h3>📈 Conversation History</h3>
+            <canvas id="historyGraph" width="400" height="200" class="graph-canvas"></canvas>
+            <div class="toggle-switch">
+                <label>Compare with:</label>
+                <select id="compareSelect">
+                    <option value="none">None</option>
+                </select>
+            </div>
+            <div id="compareGraphContainer" style="margin-top: 12px;"></div>
+            <h3>👥 Public Users (Top 5)</h3>
+            <div id="publicUsersList" class="public-users"></div>
+            <div class="note" style="font-size:0.7rem; margin-top:12px;">
+                💡 First month free. Score 1000 total CIS in a month to renew free access.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ------------------------------------------------------------------
+    // IndexedDB for persistent storage (users, conversations, points)
+    // ------------------------------------------------------------------
+    const DB_NAME = "RadiantAI_DB";
+    const DB_VERSION = 1;
+    let db = null;
+
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                db = request.result;
+                resolve(db);
+            };
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains("users")) {
+                    db.createObjectStore("users", { keyPath: "id" });
+                }
+                if (!db.objectStoreNames.contains("conversations")) {
+                    db.createObjectStore("conversations", { keyPath: "id", autoIncrement: true });
+                }
+            };
+        });
+    }
+
+    async function getStore(storeName, mode = "readonly") {
+        if (!db) await openDB();
+        return db.transaction(storeName, mode).objectStore(storeName);
+    }
+
+    async function saveUser(user) {
+        const store = await getStore("users", "readwrite");
+        return store.put(user);
+    }
+
+    async function getUser(userId) {
+        const store = await getStore("users");
+        return store.get(userId);
+    }
+
+    async function getAllUsers() {
+        const store = await getStore("users");
+        return store.getAll();
+    }
+
+    async function saveConversation(conv) {
+        const store = await getStore("conversations", "readwrite");
+        return store.put(conv);
+    }
+
+    async function getConversations(userId) {
+        const store = await getStore("conversations");
+        return store.getAll();
+    }
+
+    // ------------------------------------------------------------------
+    // User management (simplified: one user per browser)
+    // ------------------------------------------------------------------
+    let currentUser = null;
+    let currentConversations = [];
+    let chatHistory = [];
+    let pointsBalance = 0;
+    let premiumActive = false;
+    let premiumExpiry = null; // timestamp
+    let currentPointsDay = null; // day of last deduction
+
+    // CIS scoring (simplified for demo)
+    function computeCIS(message, aiResponse) {
+        // Dummy: based on message length, sentiment etc.
+        let score = 5 + Math.random() * 3;
+        return Math.min(10, Math.max(0, score));
+    }
+
+    // AI that adapts to user's logic (simple rule-based)
+    function adaptAIPrompt(userMessages, userCISHistory) {
+        // In real system, would use ML; here we just store patterns
+        let style = "neutral";
+        let avgScore = userCISHistory.reduce((a,b)=>a+b,0) / (userCISHistory.length || 1);
+        if (avgScore > 7) style = "enthusiastic";
+        else if (avgScore < 4) style = "encouraging";
+        return style;
+    }
+
+    async function generateAIResponse(userMessage, userCIS) {
+        const style = adaptAIPrompt(chatHistory.map(m => m.text), chatHistory.map(m => m.cisScore || 0));
+        let response = "";
+        if (style === "enthusiastic") {
+            response = `That's a great point! ${userMessage} really resonates. Let's explore further.`;
+        } else if (style === "encouraging") {
+            response = `I see. Maybe we can rephrase to improve clarity. How about: ${userMessage}?`;
+        } else {
+            response = `I understand. Could you elaborate on "${userMessage}"?`;
+        }
+        // Simulate premium mode: more elaborate response
+        if (premiumActive && document.getElementById('premiumModeToggle').checked) {
+            response = `✨ (Premium) ` + response + " Also, I've aligned with your logic and suggest a deeper perspective.";
+        }
+        return response;
+    }
+
+    async function addMessage(sender, text, aiResponse, cisScore) {
+        const msg = {
+            sender,
+            text,
+            timestamp: Date.now(),
+            cisScore
+        };
+        chatHistory.push(msg);
+        renderChat();
+
+        // Save conversation
+        currentConversations.push({
+            userId: currentUser.id,
+            timestamp: Date.now(),
+            sender,
+            text,
+            cisScore
+        });
+        await saveConversation({ userId: currentUser.id, timestamp: Date.now(), sender, text, cisScore });
+        updateGraphs();
+    }
+
+    function renderChat() {
+        const container = document.getElementById('chatMessages');
+        container.innerHTML = chatHistory.map(msg => `
+            <div class="message ${msg.sender === 'user' ? 'user-message' : 'ai-message'}">
+                <div><strong>${msg.sender === 'user' ? 'You' : 'AI'}</strong></div>
+                <div>${msg.text}</div>
+                ${msg.cisScore ? `<div class="cis-score">CIS: ${msg.cisScore.toFixed(2)}</div>` : ''}
+            </div>
+        `).join('');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Points and free month logic
+    async function updatePointsAndPremium() {
+        if (!currentUser) return;
+        const now = Date.now();
+        // Check if free month expired
+        if (!premiumActive && currentUser.freeMonthExpiry && now > currentUser.freeMonthExpiry) {
+            // free month over
+            if (currentUser.totalCIS >= 1000) {
+                // renew free month
+                currentUser.freeMonthExpiry = now + 30*24*60*60*1000;
+                await saveUser(currentUser);
+                premiumActive = true;
+                premiumExpiry = currentUser.freeMonthExpiry;
+                document.getElementById('premiumStatus').innerHTML = `<span style="color:green;">✅ Premium active until ${new Date(premiumExpiry).toLocaleDateString()}</span>`;
+            } else {
+                premiumActive = false;
+                premiumExpiry = null;
+                document.getElementById('premiumStatus').innerHTML = `<span style="color:red;">❌ Free trial expired. Score 1000 total CIS to renew.</span>`;
+            }
+        } else if (premiumActive) {
+            // deduct points daily for premium mode if toggled
+            const today = new Date().toISOString().slice(0,10);
+            if (currentPointsDay !== today && document.getElementById('premiumModeToggle').checked && premiumActive) {
+                if (pointsBalance >= 1000) {
+                    pointsBalance -= 1000;
+                    currentPointsDay = today;
+                    document.getElementById('pointsDisplay').innerText = `Points: ${pointsBalance.toFixed(0)}`;
+                    await saveUser(currentUser);
+                } else {
+                    alert("Not enough points to use Premium mode today.");
+                    document.getElementById('premiumModeToggle').checked = false;
+                }
+            }
+        }
+        document.getElementById('pointsDisplay').innerText = `Points: ${pointsBalance.toFixed(0)}`;
+        document.getElementById('premiumModeToggle').disabled = !premiumActive;
+    }
+
+    // Graphs
+    let historyChart = null;
+    let compareChart = null;
+
+    function getConversationScores(conversations, userId) {
+        const userConvs = conversations.filter(c => c.userId === userId);
+        return userConvs.map(c => c.cisScore).filter(s => s !== undefined);
+    }
+
+    function renderHistoryGraph() {
+        const scores = getConversationScores(currentConversations, currentUser.id);
+        const ctx = document.getElementById('historyGraph').getContext('2d');
+        if (historyChart) historyChart.destroy();
+        historyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: scores.map((_, i) => i+1),
+                datasets: [{
+                    label: 'Your CIS over time',
+                    data: scores,
+                    borderColor: '#1a2a3a',
+                    fill: false
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, scales: { y: { min: 0, max: 10 } } }
+        });
+    }
+
+    async function renderComparisonGraph() {
+        const compareUserId = document.getElementById('compareSelect').value;
+        if (!compareUserId || compareUserId === 'none') {
+            if (compareChart) compareChart.destroy();
+            document.getElementById('compareGraphContainer').innerHTML = '';
+            return;
+        }
+        const otherUser = await getUser(compareUserId);
+        if (!otherUser) return;
+        const otherConvs = await getConversations();
+        const otherScores = getConversationScores(otherConvs, compareUserId);
+        const myScores = getConversationScores(currentConversations, currentUser.id);
+        const maxLen = Math.max(myScores.length, otherScores.length);
+        const labels = Array.from({ length: maxLen }, (_, i) => i+1);
+        const ctx = document.createElement('canvas');
+        ctx.id = 'compareCanvas';
+        document.getElementById('compareGraphContainer').innerHTML = '';
+        document.getElementById('compareGraphContainer').appendChild(ctx);
+        if (compareChart) compareChart.destroy();
+        compareChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'You', data: myScores, borderColor: '#2e7d32' },
+                    { label: otherUser.name, data: otherScores, borderColor: '#1976d2' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: true, scales: { y: { min: 0, max: 10 } } }
+        });
+    }
+
+    function updateGraphs() {
+        renderHistoryGraph();
+        renderComparisonGraph();
+    }
+
+    // Public users list (top 5 by total CIS)
+    async function updatePublicUsers() {
+        const allUsers = await getAllUsers();
+        const usersWithScores = [];
+        for (const user of allUsers) {
+            const convs = await getConversations();
+            const scores = getConversationScores(convs, user.id);
+            const totalCIS = scores.reduce((a,b)=>a+b,0);
+            usersWithScores.push({ ...user, totalCIS });
+        }
+        usersWithScores.sort((a,b) => b.totalCIS - a.totalCIS);
+        const top5 = usersWithScores.slice(0,5);
+        const container = document.getElementById('publicUsersList');
+        container.innerHTML = top5.map(u => `
+            <div class="public-user" data-id="${u.id}">
+                ${u.name} - CIS: ${u.totalCIS.toFixed(0)} points
+            </div>
+        `).join('');
+        // Add click to compare
+        document.querySelectorAll('.public-user').forEach(el => {
+            el.addEventListener('click', () => {
+                const userId = el.getAttribute('data-id');
+                const select = document.getElementById('compareSelect');
+                // Add option if not exists
+                if (![...select.options].some(opt => opt.value === userId)) {
+                    const opt = document.createElement('option');
+                    opt.value = userId;
+                    opt.text = `Compare with ${el.innerText.split(' -')[0]}`;
+                    select.appendChild(opt);
+                }
+                select.value = userId;
+                renderComparisonGraph();
+            });
+        });
+    }
+
+    // Main send logic
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+        const input = document.getElementById('userInput');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+
+        // Add user message
+        await addMessage('user', text, null, null);
+
+        // Compute CIS for this turn (simulate)
+        const cisScore = computeCIS(text, "");
+        // Update user's totalCIS
+        currentUser.totalCIS = (currentUser.totalCIS || 0) + cisScore;
+        // Points: each CIS point = 1 point (for demo)
+        pointsBalance += cisScore;
+        currentUser.points = pointsBalance;
+        await saveUser(currentUser);
+
+        // Generate AI response
+        const aiText = await generateAIResponse(text, cisScore);
+        await addMessage('ai', aiText, null, cisScore);
+
+        // Update UI
+        updateUserDisplay();
+        updatePointsAndPremium();
+        await updatePublicUsers();
+        await updateGraphs();
+    });
+
+    async function updateUserDisplay() {
+        const statsDiv = document.getElementById('userStats');
+        statsDiv.innerHTML = `
+            Name: ${currentUser.name}<br>
+            Total CIS: ${currentUser.totalCIS?.toFixed(2) || 0}<br>
+            Free month expiry: ${currentUser.freeMonthExpiry ? new Date(currentUser.freeMonthExpiry).toLocaleDateString() : 'Not started'}
+        `;
+    }
+
+    // Initialize user (first time or existing)
+    async function initUser() {
+        let userId = localStorage.getItem('radiant_user_id');
+        if (userId) {
+            currentUser = await getUser(userId);
+        }
+        if (!currentUser) {
+            const name = prompt("Enter your name for Radiant AI:", "Explorer");
+            if (!name) return;
+            currentUser = {
+                id: Date.now().toString(),
+                name,
+                totalCIS: 0,
+                points: 0,
+                freeMonthExpiry: Date.now() + 30*24*60*60*1000
+            };
+            await saveUser(currentUser);
+            localStorage.setItem('radiant_user_id', currentUser.id);
+        }
+        pointsBalance = currentUser.points || 0;
+        premiumActive = (currentUser.freeMonthExpiry && Date.now() < currentUser.freeMonthExpiry);
+        premiumExpiry = currentUser.freeMonthExpiry;
+        // Load conversations
+        const allConvs = await getConversations();
+        currentConversations = allConvs.filter(c => c.userId === currentUser.id).sort((a,b) => a.timestamp - b.timestamp);
+        chatHistory = currentConversations.map(c => ({ sender: c.sender, text: c.text, cisScore: c.cisScore }));
+        renderChat();
+        updateUserDisplay();
+        updatePointsAndPremium();
+        await updatePublicUsers();
+        updateGraphs();
+    }
+
+    openDB().then(() => initUser()).catch(console.error);
+</script>
+</body>
+  </html>
