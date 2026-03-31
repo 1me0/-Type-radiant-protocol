@@ -75,3 +75,18 @@ This creates a gamified incentive for users to push the system’s value higher.
 ## 🧱 Architecture
 
 Radiant is a multi‑layer system:
+**Stack**  
+- **Solidity** – Smart contracts  
+- **TypeScript / JavaScript** – Frontend & SDK  
+- **Python** – Intelligence & scoring API  
+- **Rust** – Core ZK proof folding & performance  
+
+---
+
+## 🧪 Try It (Quick Start)
+
+```bash
+git clone https://github.com/1me0/Type-radiant-protocol.git
+cd Type-radiant-protocol
+npm install
+npm run dev
