@@ -1,7 +1,14 @@
 import { ethers } from 'ethers';
 import { Contract, Signer } from 'ethers';
 
-const CONTRACT_ABI = [ /* paste the full ABI from your contract compilation */ ];
+// NOTE: You must paste your actual ABI here after running 'npx hardhat compile'
+const CONTRACT_ABI = [
+    "function convertPointsToRAD(uint256 points) external",
+    "function stake() external payable",
+    "function submitProof(string proofHash) external",
+    "function claim() external",
+    "function users(address) view returns (uint256 stake, uint256 reputation, uint256 rewards)"
+];
 
 export class RadiantSDK {
     private contract: Contract;
@@ -10,6 +17,24 @@ export class RadiantSDK {
     constructor(contractAddress: string, signer: Signer) {
         this.signer = signer;
         this.contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+    }
+
+    /**
+     * @dev Bridges the HTML/Frontend points to the Sovereign $RAD Tokens
+     * Matches the logic in Radiant (1).sol
+     */
+    async claimTokensToWallet(points: number) {
+        try {
+            console.log(`Initiating anchor for ${points} points...`);
+            // This calls the conversion law in your smart contract
+            const tx = await this.contract.convertPointsToRAD(points); 
+            
+            await tx.wait(); // Wait for the blockchain to confirm the "Energy"
+            alert("Sovereign Energy Anchored to Wallet! $RAD minted.");
+        } catch (error) {
+            console.error("Anchoring failed:", error);
+            alert("Failed to anchor points. Ensure you have 1000+ points and gas fee.");
+        }
     }
 
     async stake(amountEth: string) {
