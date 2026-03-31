@@ -522,3 +522,137 @@
 </script>
 </body>
   </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiant Transaction – Architect Fee Game</title>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui; }
+        body { background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 600px; background: white; border-radius: 24px; padding: 24px; box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; }
+        .info { background: #e6f0ff; padding: 12px; border-radius: 16px; margin-bottom: 20px; }
+        input, button { padding: 10px; margin: 6px 0; width: 100%; border-radius: 30px; border: 1px solid #cbd5e1; }
+        button { background: #1a2a3a; color: white; cursor: pointer; }
+        button:disabled { background: #b0c4de; }
+        .status { font-size: 0.8rem; color: #5a6e85; margin-top: 12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚡ Radiant Transaction</h1>
+    <div class="info">
+        <strong>Architect Fee: 50%</strong><br>
+        If your transaction amount > Architect's last record, you keep the fee (reward).<br>
+        Otherwise, the fee goes to the architect.
+    </div>
+
+    <div id="accountInfo"></div>
+    <div id="recordInfo"></div>
+
+    <label>Recipient Address</label>
+    <input type="text" id="recipient" placeholder="0x...">
+
+    <label>Amount (tokens)</label>
+    <input type="number" id="amount" step="0.0001" placeholder="e.g., 100">
+
+    <button id="sendBtn" disabled>Send</button>
+    <div id="status" class="status"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+<script>
+    // ---------- CONFIG ----------
+    // Replace with your deployed contract addresses (testnet)
+    const TOKEN_ADDRESS = "0xYourTokenAddress";   // e.g., RadiantShares token
+    const FEE_CONTRACT_ADDRESS = "0xYourFeeContractAddress";
+
+    // Minimal ERC20 ABI
+    const ERC20_ABI = [
+        "function approve(address spender, uint256 amount) returns (bool)",
+        "function transferFrom(address from, address to, uint256 amount) returns (bool)",
+        "function transfer(address to, uint256 amount) returns (bool)",
+        "function balanceOf(address owner) view returns (uint256)",
+        "function decimals() view returns (uint8)"
+    ];
+
+    // ArchitectFee contract ABI
+    const FEE_CONTRACT_ABI = [
+        "function transferWithFee(address recipient, uint256 amount) external",
+        "function lastArchitectTransactionAmount() view returns (uint256)",
+        "function architect() view returns (address)"
+    ];
+
+    let provider, signer, tokenContract, feeContract;
+    let userAddress;
+
+    async function init() {
+        if (!window.ethereum) {
+            alert("MetaMask not detected. Please install.");
+            return;
+        }
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+
+        tokenContract = new ethers.Contract(TOKEN_ADDRESS, ERC20_ABI, signer);
+        feeContract = new ethers.Contract(FEE_CONTRACT_ADDRESS, FEE_CONTRACT_ABI, signer);
+
+        // Update UI
+        document.getElementById("accountInfo").innerHTML = `
+            <strong>Your address:</strong> ${userAddress.slice(0,6)}...${userAddress.slice(-4)}
+        `;
+        updateRecord();
+        document.getElementById("sendBtn").disabled = false;
+    }
+
+    async function updateRecord() {
+        const record = await feeContract.lastArchitectTransactionAmount();
+        const architect = await feeContract.architect();
+        const decimals = await tokenContract.decimals();
+        const recordHuman = ethers.formatUnits(record, decimals);
+        document.getElementById("recordInfo").innerHTML = `
+            <div><strong>Architect:</strong> ${architect}</div>
+            <div><strong>Architect's last transaction record:</strong> ${recordHuman} tokens</div>
+        `;
+    }
+
+    document.getElementById("sendBtn").addEventListener("click", async () => {
+        const recipient = document.getElementById("recipient").value.trim();
+        const amountStr = document.getElementById("amount").value;
+        if (!recipient || !amountStr || amountStr <= 0) {
+            alert("Enter valid recipient and amount.");
+            return;
+        }
+
+        const decimals = await tokenContract.decimals();
+        const amount = ethers.parseUnits(amountStr, decimals);
+        const fee = amount * 50n / 100n;
+        const totalNeeded = amount + fee;
+
+        // Check balance
+        const balance = await tokenContract.balanceOf(userAddress);
+        if (balance < totalNeeded) {
+            alert(`Insufficient balance. You need ${ethers.formatUnits(totalNeeded, decimals)} tokens (${amountStr} + 50% fee).`);
+            return;
+        }
+
+        // Approve the fee contract to spend totalNeeded
+        const approveTx = await tokenContract.approve(FEE_CONTRACT_ADDRESS, totalNeeded);
+        await approveTx.wait();
+
+        // Send transaction
+        const tx = await feeContract.transferWithFee(recipient, amount);
+        await tx.wait();
+
+        document.getElementById("status").innerHTML = `✅ Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+        updateRecord();
+    });
+
+    init().catch(console.error);
+</script>
+</body>
+</html>
