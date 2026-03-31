@@ -90,3 +90,10 @@ git clone https://github.com/1me0/Type-radiant-protocol.git
 cd Type-radiant-protocol
 npm install
 npm run dev
+/contracts        → Smart contracts (Solidity)
+/frontend         → UI layer
+/backend          → Core logic & scoring API
+/docs/genesis     → Foundational philosophy
+/relayer          → Event relay system
+/websocket        → Real‑time communication
+/worker           → Distributed proof folding
