@@ -1,5 +1,68 @@
-node_modules
-__pycache__
+# --- Environment files ---
 .env
-dist
-build
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# --- Node.js / React / TypeScript ---
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Hardhat / Solidity ---
+artifacts/
+cache/
+typechain-types/
+coverage.json
+coverage/
+gas-report.txt
+deployments/localhost/
+deployments/*/solcInputs/
+
+# --- Rust ---
+target/
+**/target/
+Cargo.lock   # (unless you commit lockfiles; usually yes for binaries)
+*.rs.bk
+*.rlib
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+env/
+.venv/
+
+# --- Docker ---
+docker-compose.override.yml
+*.dockerignore
+*.pid
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Secrets & keys (if any) ---
+*.pem
+*.key
+*.priv
+*.secret
