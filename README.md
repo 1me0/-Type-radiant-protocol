@@ -60,3 +60,18 @@ A dynamic scoring mechanism evaluating:
 
 ### 3. Kinetic Reward Engine
 Value distribution is governed by:
+- **P** = participation (transaction value)  
+- **Q** = quality (CIS score)  
+
+Higher‑quality interactions earn proportionally more.
+
+### 4. Architect Fee
+A built‑in economic model that sustains system creators while maintaining fairness.  
+- 50% of every reward goes to the protocol architect, **unless** the transaction amount exceeds the architect’s last recorded transaction – in which case the fee is returned to the sender as a reward.  
+This creates a gamified incentive for users to push the system’s value higher.
+
+---
+
+## 🧱 Architecture
+
+Radiant is a multi‑layer system:
