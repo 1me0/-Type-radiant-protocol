@@ -98,3 +98,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 }
+// Keep your existing imports and RangeCircuit struct above this...
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Setup Kafka and Nova (Keep your existing setup code here)
+    // ... (Consumer/Producer setup)
+
+    // 2. Add the State Map for Folding
+    let mut pending_proofs: HashMap<u32, ProofMessage> = HashMap::new();
+    let mut folded_count = 0;
+
+    println!("Radiant Worker: Recursive Folding Mode Active.");
+
+    loop {
+        match consumer.recv().await {
+            Err(e) => eprintln!("Kafka error: {}", e),
+            Ok(msg) => {
+                if let Some(payload) = msg.payload() {
+                    if let Ok(incoming) = serde_json::from_slice::<ProofMessage>(payload) {
+                        
+                        // 3. The Folding Logic (The 1% Leverage)
+                        // We use the 'index' to find a pair (e.g., index 0 and 1 pair into ID 0)
+                        let pair_id = incoming.index / 2; 
+
+                        if let Some(companion) = pending_proofs.remove(&pair_id) {
+                            // Both halves found! Perform the Nova Fold here.
+                            println!("Pair Found for ID {}. Folding proofs...", pair_id);
+                            
+                            let folded_output = ValidatedMessage {
+                                user: incoming.user.clone(),
+                                valid: true,
+                                reward: "0.5 RAD".to_string(), // Reward for folding
+                            };
+
+                            let serialized = serde_json::to_vec(&folded_output)?;
+                            producer.send(
+                                FutureRecord::to("folded-proofs")
+                                    .payload(&serialized)
+                                    .key(&pair_id.to_string()),
+                                Duration::from_secs(0)
+                            ).await?;
+
+                            folded_count += 1;
+                        } else {
+                            // Wait for the companion proof to arrive
+                            pending_proofs.insert(pair_id, incoming);
+                            println!("Waiting for companion proof for pair ID: {}", pair_id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
