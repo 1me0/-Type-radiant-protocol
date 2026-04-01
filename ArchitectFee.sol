@@ -150,3 +150,31 @@ contract ArchitectFee {
         architect = newArchitect;
     }
 }
+// Add to Radiant.sol
+
+event CISScoreSubmitted(address indexed user, uint256 score, uint256 reward);
+
+function submitCISScore(uint256 score, bytes32 messageHash, bytes memory signature) external {
+    require(score <= 1000, "Score out of range");
+    address signer = recoverSigner(messageHash, signature);
+    require(signer == msg.sender, "Invalid signature");
+
+    uint256 reward = (score * 0.001 ether) / 1000; // 0.001 ETH max
+    users[msg.sender].reputation += score / 10;   // e.g., 10 reputation per CIS point
+    users[msg.sender].rewards += reward;
+
+    emit CISScoreSubmitted(msg.sender, score, reward);
+}
+
+function recoverSigner(bytes32 messageHash, bytes memory signature) internal pure returns (address) {
+    require(signature.length == 65, "Invalid signature length");
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+    assembly {
+        r := mload(add(signature, 32))
+        s := mload(add(signature, 64))
+        v := byte(0, mload(add(signature, 96)))
+    }
+    return ecrecover(messageHash, v, r, s);
+}
