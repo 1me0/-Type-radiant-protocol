@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiant Protocol – Proof of Presence</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #0a1a2a 0%, #1a2a3a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            max-width: 500px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 32px;
+            padding: 32px 28px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.2);
+            backdrop-filter: blur(2px);
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1a2a3a, #2c5a7a);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+        .sub {
+            color: #5a6e85;
+            margin-bottom: 28px;
+            font-size: 0.9rem;
+        }
+        .presence-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+        input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 60px;
+            border: 1px solid #cbd5e1;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+            background: white;
+        }
+        input:focus {
+            outline: none;
+            border-color: #2c7a4d;
+            box-shadow: 0 0 0 3px rgba(44,122,77,0.2);
+        }
+        button {
+            background: #1a2a3a;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 60px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 28px;
+        }
+        button:hover {
+            background: #2c4a6a;
+        }
+        .score-panel {
+            background: #f0f4f8;
+            border-radius: 24px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+        .score-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #4a5a6a;
+            margin-bottom: 8px;
+        }
+        .score-value {
+            font-size: 3.2rem;
+            font-weight: 800;
+            font-family: monospace;
+            color: #2c7a4d;
+        }
+        .score-description {
+            font-size: 0.75rem;
+            color: #5a6e85;
+            margin-top: 8px;
+        }
+        .wallet-badge {
+            background: #e6f0ff;
+            border-radius: 40px;
+            padding: 6px 12px;
+            font-size: 0.7rem;
+            display: inline-block;
+            word-break: break-all;
+            max-width: 100%;
+        }
+        footer {
+            font-size: 0.7rem;
+            color: #8a9aaa;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="presence-icon">✨</div>
+    <h1>Proof of Presence</h1>
+    <div class="sub">Verify your existence · Persistent identity</div>
+
+    <input type="text" id="userInput" placeholder="Wallet address or name (e.g., 0x... or @username)" autocomplete="off">
+    <button id="registerBtn">⚡ Register Presence</button>
+
+    <div class="score-panel" id="scorePanel" style="display: none;">
+        <div class="score-label">Your Presence Score</div>
+        <div class="score-value" id="scoreValue">—</div>
+        <div class="score-description" id="scoreDesc">Proof of your unique signature</div>
+        <div class="wallet-badge" id="walletBadge"></div>
+    </div>
+    <footer>
+        🔒 Stored locally in your browser · Persistent identity across visits
+    </footer>
+</div>
+
+<script>
+    // Helper: deterministic hash (simple djb2) to generate a score between 0-100
+    function hashStringToScore(str) {
+        let hash = 5381;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) + hash) + str.charCodeAt(i);
+            hash = hash & hash; // keep 32-bit
+        }
+        // map to 0-100
+        return Math.abs(hash % 101);
+    }
+
+    // Load from localStorage on page load
+    function loadPresence() {
+        const storedName = localStorage.getItem('radiant_presence_name');
+        const storedScore = localStorage.getItem('radiant_presence_score');
+        if (storedName && storedScore !== null) {
+            document.getElementById('userInput').value = storedName;
+            document.getElementById('scoreValue').innerText = storedScore;
+            document.getElementById('walletBadge').innerText = storedName.length > 20 ? storedName.slice(0,18)+'...' : storedName;
+            document.getElementById('scorePanel').style.display = 'block';
+            // optional: set description based on score
+            const scoreNum = parseInt(storedScore);
+            let desc = '';
+            if (scoreNum >= 90) desc = '🌟 Legendary presence';
+            else if (scoreNum >= 70) desc = '✨ Strong resonance';
+            else if (scoreNum >= 50) desc = '🔹 Verified entity';
+            else desc = '🔸 Emerging presence';
+            document.getElementById('scoreDesc').innerText = desc;
+        }
+    }
+
+    // Register a new presence
+    function registerPresence() {
+        const input = document.getElementById('userInput').value.trim();
+        if (input === "") {
+            alert("Please enter a wallet address or name.");
+            return;
+        }
+        // Generate deterministic score
+        const score = hashStringToScore(input);
+        // Store in localStorage
+        localStorage.setItem('radiant_presence_name', input);
+        localStorage.setItem('radiant_presence_score', score);
+        // Update UI
+        document.getElementById('scoreValue').innerText = score;
+        document.getElementById('walletBadge').innerText = input.length > 20 ? input.slice(0,18)+'...' : input;
+        document.getElementById('scorePanel').style.display = 'block';
+        let desc = '';
+        if (score >= 90) desc = '🌟 Legendary presence';
+        else if (score >= 70) desc = '✨ Strong resonance';
+        else if (score >= 50) desc = '🔹 Verified entity';
+        else desc = '🔸 Emerging presence';
+        document.getElementById('scoreDesc').innerText = desc;
+
+        // Also update the input placeholder to show it's saved
+        document.getElementById('userInput').placeholder = "✓ Presence registered!";
+        setTimeout(() => {
+            document.getElementById('userInput').placeholder = "Wallet address or name (e.g., 0x... or @username)";
+        }, 2000);
+    }
+
+    // Attach event listeners
+    document.getElementById('registerBtn').addEventListener('click', registerPresence);
+    // Also allow pressing Enter
+    document.getElementById('userInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') registerPresence();
+    });
+
+    // Load existing presence on page load
+    loadPresence();
+</script>
+</body>
+</html>
