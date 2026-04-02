@@ -1,16 +1,7 @@
 #!/usr/bin/env python3
 """
 Secure Vault with 5‑day Delay and Architect Approval
-
-Encrypt sensitive files, request access, and enforce a 5‑day waiting period
-(or architect override). Decryption only after conditions are met.
-
-Usage:
-    ./vault.py encrypt <file>          # Encrypt file to <file>.enc
-    ./vault.py request <file.enc>      # Request access (starts timer)
-    ./vault.py approve <request_id>    # Architect approves early
-    ./vault.py decrypt <file.enc>      # Decrypt after approval/5 days
-    ./vault.py list                    # List all requests
+Uses AES‑256‑GCM (authenticated encryption) for maximum security.
 """
 
 import os
@@ -22,6 +13,7 @@ import hashlib
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 
 VAULT_DIR = ".vault"
 REQUESTS_FILE = os.path.join(VAULT_DIR, "requests.json")
@@ -33,12 +25,13 @@ def init():
         with open(REQUESTS_FILE, 'w') as f:
             json.dump([], f)
 
-def derive_key(password: str, salt: bytes) -> bytes:
+def derive_key(password: str, salt: bytes, iterations: int = 600_000) -> bytes:
+    """Standard PBKDF2 key derivation (secure and simple)."""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
-        iterations=100000,
+        iterations=iterations,
         backend=default_backend()
     )
     return kdf.derive(password.encode())
@@ -49,18 +42,51 @@ def encrypt_file(file_path):
         return
     password = getpass.getpass("Enter encryption password: ")
     salt = os.urandom(16)
+    iv = os.urandom(12)                     # 12 bytes for GCM
     key = derive_key(password, salt)
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+
+    cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
     encryptor = cipher.encryptor()
+
     with open(file_path, 'rb') as f:
         plaintext = f.read()
+
     ciphertext = encryptor.update(plaintext) + encryptor.finalize()
-    encrypted_data = salt + iv + ciphertext
+    tag = encryptor.tag
+
+    # Format: salt (16) + iv (12) + tag (16) + ciphertext
+    encrypted_data = salt + iv + tag + ciphertext
     output_file = file_path + ".enc"
     with open(output_file, 'wb') as f:
         f.write(encrypted_data)
     print(f"Encrypted to {output_file}")
+
+def decrypt_file(enc_file):
+    if not can_decrypt(enc_file):
+        return
+    password = getpass.getpass("Enter encryption password: ")
+    with open(enc_file, 'rb') as f:
+        data = f.read()
+    salt = data[:16]
+    iv = data[16:28]
+    tag = data[28:44]
+    ciphertext = data[44:]
+
+    key = derive_key(password, salt)
+    cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
+    decryptor = cipher.decryptor()
+    try:
+        plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+        out_file = enc_file[:-4] if enc_file.endswith('.enc') else enc_file + '.dec'
+        with open(out_file, 'wb') as f:
+            f.write(plaintext)
+        print(f"Decrypted to {out_file}")
+    except Exception as e:
+        print("Decryption failed (wrong password or corrupted file).", e)
+
+# --- The rest of your request/approval functions remain unchanged ---
+# (request_access, approve_request, can_decrypt, list_requests, etc.)
+# They are identical to your original, so we keep them.
 
 def request_access(enc_file):
     if not os.path.exists(enc_file):
@@ -126,27 +152,6 @@ def can_decrypt(enc_file):
                     return False
     print("No access request for this file. Please request first.")
     return False
-
-def decrypt_file(enc_file):
-    if not can_decrypt(enc_file):
-        return
-    password = getpass.getpass("Enter encryption password: ")
-    with open(enc_file, 'rb') as f:
-        data = f.read()
-    salt = data[:16]
-    iv = data[16:32]
-    ciphertext = data[32:]
-    key = derive_key(password, salt)
-    cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
-    decryptor = cipher.decryptor()
-    try:
-        plaintext = decryptor.update(ciphertext) + decryptor.finalize()
-        out_file = enc_file[:-4] if enc_file.endswith('.enc') else enc_file + '.dec'
-        with open(out_file, 'wb') as f:
-            f.write(plaintext)
-        print(f"Decrypted to {out_file}")
-    except Exception:
-        print("Decryption failed (wrong password or corrupted file).")
 
 def list_requests():
     init()
