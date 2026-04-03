@@ -125,3 +125,15 @@ contract RadiantShares is ERC20, Ownable {
         emit Claimed(msg.sender, claimable);
     }
 }
+const REQUIRED_CONTRACT_ADDRESS = process.env.REACT_APP_RADIANT_SHARES;
+const EXPECTED_CHAIN_ID = 42161; // Arbitrum
+
+if (chainId !== EXPECTED_CHAIN_ID) {
+    alert("Wrong network");
+    return;
+}
+const code = await provider.getCode(REQUIRED_CONTRACT_ADDRESS);
+if (code === "0x") {
+    alert("Invalid contract address");
+    return;
+}
