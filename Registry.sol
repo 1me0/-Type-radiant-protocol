@@ -63,3 +63,7 @@ contract Registry {
         owner = address(0);
     }
 }
+constructor(address initialOwner) {
+    owner = initialOwner;
+    emit OwnershipTransferred(address(0), initialOwner);
+}
