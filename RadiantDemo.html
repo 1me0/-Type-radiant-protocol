@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiant Protocol – Live Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #0a1a2a 0%, #1a2a3a 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #9bb8d4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+        }
+        .sub {
+            color: #9bb8d4;
+            margin-bottom: 32px;
+            font-size: 1rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 24px;
+        }
+        .card {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 28px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+        }
+        .card h2 {
+            font-size: 1.4rem;
+            margin: 0 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+        }
+        .card p {
+            color: #cbd5e0;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 40px;
+            border: 1px solid #2c4a6a;
+            background: rgba(0,0,0,0.3);
+            color: white;
+            margin-bottom: 12px;
+        }
+        button {
+            background: #2c7a4d;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #1e5a3a;
+        }
+        .score-badge {
+            background: #1e2a3a;
+            border-radius: 30px;
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        .metric-slider {
+            margin: 12px 0;
+        }
+        .metric-slider label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #cbd5e0;
+        }
+        input[type="range"] {
+            margin-top: 4px;
+        }
+        .value-display {
+            font-weight: bold;
+            color: #7bcfa2;
+        }
+        .record-badge {
+            background: #ffd966;
+            color: #1a2a3a;
+            border-radius: 20px;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+        }
+        hr {
+            border-color: #2c4a6a;
+            margin: 16px 0;
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #5a7a9a;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>✨ Radiant Protocol – Live Demo</h1>
+    <div class="sub">ZK‑Recursive Proof of Presence · CIS Scoring · Value Alignment</div>
+
+    <div class="grid">
+        <!-- 1. Proof of Presence -->
+        <div class="card">
+            <h2>🔹 Proof of Presence</h2>
+            <p>Generate a deterministic presence score from your wallet or name. Stored locally – proves you were here.</p>
+            <input type="text" id="presenceId" placeholder="Wallet address or name (e.g., 0x... or @alice)">
+            <button id="registerPresenceBtn">✨ Register Presence</button>
+            <div id="presenceResult" style="margin-top: 12px;"></div>
+        </div>
+
+        <!-- 2. CIS Scoring -->
+        <div class="card">
+            <h2>📊 CIS Score (Communication Intelligence)</h2>
+            <p>Rate your message clarity. Higher score = better alignment, understanding, accuracy, low distortion.</p>
+            <textarea id="messageText" rows="2" placeholder="Type a message..."></textarea>
+            <div class="metric-slider">
+                <label>Alignment (context fit) <span id="alignVal">0.80</span></label>
+                <input type="range" id="alignment" min="0" max="1" step="0.01" value="0.8">
+            </div>
+            <div class="metric-slider">
+                <label>Understanding (intent captured) <span id="understandVal">0.80</span></label>
+                <input type="range" id="understanding" min="0" max="1" step="0.01" value="0.8">
+            </div>
+            <div class="metric-slider">
+                <label>Accuracy (correctness) <span id="accuracyVal">0.80</span></label>
+                <input type="range" id="accuracy" min="0" max="1" step="0.01" value="0.8">
+            </div>
+            <div class="metric-slider">
+                <label>Distortion (noise/manipulation) <span id="distortVal">0.10</span></label>
+                <input type="range" id="distortion" min="0" max="1" step="0.01" value="0.1">
+            </div>
+            <button id="computeCISBtn">🧠 Compute CIS Score</button>
+            <div id="cisResult" class="score-badge"></div>
+        </div>
+
+        <!-- 3. Transaction Fee Game -->
+        <div class="card">
+            <h2>💰 Transaction Fee Game</h2>
+            <p>Send tokens – 50% fee to architect. If you beat the record, you get a bonus reward!</p>
+            <input type="number" id="txAmount" placeholder="Amount (RAD)" step="0.01" value="100">
+            <input type="text" id="recipient" placeholder="Recipient address (simulated)">
+            <button id="sendTxBtn">⚡ Send & Pay Fee</button>
+            <div id="txResult" style="margin-top: 12px;"></div>
+            <div id="recordDisplay" class="score-badge">Architect's last record: 0 RAD</div>
+        </div>
+
+        <!-- 4. Staking Simulation -->
+        <div class="card">
+            <h2>🏦 Staking & Rewards</h2>
+            <p>Stake RAD to earn from the fee pool. Rewards are distributed proportionally.</p>
+            <input type="number" id="stakeAmount" placeholder="Amount to stake" step="0.01" value="50">
+            <button id="stakeBtn">🔒 Stake</button>
+            <button id="unstakeBtn" style="background:#3a5a7a;">🔓 Unstake</button>
+            <button id="claimRewardsBtn">💰 Claim Rewards</button>
+            <div id="stakingInfo" class="score-badge"></div>
+            <div id="rewardInfo" class="score-badge"></div>
+        </div>
+    </div>
+    <footer>
+        🔐 This demo runs locally in your browser (simulated). All logic is client‑side.<br>
+        To connect to real testnet contracts, replace the mock functions with web3 calls.
+    </footer>
+</div>
+
+<script>
+    // ------------------------------
+    // Persistent Storage (localStorage)
+    // ------------------------------
+    let presence = {
+        identifier: localStorage.getItem('radiant_presence_id') || '',
+        score: parseInt(localStorage.getItem('radiant_presence_score') || '0')
+    };
+    let lastRecord = parseFloat(localStorage.getItem('architect_last_record') || '0');
+    let userStake = parseFloat(localStorage.getItem('user_stake') || '0');
+    let rewardPool = parseFloat(localStorage.getItem('reward_pool') || '0');
+    let userRewards = parseFloat(localStorage.getItem('user_rewards') || '0');
+
+    // Helper: deterministic hash to 0-100
+    function hashToScore(str) {
+        let hash = 5381;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) + hash) + str.charCodeAt(i);
+            hash = hash & hash;
+        }
+        return Math.abs(hash % 101);
+    }
+
+    // Update UI
+    function updateUI() {
+        document.getElementById('recordDisplay').innerHTML = `Architect's last record: ${lastRecord.toFixed(2)} RAD`;
+        document.getElementById('stakingInfo').innerHTML = `Your stake: ${userStake.toFixed(2)} RAD`;
+        document.getElementById('rewardInfo').innerHTML = `Reward pool: ${rewardPool.toFixed(2)} RAD | Your pending rewards: ${userRewards.toFixed(2)} RAD`;
+        if (presence.identifier) {
+            document.getElementById('presenceResult').innerHTML = `<div class="score-badge">✅ Presence: ${presence.identifier.slice(0,10)}... Score: ${presence.score}</div>`;
+        }
+    }
+
+    // 1. Proof of Presence
+    document.getElementById('registerPresenceBtn').addEventListener('click', () => {
+        const id = document.getElementById('presenceId').value.trim();
+        if (!id) { alert('Enter a name or address'); return; }
+        const score = hashToScore(id);
+        presence = { identifier: id, score };
+        localStorage.setItem('radiant_presence_id', id);
+        localStorage.setItem('radiant_presence_score', score);
+        updateUI();
+    });
+
+    // 2. CIS Scoring
+    const sliders = ['alignment', 'understanding', 'accuracy', 'distortion'];
+    sliders.forEach(s => {
+        const elem = document.getElementById(s);
+        const span = document.getElementById(s + 'Val');
+        elem.addEventListener('input', () => {
+            span.innerText = parseFloat(elem.value).toFixed(2);
+        });
+    });
+    document.getElementById('computeCISBtn').addEventListener('click', () => {
+        const a = parseFloat(document.getElementById('alignment').value);
+        const u = parseFloat(document.getElementById('understanding').value);
+        const c = parseFloat(document.getElementById('accuracy').value);
+        const d = parseFloat(document.getElementById('distortion').value);
+        const raw = 0.2*a + 0.3*u + 0.4*c - 0.1*d;
+        const cis = Math.min(10, Math.max(0, raw * 10));
+        document.getElementById('cisResult').innerHTML = `CIS Score: ${cis.toFixed(2)} / 10`;
+    });
+
+    // 3. Transaction Fee Game
+    function updateRecord(newAmount) {
+        if (newAmount > lastRecord) {
+            lastRecord = newAmount;
+            localStorage.setItem('architect_last_record', lastRecord);
+            updateUI();
+            return true;
+        }
+        return false;
+    }
+
+    document.getElementById('sendTxBtn').addEventListener('click', () => {
+        const amount = parseFloat(document.getElementById('txAmount').value);
+        const recipient = document.getElementById('recipient').value.trim();
+        if (isNaN(amount) || amount <= 0) { alert('Invalid amount'); return; }
+        if (!recipient) { alert('Enter recipient'); return; }
+
+        const fee = amount * 0.5;
+        const total = amount + fee;
+        // Simulate user balance (mock)
+        let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
+        if (userBalance < total) {
+            alert(`Insufficient balance: need ${total.toFixed(2)} RAD (you have ${userBalance.toFixed(2)})`);
+            return;
+        }
+        userBalance -= total;
+        localStorage.setItem('user_balance', userBalance);
+        // Architect receives fee (mock)
+        let architectBalance = parseFloat(localStorage.getItem('architect_balance') || '0');
+        architectBalance += fee;
+        localStorage.setItem('architect_balance', architectBalance);
+        // Recipient receives amount
+        let recipientBalance = parseFloat(localStorage.getItem(`balance_${recipient}`) || '0');
+        recipientBalance += amount;
+        localStorage.setItem(`balance_${recipient}`, recipientBalance);
+
+        // Check record and bonus
+        let bonus = 0;
+        const beatsRecord = amount > lastRecord;
+        if (beatsRecord) {
+            bonus = amount * 0.5;
+            // Bonus comes from treasury (simulated)
+            let treasury = parseFloat(localStorage.getItem('treasury') || '1000');
+            if (treasury >= bonus) {
+                treasury -= bonus;
+                userBalance += bonus;
+                localStorage.setItem('treasury', treasury);
+                localStorage.setItem('user_balance', userBalance);
+            } else {
+                bonus = 0;
+            }
+            updateRecord(amount);
+        }
+
+        document.getElementById('txResult').innerHTML = `<div class="score-badge">✅ Sent ${amount} RAD to ${recipient}. Fee: ${fee} RAD to architect.${beatsRecord ? ` Bonus: +${bonus} RAD!` : ''}</div>`;
+        updateUI();
+    });
+
+    // 4. Staking & Rewards
+    document.getElementById('stakeBtn').addEventListener('click', () => {
+        let amount = parseFloat(document.getElementById('stakeAmount').value);
+        if (isNaN(amount) || amount <= 0) return;
+        let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
+        if (userBalance < amount) { alert('Insufficient balance'); return; }
+        userBalance -= amount;
+        userStake += amount;
+        localStorage.setItem('user_balance', userBalance);
+        localStorage.setItem('user_stake', userStake);
+        updateUI();
+    });
+    document.getElementById('unstakeBtn').addEventListener('click', () => {
+        let amount = parseFloat(document.getElementById('stakeAmount').value);
+        if (isNaN(amount) || amount <= 0 || amount > userStake) return;
+        userStake -= amount;
+        let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
+        userBalance += amount;
+        localStorage.setItem('user_balance', userBalance);
+        localStorage.setItem('user_stake', userStake);
+        updateUI();
+    });
+    document.getElementById('claimRewardsBtn').addEventListener('click', () => {
+        if (userRewards <= 0) { alert('No rewards to claim'); return; }
+        let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
+        userBalance += userRewards;
+        localStorage.setItem('user_balance', userBalance);
+        userRewards = 0;
+        localStorage.setItem('user_rewards', userRewards);
+        updateUI();
+    });
+
+    // Simulate periodic reward distribution (every 10 seconds, for demo)
+    setInterval(() => {
+        if (userStake > 0 && rewardPool > 0) {
+            // simple proportional reward
+            const share = rewardPool * (userStake / (userStake + 1)); // simplified
+            userRewards += share;
+            rewardPool -= share;
+            localStorage.setItem('user_rewards', userRewards);
+            localStorage.setItem('reward_pool', rewardPool);
+            updateUI();
+        }
+    }, 10000);
+
+    // Initialize demo with some mock data
+    if (!localStorage.getItem('user_balance')) localStorage.setItem('user_balance', '1000');
+    if (!localStorage.getItem('architect_balance')) localStorage.setItem('architect_balance', '0');
+    if (!localStorage.getItem('treasury')) localStorage.setItem('treasury', '500');
+    if (!localStorage.getItem('reward_pool')) localStorage.setItem('reward_pool', '100');
+    rewardPool = parseFloat(localStorage.getItem('reward_pool'));
+    userRewards = parseFloat(localStorage.getItem('user_rewards') || '0');
+    updateUI();
+</script>
+</body>
+              </html>
