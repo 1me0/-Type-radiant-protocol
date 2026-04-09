@@ -23,20 +23,26 @@ class UniversalFormula:
 
     Attributes:
         muF (float): Architect Constant – the unique frequency/operating system.
+        sensitivity (float): Sensitivity constant k for the tanh sign function.
+        learning_rate (float): Base learning rate for updating P.
         previous_error (float): Last error value for computing velocity.
         last_time (float): Timestamp of last correction.
         P (dict): Current Presence/Identity state.
         L (dict): Current Universal Bedrock (objective laws, facts).
     """
 
-    def __init__(self, muF: float = 1.0):
+    def __init__(self, muF: float = 1.0, sensitivity: float = 10.0, learning_rate: float = 0.1):
         """
         Initialize the Universal Formula.
 
         Args:
             muF: Architect Constant (default 1.0). Adjust to tune sensitivity.
+            sensitivity: k for tanh(Vc * k) – determines how fast sign saturates.
+            learning_rate: Base step size for updating P.
         """
         self.muF = muF
+        self.sensitivity = sensitivity
+        self.learning_rate = learning_rate
         self.previous_error = 0.0
         self.last_time = time.time()
         self.P: Dict[str, float] = {}
@@ -57,7 +63,6 @@ class UniversalFormula:
         common_keys = set(P.keys()) & set(L.keys())
         if not common_keys:
             return 0.0
-        # Average of absolute differences, normalized to [0,1]
         total = 0.0
         for k in common_keys:
             total += 1.0 - min(1.0, abs(P[k] - L[k]))
@@ -77,7 +82,6 @@ class UniversalFormula:
         common_keys = set(P.keys()) & set(L.keys())
         if not common_keys:
             return 1.0
-        # Euclidean distance normalized by number of keys
         diff_sq = sum((P[k] - L[k]) ** 2 for k in common_keys)
         return math.sqrt(diff_sq / len(common_keys))
 
@@ -112,20 +116,15 @@ class UniversalFormula:
                 - direction: +1 or -1
                 - epsilon: error value
                 - Vc: correction velocity
+                - intersection: overlap value
+                - sign: continuous sign from -tanh(Vc * sensitivity)
         """
         epsilon = self.error_signal(P, L)
         Vc = self.correction_velocity(epsilon)
         intersect_val = self.intersection(P, L)
 
-        # Determine sign of epsilon based on correction velocity
-        # If Vc positive (error increasing), we subtract to counteract.
-        # If Vc negative (error decreasing), we add to reinforce.
-        if Vc > 0.01:
-            sign = -1   # actively reduce error
-        elif Vc < -0.01:
-            sign = 1    # allow error to diminish naturally
-        else:
-            sign = 1    # stable, maintain current sign
+        # Continuous sign: -tanh(Vc * sensitivity)
+        sign = -math.tanh(Vc * self.sensitivity)
 
         raw = self.muF * (intersect_val + sign * epsilon)
         magnitude = max(0.0, min(1.0, raw))
@@ -136,7 +135,8 @@ class UniversalFormula:
             "direction": direction,
             "epsilon": epsilon,
             "Vc": Vc,
-            "intersection": intersect_val
+            "intersection": intersect_val,
+            "sign": sign
         }
 
     def update(self, P_new: Dict[str, float], L_new: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
@@ -155,6 +155,15 @@ class UniversalFormula:
             self.L = L_new
         self.P = P_new
         delta = self.express(self.P, self.L)
+
+        # Adaptive learning: step = magnitude * intersection * learning_rate * (1 + epsilon)
+        for k in self.P:
+            step = delta['magnitude'] * delta['intersection'] * self.learning_rate * (1 + delta['epsilon'])
+            step = min(step, 0.2)   # clamp to avoid overly large jumps
+            self.P[k] += step
+            # Clamp values to [0,1]
+            self.P[k] = max(0.0, min(1.0, self.P[k]))
+
         return delta
 
     def run_loop(self, steps: int = 10) -> None:
@@ -168,20 +177,14 @@ class UniversalFormula:
         for i in range(steps):
             delta = self.update(self.P, self.L)
             print(f"Step {i+1}: magnitude={delta['magnitude']:.3f}, "
-                  f"ε={delta['epsilon']:.3f}, Vc={delta['Vc']:.3f}")
-            # Simulate learning: adjust P based on delta
-            # (in a real system, this would be a more sophisticated update)
-            self.P = {k: v + delta['magnitude'] * 0.1 for k, v in self.P.items()}
-            # Clamp values to [0,1]
-            self.P = {k: max(0.0, min(1.0, v)) for k, v in self.P.items()}
+                  f"ε={delta['epsilon']:.3f}, Vc={delta['Vc']:.3f}, "
+                  f"intersection={delta['intersection']:.3f}")
 
 
 # Example usage
 if __name__ == "__main__":
-    # Example: align identity with reality
-    uf = UniversalFormula(muF=1.2)
+    uf = UniversalFormula(muF=1.2, sensitivity=10.0, learning_rate=0.1)
 
-    # Define initial Presence (P) and Law (L) as attribute vectors
     P_initial = {"clarity": 0.6, "alignment": 0.7, "presence": 0.5}
     L = {"clarity": 0.9, "alignment": 0.9, "presence": 0.8}
 
