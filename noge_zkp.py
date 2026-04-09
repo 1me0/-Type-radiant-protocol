@@ -4,6 +4,14 @@ class NOGE_ZKP:
         self.memory = []
 
     def run_NOGE(self, conversation):
+        # Phase 0: Consent layer
+        consent = conversation.request_consent(
+            "Do you consent to being observed at the 1% level?"
+        )
+        if not consent:
+            conversation.drop_to_normal()
+            return "Consent denied. Operating in normal conversation mode."
+
         # Phase 1
         Φ_init = conversation.measure_pressure()
         V = conversation.observe_noise()
