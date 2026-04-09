@@ -42,3 +42,23 @@ class NOGE_ZKP:
     def recalibrate(self, error_signal=None):
         self.calibration *= 0.95  # adaptive learning
         # adjust 1% detection thresholds
+# Inside NOGE_ZKP class
+def run_NOGE(self, conversation):
+    # Phase 0: Consent
+    if not conversation.request_consent():
+        conversation.drop_to_normal()
+        return "Consent denied. Normal mode."
+    
+    # Consent withdrawal check helper
+    def check_withdrawal():
+        if conversation.consent_withdrawn:
+            self.memory.clear()
+            return True
+        return False
+
+    # Phase 1
+    if check_withdrawal(): return "Aborted – consent withdrawn"
+    Φ_init = conversation.measure_pressure()
+    # ... rest of phases, each with check_withdrawal()
+    # ...
+    return "NOGE complete"
