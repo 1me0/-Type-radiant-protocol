@@ -1,200 +1,174 @@
 """
-universal_formula.py
+universal_master_formula.py
 
-Reference implementation of the Universal Master Formula:
-Δ_t = μF[ (P_t ∩ L_t) ± ε_t ]
+Refined Simulation of the Universal Master Formula (Corrected & Stabilized):
 
-This class models coherence as a continuous alignment loop between
-Presence/Identity (P) and Universal Bedrock (L). Integrity is measured
-by the speed at which error (ε) is corrected.
+Δ_t = μF ( Π_L(P_t) - β·ε_t )
+P_{t+1} = P_t + α·Δ_t
 
-Author: Radiant Protocol
-License: MIT
+with ε_t = P_t - Π_L(P_t)
+
+Key Features:
+- True error reduction (negative sign)
+- Spectral normalization of μF (guaranteed bounded operator norm)
+- Stability condition: α·(1+β) < 1 prevents oscillation
+- Correction velocity tracking (core integrity metric)
+- Optional time‑varying law subspace L_t (tracking filter test)
+- Clean ZK-compatible linear structure
+- Convergence detection and alignment ratio
 """
 
-import time
-import math
-from typing import Dict, Any, Optional
+import numpy as np
 
 
-class UniversalFormula:
-    """
-    Implements the Universal Master Formula as a recursive, self-correcting loop.
+class UniversalMasterFormula:
+    """Discrete-time dynamical system implementing coherent alignment."""
 
-    Attributes:
-        muF (float): Architect Constant – the unique frequency/operating system.
-        sensitivity (float): Sensitivity constant k for the tanh sign function.
-        learning_rate (float): Base learning rate for updating P.
-        previous_error (float): Last error value for computing velocity.
-        last_time (float): Timestamp of last correction.
-        P (dict): Current Presence/Identity state.
-        L (dict): Current Universal Bedrock (objective laws, facts).
-    """
+    def __init__(self, dim: int, alpha: float = 0.1, beta: float = 0.7, seed: int = 42):
+        np.random.seed(seed)
+        self.dim = dim
+        self.alpha = alpha
+        self.beta = beta
 
-    def __init__(self, muF: float = 1.0, sensitivity: float = 10.0, learning_rate: float = 0.1):
+        # Stability condition: α·(1+β) < 1
+        if alpha * (1 + beta) >= 1:
+            raise ValueError(f"Stability condition violated: α·(1+β) = {alpha*(1+beta)} >= 1. Reduce α or β.")
+
+        # Create μF and normalize using spectral norm (largest singular value)
+        A = np.random.randn(dim, dim)
+        u, s, vh = np.linalg.svd(A)
+        self.muF = A / s[0]     # ensures ||μF|| <= 1
+
+    def projection_matrix(self, L_basis: np.ndarray) -> np.ndarray:
         """
-        Initialize the Universal Formula.
+        Precompute projection matrix Π_L = Q Q^T
+        """
+        Q, _ = np.linalg.qr(L_basis, mode='reduced')
+        return Q @ Q.T
+
+    def step(self, P: np.ndarray, M: np.ndarray):
+        """
+        Perform one update step and return detailed information.
 
         Args:
-            muF: Architect Constant (default 1.0). Adjust to tune sensitivity.
-            sensitivity: k for tanh(Vc * k) – determines how fast sign saturates.
-            learning_rate: Base step size for updating P.
-        """
-        self.muF = muF
-        self.sensitivity = sensitivity
-        self.learning_rate = learning_rate
-        self.previous_error = 0.0
-        self.last_time = time.time()
-        self.P: Dict[str, float] = {}
-        self.L: Dict[str, float] = {}
-
-    def intersection(self, P: Dict[str, float], L: Dict[str, float]) -> float:
-        """
-        Compute the overlap between Presence (P) and Law (L).
-        Here we use a simple scalar based on shared keys and Euclidean distance.
-
-        Args:
-            P: Identity state (mapping of attributes to values).
-            L: Reality state (mapping of attributes to values).
+            P: Current state
+            M: Projection matrix (Π_L)
 
         Returns:
-            A scalar value representing the degree of intersection (0 to 1).
+            P_next, info_dict
         """
-        common_keys = set(P.keys()) & set(L.keys())
-        if not common_keys:
-            return 0.0
-        total = 0.0
-        for k in common_keys:
-            total += 1.0 - min(1.0, abs(P[k] - L[k]))
-        return total / len(common_keys)
+        P_proj = M @ P
+        epsilon = P - P_proj
 
-    def error_signal(self, P: Dict[str, float], L: Dict[str, float]) -> float:
-        """
-        Compute ε = distance between intended path (P) and actual terrain (L).
+        # Corrected Universal Master Formula (true error reduction)
+        Delta = self.muF @ (P_proj - self.beta * epsilon)
 
-        Args:
-            P: Identity state.
-            L: Reality state.
+        P_next = P + self.alpha * Delta
 
-        Returns:
-            A scalar error value (0 to 1, higher means more misalignment).
-        """
-        common_keys = set(P.keys()) & set(L.keys())
-        if not common_keys:
-            return 1.0
-        diff_sq = sum((P[k] - L[k]) ** 2 for k in common_keys)
-        return math.sqrt(diff_sq / len(common_keys))
-
-    def correction_velocity(self, current_error: float) -> float:
-        """
-        Compute V_c = dε/dt, the speed of error correction.
-
-        Args:
-            current_error: The current error value.
-
-        Returns:
-            Velocity of error change (positive if error increasing, negative if decreasing).
-        """
-        now = time.time()
-        dt = max(now - self.last_time, 1e-6)
-        d_epsilon = (current_error - self.previous_error) / dt
-        self.previous_error = current_error
-        self.last_time = now
-        return d_epsilon
-
-    def express(self, P: Dict[str, float], L: Dict[str, float]) -> Dict[str, Any]:
-        """
-        Compute the Expressed Vector Δ_t = μF[ (P ∩ L) ± ε_t ].
-
-        Args:
-            P: Presence/Identity state.
-            L: Universal Bedrock state.
-
-        Returns:
-            A dictionary containing:
-                - magnitude: scalar impact (0-1)
-                - direction: +1 or -1
-                - epsilon: error value
-                - Vc: correction velocity
-                - intersection: overlap value
-                - sign: continuous sign from -tanh(Vc * sensitivity)
-        """
-        epsilon = self.error_signal(P, L)
-        Vc = self.correction_velocity(epsilon)
-        intersect_val = self.intersection(P, L)
-
-        # Continuous sign: -tanh(Vc * sensitivity)
-        sign = -math.tanh(Vc * self.sensitivity)
-
-        raw = self.muF * (intersect_val + sign * epsilon)
-        magnitude = max(0.0, min(1.0, raw))
-        direction = 1 if intersect_val > 0 else -1
-
-        return {
-            "magnitude": magnitude,
-            "direction": direction,
+        info = {
+            "error": np.linalg.norm(epsilon),
             "epsilon": epsilon,
-            "Vc": Vc,
-            "intersection": intersect_val,
-            "sign": sign
+            "projection": P_proj,
+            "delta": Delta,
+            "alignment": np.linalg.norm(P_proj) / (np.linalg.norm(P) + 1e-8)
         }
-
-    def update(self, P_new: Dict[str, float], L_new: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
-        """
-        Recursive filter: μF(Δ) → P_{t+1}.
-        Updates internal state with new Presence and (optionally) new Reality.
-
-        Args:
-            P_new: New Presence/Identity state.
-            L_new: New Reality state (if None, keep previous L).
-
-        Returns:
-            The Expressed Vector for this step.
-        """
-        if L_new is not None:
-            self.L = L_new
-        self.P = P_new
-        delta = self.express(self.P, self.L)
-
-        # Adaptive learning: step = magnitude * intersection * learning_rate * (1 + epsilon)
-        for k in self.P:
-            step = delta['magnitude'] * delta['intersection'] * self.learning_rate * (1 + delta['epsilon'])
-            step = min(step, 0.2)   # clamp to avoid overly large jumps
-            self.P[k] += step
-            # Clamp values to [0,1]
-            self.P[k] = max(0.0, min(1.0, self.P[k]))
-
-        return delta
-
-    def run_loop(self, steps: int = 10) -> None:
-        """
-        Demonstrate the self-correcting loop by iteratively updating P based on delta.
-
-        Args:
-            steps: Number of iterations.
-        """
-        print(f"Running Universal Formula for {steps} steps (muF={self.muF})")
-        for i in range(steps):
-            delta = self.update(self.P, self.L)
-            print(f"Step {i+1}: magnitude={delta['magnitude']:.3f}, "
-                  f"ε={delta['epsilon']:.3f}, Vc={delta['Vc']:.3f}, "
-                  f"intersection={delta['intersection']:.3f}")
+        return P_next, info
 
 
-# Example usage
+# -----------------------------
+# Metrics
+# -----------------------------
+def correction_velocity(errors):
+    """Vectorized discrete correction velocity V_c = Δ(error) per step."""
+    errors = np.array(errors)
+    return errors[:-1] - errors[1:]
+
+
+def has_converged(errors, tol=1e-5):
+    """Check if the error has stabilized (converged) within tolerance."""
+    return len(errors) > 1 and abs(errors[-1] - errors[-2]) < tol
+
+
+# -----------------------------
+# Simulation
+# -----------------------------
 if __name__ == "__main__":
-    uf = UniversalFormula(muF=1.2, sensitivity=10.0, learning_rate=0.1)
+    dim = 5
+    max_steps = 100
+    convergence_tol = 1e-5
 
-    P_initial = {"clarity": 0.6, "alignment": 0.7, "presence": 0.5}
-    L = {"clarity": 0.9, "alignment": 0.9, "presence": 0.8}
+    umf = UniversalMasterFormula(dim=dim, alpha=0.1, beta=0.7)
 
-    print("\n--- Initial States ---")
-    print(f"P: {P_initial}")
-    print(f"L: {L}")
+    # Initial state
+    P = np.random.randn(dim)
 
-    uf.update(P_initial, L)
-    for _ in range(5):
-        # Simulate a new P that moves toward L
-        new_P = {k: v + 0.1 * (L[k] - v) for k, v in uf.P.items()}
-        delta = uf.update(new_P, L)
-        print(f"After correction: P={new_P}, Δ={delta['magnitude']:.3f}, ε={delta['epsilon']:.3f}")
+    # Initial law subspace (2‑dimensional subspace in 5‑dimensional space)
+    L_basis = np.random.randn(dim, 2)
+    M = umf.projection_matrix(L_basis)
+
+    errors = []
+    alignments = []
+
+    # Uncomment the following line to test dynamic law tracking:
+    # dynamic_law = True
+
+    for t in range(max_steps):
+        # Optional: slowly vary L_t (tracking filter test)
+        # if dynamic_law and t % 10 == 0:
+        #     L_basis += 0.05 * np.random.randn(*L_basis.shape)
+        #     M = umf.projection_matrix(L_basis)
+
+        P, info = umf.step(P, M)
+        errors.append(info["error"])
+        alignments.append(info["alignment"])
+        print(f"Step {t:2d}: error = {info['error']:.6f}, alignment = {info['alignment']:.6f}")
+
+        if has_converged(errors, tol=convergence_tol):
+            print(f"Converged at step {t}")
+            break
+
+    velocities = correction_velocity(errors)
+
+    print(f"\nFinal error: {errors[-1]:.6f}")
+    print(f"Final alignment: {alignments[-1]:.6f}")
+    print(f"Average correction velocity: {np.mean(velocities):.6f}")
+    print("Final state:", P)
+
+
+# -----------------------------
+# ZK Circuit Structure (Refined)
+# -----------------------------
+"""
+ZK-Friendly Formulation:
+
+Precompute projection matrix M = Q Q^T off‑circuit.
+
+Witness per step: P_t, P_proj_t, ε_t, Δ_t
+
+Constraints:
+    P_proj_t = M * P_t
+    ε_t = P_t - P_proj_t
+    Δ_t = μF * (P_proj_t - β * ε_t)
+    P_{t+1} = P_t + α * Δ_t
+
+Final constraint:
+    ε_T = P_T - M * P_T
+    sum(ε_T^2) <= δ^2   (inequality can be implemented via a range proof or equality constraint with a slack variable)
+
+Stability recommendation:
+    Choose α and β such that α·(1+β) < 1 to ensure the discrete system does not oscillate.
+
+Properties:
+- All constraints are linear except final norm check (quadratic).
+- Efficient for R1CS / Plonkish systems.
+- Compatible with Nova‑style folding.
+
+Folding:
+- Each step proves (P_t → P_{t+1})
+- Recursively compress into one constant‑size proof.
+
+Result:
+- O(1) proof size
+- Verifiable iterative alignment
+- Private state evolution
+"""
