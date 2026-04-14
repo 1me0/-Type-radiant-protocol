@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiant Transaction – Competitive Fee Protocol</title>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .container { max-width: 600px; width: 100%; background: white; border-radius: 28px; padding: 28px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; font-size: 1.8rem; display: flex; align-items: center; gap: 8px; }
+        .badge { background: #e2e8f0; border-radius: 30px; padding: 4px 12px; font-size: 0.75rem; }
+        .info { background: #eef2ff; padding: 14px; border-radius: 20px; margin-bottom: 20px; border-left: 4px solid #1a2a3a; }
+        input, button, .toggle-group { width: 100%; padding: 12px 16px; border-radius: 40px; border: 1px solid #cbd5e1; font-size: 1rem; margin: 6px 0; }
+        button { background: #1a2a3a; color: white; font-weight: 600; cursor: pointer; border: none; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        .toggle-group { display: flex; gap: 16px; background: #f1f5f9; border: none; padding: 8px 16px; }
+        .toggle-group label { margin: 0; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .status { margin-top: 20px; padding: 12px; background: #f8fafc; border-radius: 16px; font-size: 0.85rem; word-break: break-all; }
+        .simulation { background: #fef9e3; border-left: 4px solid #f59e0b; padding: 12px; margin: 12px 0; border-radius: 16px; }
+        .warning { font-size: 0.7rem; color: #6c757d; margin-top: 6px; }
+        .history { margin-top: 20px; border-top: 1px solid #cbd5e1; padding-top: 12px; max-height: 200px; overflow-y: auto; font-size: 0.75rem; }
+        .history-item { padding: 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; }
+        .win { background: #e8f5e9; border-left: 3px solid #2e7d32; }
+        .lose { background: #ffebee; border-left: 3px solid #c62828; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .balance-preview { margin-top: 8px; font-size: 0.8rem; color: #2c3e50; background: #e6f7e6; padding: 6px 12px; border-radius: 20px; display: inline-block; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚡ Radiant Transaction <span class="badge" id="networkBadge">Loading...</span></h1>
+    <div class="info">
+        <strong>Architect Fee: <span id="feePercent">--</span>%</strong><br>
+        If your transaction amount > Architect's last record → you keep the fee.<br>
+        Otherwise, the fee goes to the architect.
+    </div>
+    <div id="recordInfo" class="info"></div>
+    <div id="simBox" class="simulation" style="display:none"></div>
+    <div id="balancePreview" class="balance-preview" style="display:none"></div>
+    <div id="disclaimer" class="warning"></div>
+
+    <input type="text" id="recipient" placeholder="Recipient address (0x...)">
+    <input type="number" id="amount" step="any" placeholder="Amount (tokens)">
+
+    <div class="toggle-group">
+        <label><input type="checkbox" id="requireWin"> 🔒 Protection mode: only send if I will beat the record (contract-enforced)</label>
+    </div>
+    <div class="toggle-group">
+        <label><input type="checkbox" id="unlimitedApproval"> ⚡ Unlimited approval (faster future txs, higher risk)</label>
+    </div>
+    <div class="warning" id="unlimitedWarning" style="display:none;">⚠️ Unlimited approval gives the contract unlimited spending rights. Only use if you trust the contract.</div>
+
+    <button id="sendBtn" disabled>Send Transaction</button>
+    <div id="status" class="status">Connect wallet to start.</div>
+
+    <div class="history">
+        <strong>📜 Recent transactions</strong>
+        <div id="historyList">—</div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+<script>
+    // ==================== CONFIGURATION (REPLACE WITH YOUR CONTRACTS) ====================
+    const TOKEN_ADDRESS = "0xYourTokenAddress";               // ERC20 token address
+    const FEE_CONTRACT_ADDRESS = "0xYourFeeContractAddress";  // Fee contract with transferWithFee(recipient, amount, requireWin)
+    const EXPECTED_CHAIN_ID = 11155111;                       // Sepolia testnet (change as needed)
+    const EXPECTED_CHAIN_NAME = "Sepolia";
+    // ===================================================================================
+
+    const ERC20_ABI = [
+        "function approve(address spender, uint256 amount) returns (bool)",
+        "function balanceOf(address) view returns (uint256)",
+        "function decimals() view returns (uint8)",
+        "function allowance(address,address) view returns (uint256)"
+    ];
+    const FEE_ABI = [
+        "function transferWithFee(address recipient, uint256 amount, bool requireWin) external",
+        "function lastArchitectTransactionAmount() view returns (uint256)",
+        "function architect() view returns (address)",
+        "function feeBasisPoints() view returns (uint256)",
+        "event TransactionWithFee(address indexed from, address indexed to, uint256 amount, uint256 fee, bool userKeptFee)"
+    ];
+
+    let provider, signer, token, fee, userAddress;
+    let feeBasisPoints = 5000n, decimals = 18, lastRecord = 0n, loading = false;
+
+    const sendBtn = document.getElementById("sendBtn");
+    const statusDiv = document.getElementById("status");
+    const recipientInp = document.getElementById("recipient");
+    const amountInp = document.getElementById("amount");
+    const simBox = document.getElementById("simBox");
+    const balancePreview = document.getElementById("balancePreview");
+    const disclaimerDiv = document.getElementById("disclaimer");
+    const requireWinChk = document.getElementById("requireWin");
+    const unlimitedChk = document.getElementById("unlimitedApproval");
+    const unlimitedWarning = document.getElementById("unlimitedWarning");
+    const recordInfoDiv = document.getElementById("recordInfo");
+    const feeSpan = document.getElementById("feePercent");
+    const networkBadge = document.getElementById("networkBadge");
+    const historyDiv = document.getElementById("historyList");
+
+    function setStatus(msg, isErr = false) {
+        statusDiv.innerHTML = msg;
+        statusDiv.style.background = isErr ? "#fee2e2" : "#f8fafc";
+        statusDiv.style.color = isErr ? "#b91c1c" : "#334155";
+    }
+
+    function setLoading(load) {
+        loading = load;
+        sendBtn.disabled = load;
+        sendBtn.innerHTML = load ? '<span class="spinner"></span> Processing...' : 'Send Transaction';
+    }
+
+    unlimitedChk.addEventListener("change", () => {
+        unlimitedWarning.style.display = unlimitedChk.checked ? "block" : "none";
+    });
+
+    async function getGasPrice() {
+        const feeData = await provider.getFeeData();
+        return feeData.gasPrice ?? feeData.maxFeePerGas;
+    }
+
+    async function checkNetwork() {
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+        if (chainId !== EXPECTED_CHAIN_ID) {
+            networkBadge.textContent = `❌ Wrong Network (${chainId})`;
+            networkBadge.style.background = "#fee2e2";
+            setStatus(`Please switch to ${EXPECTED_CHAIN_NAME} (chain ID ${EXPECTED_CHAIN_ID})`, true);
+            sendBtn.disabled = true;
+            return false;
+        } else {
+            networkBadge.textContent = `✓ ${EXPECTED_CHAIN_NAME}`;
+            networkBadge.style.background = "#dcfce7";
+            setStatus(`Connected to ${EXPECTED_CHAIN_NAME}. Ready.`);
+            return true;
+        }
+    }
+
+    async function fetchFeeAndDecimals() {
+        try {
+            feeBasisPoints = await fee.feeBasisPoints();
+            const percent = Number(feeBasisPoints) / 100;
+            feeSpan.innerText = percent;
+        } catch (e) {
+            console.warn(e);
+            feeBasisPoints = 5000n;
+            feeSpan.innerText = "50 (default)";
+        }
+    }
+
+    async function updateRecord() {
+        try {
+            lastRecord = await fee.lastArchitectTransactionAmount();
+            const architect = await fee.architect();
+            const recordHuman = ethers.formatUnits(lastRecord, decimals);
+            recordInfoDiv.innerHTML = `<strong>Architect:</strong> ${architect.slice(0,6)}...${architect.slice(-4)}<br><strong>Record:</strong> ${recordHuman} tokens`;
+            return lastRecord;
+        } catch (e) {
+            recordInfoDiv.innerHTML = `<span style="color:#dc2626;">Error loading record: ${e.message}</span>`;
+            return 0n;
+        }
+    }
+
+    async function contractSimulate(amount) {
+        // Off‑chain simulation using current record and fee basis points.
+        // This is a fallback if the contract doesn't have a `simulate` view.
+        const feeAmount = (amount * feeBasisPoints) / 10000n;
+        const willBeat = amount > lastRecord;
+        return { willBeat, fee: feeAmount, currentRecord: lastRecord };
+    }
+
+    async function updateSimulation() {
+        const amtStr = amountInp.value.trim();
+        if (!amtStr || parseFloat(amtStr) <= 0 || !fee) {
+            simBox.style.display = "none";
+            balancePreview.style.display = "none";
+            disclaimerDiv.innerText = "";
+            return;
+        }
+        const amount = ethers.parseUnits(amtStr, decimals);
+        const { willBeat, fee: feeAmt, currentRecord } = await contractSimulate(amount);
+        const totalNeeded = amount + feeAmt;
+        const balance = await token.balanceOf(userAddress);
+        simBox.style.display = "block";
+        simBox.innerHTML = `
+            <strong>🔮 Simulation</strong><br>
+            Amount: ${ethers.formatUnits(amount, decimals)} tokens<br>
+            Fee (${Number(feeBasisPoints)/100}%): ${ethers.formatUnits(feeAmt, decimals)} tokens<br>
+            Current record: ${ethers.formatUnits(currentRecord, decimals)} tokens<br>
+            <b>${willBeat ? '✅ You will BEAT the record → you keep the fee' : '❌ You will NOT beat → fee to architect'}</b>
+        `;
+        disclaimerDiv.innerText = "⚠️ Competitive system: another transaction may update the record before yours is mined. Protection mode (🔒) enforces contract‑level check.";
+        if (balance < totalNeeded) {
+            balancePreview.style.display = "block";
+            balancePreview.innerHTML = `⚠️ Insufficient balance. Need ${ethers.formatUnits(totalNeeded, decimals)} tokens.`;
+        } else {
+            balancePreview.style.display = "block";
+            balancePreview.innerHTML = `💰 Balance after tx: ${ethers.formatUnits(balance - totalNeeded, decimals)} tokens`;
+        }
+    }
+
+    async function loadHistory() {
+        try {
+            const filter = fee.filters.TransactionWithFee();
+            const block = await provider.getBlockNumber();
+            const events = await fee.queryFilter(filter, block - 2000, block);
+            const recent = events.slice(-8).reverse();
+            if (!recent.length) { historyDiv.innerHTML = "—"; return; }
+            historyDiv.innerHTML = recent.map(ev => {
+                const { from, to, amount, fee: f, userKeptFee } = ev.args;
+                return `<div class="history-item ${userKeptFee ? 'win' : 'lose'}">
+                            ${from.slice(0,6)}… → ${to.slice(0,6)}…<br>
+                            ${ethers.formatUnits(amount, decimals)} | fee ${ethers.formatUnits(f, decimals)} | ${userKeptFee ? '🏆 kept' : '🏛️ lost'}
+                        </div>`;
+            }).join('');
+        } catch(e) { historyDiv.innerHTML = "History error"; }
+    }
+
+    async function init() {
+        if (!window.ethereum) { setStatus("❌ MetaMask not installed", true); return; }
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+        token = new ethers.Contract(TOKEN_ADDRESS, ERC20_ABI, signer);
+        fee = new ethers.Contract(FEE_CONTRACT_ADDRESS, FEE_ABI, signer);
+        decimals = await token.decimals();
+        await fetchFeeAndDecimals();
+        await updateRecord();
+        await loadHistory();
+        const ok = await checkNetwork();
+        if (!ok) return;
+        sendBtn.disabled = false;
+        setStatus("✅ Ready. Enter recipient and amount.");
+        amountInp.addEventListener("input", updateSimulation);
+        recipientInp.addEventListener("input", updateSimulation);
+        updateSimulation();
+    }
+
+    sendBtn.onclick = async () => {
+        if (loading) return;
+        const recipient = recipientInp.value.trim();
+        const amtStr = amountInp.value.trim();
+        if (!recipient || !ethers.isAddress(recipient)) return setStatus("❌ Invalid recipient address", true);
+        const amountNum = parseFloat(amtStr);
+        if (isNaN(amountNum) || amountNum <= 0) return setStatus("❌ Invalid amount", true);
+        setLoading(true);
+        setStatus("Updating record...");
+        await updateRecord();
+        try {
+            const amount = ethers.parseUnits(amtStr, decimals);
+            const { willBeat, fee: feeAmt, currentRecord } = await contractSimulate(amount);
+            const totalNeeded = amount + feeAmt;
+            if (requireWinChk.checked && !willBeat) throw new Error("Protection mode: simulation says you would NOT beat the record.");
+            const balance = await token.balanceOf(userAddress);
+            if (balance < totalNeeded) throw new Error(`Need ${ethers.formatUnits(totalNeeded, decimals)} tokens.`);
+            const approveAmount = unlimitedChk.checked ? ethers.MaxUint256 : totalNeeded;
+            const allowance = await token.allowance(userAddress, FEE_CONTRACT_ADDRESS);
+            if (allowance < totalNeeded) {
+                setStatus("Approving tokens...");
+                const approveTx = await token.approve(FEE_CONTRACT_ADDRESS, approveAmount);
+                await approveTx.wait();
+            }
+            // Estimate gas with a buffer
+            let gasEst;
+            try {
+                gasEst = await fee.transferWithFee.estimateGas(recipient, amount, requireWinChk.checked);
+            } catch (estErr) {
+                if (estErr.message.includes("revert")) throw new Error("Transaction would fail (check amount, protection mode, or record)");
+                throw estErr;
+            }
+            const gasLimit = (gasEst * 120n) / 100n;
+            const tx = await fee.transferWithFee(recipient, amount, requireWinChk.checked, { gasLimit });
+            setStatus(`Tx sent: ${tx.hash.slice(0,10)}... waiting for confirmation...`);
+            const receipt = await tx.wait();
+            let userKept = false;
+            for (const log of receipt.logs) {
+                try {
+                    const parsed = fee.interface.parseLog(log);
+                    if (parsed?.name === "TransactionWithFee") userKept = parsed.args.userKeptFee;
+                } catch(e) {}
+            }
+            setStatus(`✅ Success! ${userKept ? "You beat the record and kept the fee!" : "Record not beaten (someone else may have updated it first). Fee to architect."}`);
+            await updateRecord();
+            await loadHistory();
+            updateSimulation();
+        } catch (err) {
+            setStatus(`❌ ${err.message || err}`, true);
+        } finally { setLoading(false); }
+    };
+
+    init().catch(console.error);
+    if (window.ethereum) window.ethereum.on("chainChanged", () => location.reload());
+</script>
+</body>
+</html>
