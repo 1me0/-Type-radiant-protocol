@@ -74,6 +74,51 @@ task("deploy-token", "Deploys a token and sends initial supply to a specified wa
   });
 
 /**
+ * @dev DEDICATED TASK FOR RADIANTSHARESULTIMATE (with architect and treasury)
+ */
+task("deploy-ultimate", "Deploys RadiantSharesUltimate with architect and treasury wallets")
+  .addParam("name", "Token name")
+  .addParam("symbol", "Token symbol")
+  .addParam("architect", "Architect wallet address")
+  .addParam("treasury", "Protocol treasury address")
+  .addOptionalParam("delay", "Seconds to wait before verification", "30")
+  .setAction(async (taskArgs, hre) => {
+    const { ethers, network } = hre;
+    const { name, symbol, architect, treasury, delay } = taskArgs;
+    const waitSeconds = parseInt(delay);
+
+    if (!ethers.isAddress(architect)) throw new Error(`Invalid architect address: ${architect}`);
+    if (!ethers.isAddress(treasury)) throw new Error(`Invalid treasury address: ${treasury}`);
+
+    console.log(`\n--- Radiant Protocol: Deploying RadiantSharesUltimate (${name}) to ${network.name} ---`);
+    const [deployer] = await ethers.getSigners();
+    console.log(`Deployer: ${deployer.address}`);
+    console.log(`Architect: ${architect}`);
+    console.log(`Treasury: ${treasury}`);
+
+    const Factory = await ethers.getContractFactory("RadiantSharesUltimate");
+    const token = await Factory.deploy(name, symbol, architect, treasury);
+    await token.waitForDeployment();
+    const tokenAddress = await token.getAddress();
+    console.log(`✅ Contract deployed at: ${tokenAddress}`);
+
+    if (network.name !== "hardhat" && network.name !== "localhost") {
+      console.log(`⏳ Waiting ${waitSeconds} seconds for block propagation...`);
+      await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
+      try {
+        await hre.run("verify:verify", {
+          address: tokenAddress,
+          constructorArguments: [name, symbol, architect, treasury],
+        });
+        console.log("🔍 Contract verified on Etherscan");
+      } catch (err: any) {
+        console.warn("⚠️ Verification note:", err.message);
+      }
+    }
+    console.log("--- Deployment Complete ---\n");
+  });
+
+/**
  * Hardhat configuration
  */
 const config: HardhatUserConfig = {
@@ -90,7 +135,6 @@ const config: HardhatUserConfig = {
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      // EIP‑1559 gas settings (optional)
       gasPrice: "auto",
       maxFeePerGas: process.env.MAX_FEE_PER_GAS ? parseInt(process.env.MAX_FEE_PER_GAS) : undefined,
       maxPriorityFeePerGas: process.env.MAX_PRIORITY_FEE_PER_GAS
@@ -118,7 +162,6 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    // Required for the 'verify' task
     apiKey: process.env.ETHERSCAN_API_KEY || "",
   },
 };
