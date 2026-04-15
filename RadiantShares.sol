@@ -1,139 +1,243 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
- * @title RadiantShares
- * @dev Core Economic Engine of the Radiant Protocol. 
- * Implements a 50% Protocol Fee on rewards and Time-Locked Vesting.
+ * @title RadiantSharesUltimate
+ * @dev ERC20 token with:
+ *      - Max supply (100M)
+ *      - 50/50 mint split (architect / treasury)
+ *      - 1% transfer tax (configurable, max 5%) to architect (perpetual income)
+ *      - Tax exempt for architect and treasury wallets
+ *      - Timelock on minting (2 days)
+ *      - Timelock on address changes (2 days)
+ *      - Pausable (emergency stop)
+ *      - No renounceAdmin – governance can be delegated to multi-sig
  */
-contract RadiantShares is ERC20, Ownable {
-    
-    // --- State Variables ---
-    address public protocolFeeRecipient;
-    uint256 public constant FEE_DENOMINATOR = 100;
-    uint256 public constant FEE_PERCENT = 50;
-    uint256 public lockedBalance;
+contract RadiantSharesUltimate is ERC20, AccessControl, ReentrancyGuard, Pausable {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
-    struct VestingSchedule {
-        uint256 totalAmount;
-        uint256 start;
-        uint256 duration;
-        uint256 claimed;
+    // ==================== Supply Cap ====================
+    uint256 public constant MAX_SUPPLY = 100_000_000 * 10**18; // 100 million tokens
+
+    // ==================== Mint Split ====================
+    address public architectWallet;
+    address public protocolTreasury;
+
+    // ==================== Transfer Tax (Perpetual Income) ====================
+    uint256 public transferTaxBasisPoints; // default 100 = 1%
+    uint256 public constant MAX_TRANSFER_TAX = 500; // 5% max
+
+    // ==================== Timelock for Minting ====================
+    struct MintProposal {
+        uint256 amount;
+        address recipientTreasury;
+        address recipientArchitect;
+        uint256 proposedAt;
+        bool executed;
+    }
+    mapping(bytes32 => MintProposal) public mintProposals;
+    uint256 public constant MINT_TIMELOCK_DELAY = 2 days;
+
+    // ==================== Timelock for Address Changes ====================
+    struct PendingUpdate {
+        address pendingValue;
+        uint256 pendingTimestamp;
+    }
+    mapping(bytes32 => PendingUpdate) public pendingUpdates;
+    uint256 public constant ADDRESS_TIMELOCK_DELAY = 2 days;
+
+    // ==================== Events ====================
+    event ArchitectWalletProposed(address indexed newWallet, uint256 timestamp);
+    event ArchitectWalletExecuted(address indexed newWallet);
+    event ProtocolTreasuryProposed(address indexed newTreasury, uint256 timestamp);
+    event ProtocolTreasuryExecuted(address indexed newTreasury);
+    event TransferTaxUpdated(uint256 newTaxBasisPoints);
+    event MintProposed(bytes32 indexed id, address indexed treasuryRecipient, address indexed architectRecipient, uint256 amount, uint256 timestamp);
+    event MintExecuted(bytes32 indexed id, uint256 architectShare, uint256 treasuryShare);
+    event MintTimelockCancelled(bytes32 indexed id);
+    event Paused(address indexed account);
+    event Unpaused(address indexed account);
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        address _architectWallet,
+        address _protocolTreasury
+    ) ERC20(name, symbol) {
+        require(_architectWallet != address(0), "Invalid architect wallet");
+        require(_protocolTreasury != address(0), "Invalid protocol treasury");
+        architectWallet = _architectWallet;
+        protocolTreasury = _protocolTreasury;
+        transferTaxBasisPoints = 100; // 1% default
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(GOVERNOR_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender);
     }
 
-    mapping(address => VestingSchedule) public vesting;
-    mapping(address => uint256) public reputation;
-
-    // --- Events ---
-    event ProtocolFeeRecipientUpdated(address indexed newRecipient);
-    event RewardDistributed(address indexed user, uint256 netReward, uint256 fee);
-    event VestingCreated(address indexed user, uint256 amount, uint256 duration);
-    event Claimed(address indexed user, uint256 amount);
-    event ReputationUpdated(address indexed user, uint256 weight);
-
-    constructor(address _protocolFeeRecipient) ERC20("Radiant Share", "RAD") {
-        require(_protocolFeeRecipient != address(0), "Invalid fee recipient");
-        protocolFeeRecipient = _protocolFeeRecipient;
-        // Mint initial supply to the Radiant Architect (deployer)
-        _mint(msg.sender, 1_000_000 * 10**decimals()); 
+    // ==================== Modifiers ====================
+    modifier onlyGovernor() {
+        require(hasRole(GOVERNOR_ROLE, msg.sender), "Caller is not governor");
+        _;
     }
 
-    // --- Administrative Functions ---
-
-    function setProtocolFeeRecipient(address newRecipient) external onlyOwner {
-        require(newRecipient != address(0), "Zero address not allowed");
-        protocolFeeRecipient = newRecipient;
-        emit ProtocolFeeRecipientUpdated(newRecipient);
+    modifier onlyMinter() {
+        require(hasRole(MINTER_ROLE, msg.sender), "Caller is not minter");
+        _;
     }
 
-    function setReputation(address user, uint256 weight) external onlyOwner {
-        reputation[user] = weight;
-        emit ReputationUpdated(user, weight);
+    // ==================== Override _mint to enforce max supply ====================
+    function _mint(address account, uint256 amount) internal virtual override {
+        require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
+        super._mint(account, amount);
     }
 
-    // --- Economic Logic: Rewards & Fees ---
+    // ==================== Transfer Tax (overrides _transfer) ====================
+    function _transfer(address from, address to, uint256 amount) internal virtual override whenNotPaused {
+        uint256 tax = 0;
+        // Tax applies ONLY to user-to-user transfers.
+        // architectWallet and protocolTreasury are EXEMPT (no tax when they send or receive).
+        if (transferTaxBasisPoints > 0 && from != architectWallet && from != protocolTreasury && to != architectWallet && to != protocolTreasury) {
+            tax = (amount * transferTaxBasisPoints) / 10000;
+            if (tax > 0) {
+                super._transfer(from, architectWallet, tax);
+            }
+        }
+        uint256 amountAfterTax = amount - tax;
+        super._transfer(from, to, amountAfterTax);
+    }
+
+    // ==================== Pausable ====================
+    function pause() external onlyGovernor {
+        _pause();
+    }
+
+    function unpause() external onlyGovernor {
+        _unpause();
+    }
+
+    // ==================== Transfer Tax Management ====================
+    function setTransferTax(uint256 _taxBasisPoints) external onlyGovernor {
+        require(_taxBasisPoints <= MAX_TRANSFER_TAX, "Tax exceeds max");
+        transferTaxBasisPoints = _taxBasisPoints;
+        emit TransferTaxUpdated(_taxBasisPoints);
+    }
+
+    // ==================== Mint Split Functions ====================
+    /**
+     * @dev Direct mint with 50/50 split (no timelock – for immediate needs, but respects max supply)
+     */
+    function mint(uint256 amount) external onlyMinter nonReentrant whenNotPaused {
+        require(amount > 0, "Amount must be positive");
+        require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
+
+        uint256 half = amount / 2;
+        uint256 architectShare = half;
+        uint256 treasuryShare = amount - half; // odd amounts favour treasury
+
+        if (architectShare > 0) _mint(architectWallet, architectShare);
+        if (treasuryShare > 0) _mint(protocolTreasury, treasuryShare);
+    }
 
     /**
-     * @dev Distributes rewards from the Owner's balance. 
-     * 50% is automatically redirected to the protocol recipient.
+     * @dev Mint with custom receiver (no split – for rewards, etc.)
      */
-    function reward(address user, uint256 baseAmount) external onlyOwner {
-        require(user != address(0), "Invalid user");
-        require(baseAmount > 0, "Reward must be positive");
-        require(balanceOf(owner()) >= baseAmount, "Insufficient balance in Architect wallet");
-
-        uint256 fee = (baseAmount * FEE_PERCENT) / FEE_DENOMINATOR;
-        uint256 netReward = baseAmount - fee;
-
-        if (fee > 0) {
-            _transfer(owner(), protocolFeeRecipient, fee);
-        }
-        if (netReward > 0) {
-            _transfer(owner(), user, netReward);
-        }
-
-        emit RewardDistributed(user, netReward, fee);
+    function mintWithReceiver(uint256 amount, address receiver) external onlyMinter nonReentrant whenNotPaused {
+        require(amount > 0, "Amount must be positive");
+        require(receiver != address(0), "Invalid receiver");
+        require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
+        _mint(receiver, amount);
     }
 
-    // --- Temporal Logic: Vesting ---
+    // ==================== Timelocked Minting (for large or scheduled mints) ====================
+    function proposeMint(uint256 amount) external onlyMinter {
+        require(amount > 0, "Amount must be positive");
+        require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
 
-    /**
-     * @dev Locks tokens from the Owner's balance into a vesting schedule for a user.
-     */
-    function createVesting(address user, uint256 amount, uint256 durationSeconds) external onlyOwner {
-        require(amount <= balanceOf(owner()), "Insufficient balance to vest");
-        
-        _transfer(owner(), address(this), amount);
-        lockedBalance += amount;
-
-        vesting[user] = VestingSchedule({
-            totalAmount: amount,
-            start: block.timestamp,
-            duration: durationSeconds,
-            claimed: 0
+        bytes32 id = keccak256(abi.encodePacked(block.timestamp, msg.sender, amount));
+        mintProposals[id] = MintProposal({
+            amount: amount,
+            recipientTreasury: protocolTreasury,
+            recipientArchitect: architectWallet,
+            proposedAt: block.timestamp,
+            executed: false
         });
-
-        emit VestingCreated(user, amount, durationSeconds);
+        emit MintProposed(id, protocolTreasury, architectWallet, amount, block.timestamp);
     }
 
-    /**
-     * @dev Allows users to claim their vested tokens based on elapsed time.
-     */
-    function claim() external {
-        VestingSchedule storage v = vesting[msg.sender];
-        require(v.totalAmount > 0, "No vesting schedule found");
+    function executeMint(bytes32 id) external onlyMinter nonReentrant whenNotPaused {
+        MintProposal storage proposal = mintProposals[id];
+        require(!proposal.executed, "Already executed");
+        require(block.timestamp >= proposal.proposedAt + MINT_TIMELOCK_DELAY, "Timelock not expired");
+        require(totalSupply() + proposal.amount <= MAX_SUPPLY, "Exceeds max supply");
 
-        uint256 elapsed = block.timestamp - v.start;
-        uint256 vested;
+        proposal.executed = true;
 
-        if (elapsed >= v.duration) {
-            vested = v.totalAmount;
-        } else {
-            vested = (v.totalAmount * elapsed) / v.duration;
-        }
+        uint256 half = proposal.amount / 2;
+        uint256 architectShare = half;
+        uint256 treasuryShare = proposal.amount - half;
 
-        uint256 claimable = vested - v.claimed;
-        require(claimable > 0, "Nothing to claim yet");
+        if (architectShare > 0) _mint(proposal.recipientArchitect, architectShare);
+        if (treasuryShare > 0) _mint(proposal.recipientTreasury, treasuryShare);
 
-        v.claimed += claimable;
-        lockedBalance -= claimable;
-
-        _transfer(address(this), msg.sender, claimable);
-        emit Claimed(msg.sender, claimable);
+        emit MintExecuted(id, architectShare, treasuryShare);
     }
-}
-const REQUIRED_CONTRACT_ADDRESS = process.env.REACT_APP_RADIANT_SHARES;
-const EXPECTED_CHAIN_ID = 42161; // Arbitrum
 
-if (chainId !== EXPECTED_CHAIN_ID) {
-    alert("Wrong network");
-    return;
-}
-const code = await provider.getCode(REQUIRED_CONTRACT_ADDRESS);
-if (code === "0x") {
-    alert("Invalid contract address");
-    return;
+    function cancelMintProposal(bytes32 id) external onlyMinter {
+        MintProposal storage proposal = mintProposals[id];
+        require(!proposal.executed, "Already executed");
+        delete mintProposals[id];
+        emit MintTimelockCancelled(id);
+    }
+
+    // ==================== Emergency Mint (Governor only, respects max supply) ====================
+    function emergencyMint(address recipient, uint256 amount) external onlyGovernor whenNotPaused {
+        require(amount > 0, "Amount zero");
+        require(recipient != address(0), "Invalid recipient");
+        require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
+        _mint(recipient, amount);
+    }
+
+    // ==================== Timelock for Address Changes ====================
+    function proposeArchitectWallet(address newWallet) external onlyGovernor {
+        require(newWallet != address(0), "Invalid address");
+        bytes32 id = keccak256(abi.encodePacked("architectWallet"));
+        pendingUpdates[id] = PendingUpdate(newWallet, block.timestamp);
+        emit ArchitectWalletProposed(newWallet, block.timestamp);
+    }
+
+    function executeArchitectWallet() external onlyGovernor {
+        bytes32 id = keccak256(abi.encodePacked("architectWallet"));
+        PendingUpdate memory pending = pendingUpdates[id];
+        require(pending.pendingValue != address(0), "No pending update");
+        require(block.timestamp >= pending.pendingTimestamp + ADDRESS_TIMELOCK_DELAY, "Timelock not expired");
+        architectWallet = pending.pendingValue;
+        delete pendingUpdates[id];
+        emit ArchitectWalletExecuted(architectWallet);
+    }
+
+    function proposeProtocolTreasury(address newTreasury) external onlyGovernor {
+        require(newTreasury != address(0), "Invalid address");
+        bytes32 id = keccak256(abi.encodePacked("protocolTreasury"));
+        pendingUpdates[id] = PendingUpdate(newTreasury, block.timestamp);
+        emit ProtocolTreasuryProposed(newTreasury, block.timestamp);
+    }
+
+    function executeProtocolTreasury() external onlyGovernor {
+        bytes32 id = keccak256(abi.encodePacked("protocolTreasury"));
+        PendingUpdate memory pending = pendingUpdates[id];
+        require(pending.pendingValue != address(0), "No pending update");
+        require(block.timestamp >= pending.pendingTimestamp + ADDRESS_TIMELOCK_DELAY, "Timelock not expired");
+        protocolTreasury = pending.pendingValue;
+        delete pendingUpdates[id];
+        emit ProtocolTreasuryExecuted(protocolTreasury);
+    }
+
+    // ==================== No renounceAdmin – admin remains ====================
 }
