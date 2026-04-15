@@ -1,98 +1,104 @@
-Radiant Protocol
+```markdown
+# Radiant Protocol
 
-A ZK‑Recursive Proof‑of‑Presence Field
-Verify presence. Prove action. Transact trustlessly.
+**A ZK‑Recursive Proof‑of‑Presence Field**  
+*Verify presence. Prove action. Transact trustlessly.*
 
-Radiant Protocol introduces a new primitive for the internet: proof of presence – a cryptographic guarantee that an entity truly existed, was active, and acted in a specific moment, without revealing unnecessary data.
+Radiant Protocol introduces a new primitive for the internet: **proof of presence** – a cryptographic guarantee that an entity truly existed, was active, and acted in a specific moment, without revealing unnecessary data.
 
 Built on recursive zero‑knowledge proofs (ZK‑recursive), Radiant turns presence into a verifiable, composable, and valuable resource.
 
 ---
 
-🚀 30‑Second Overview
+## 🚀 30‑Second Overview
 
 Radiant answers one question with mathematical certainty:
 
-“Was this entity truly present, active, and valid at this moment?”
+> *“Was this entity truly present, active, and valid at this moment?”*
 
 It does this by:
 
-· Generating lightweight cryptographic proofs of presence
-· Recursively linking proofs across time and systems
-· Enabling trustless interaction, identity, and value exchange
+- Generating lightweight cryptographic proofs of presence
+- Recursively linking proofs across time and systems
+- Enabling trustless interaction, identity, and value exchange
 
-The result: a continuous, verifiable chain of being there.
+**The result:** a continuous, verifiable chain of *being there*.
 
 ---
 
-🧠 Core Idea
+## 🧠 Core Idea
 
-Most systems verify who you are (identity).
-Radiant verifies that you were there (presence).
+Most systems verify *who you are* (identity).  
+Radiant verifies *that you were there* (presence).
 
 This shifts the foundation from:
 
 ```
+
 Identity → Claims → Trust
+
 ```
 
 to:
 
 ```
+
 Presence → Proof → Verification
+
 ```
 
 It creates a new layer where actions, participation, and existence become verifiable and interoperable.
 
 ---
 
-⚙️ What It Enables
+## ⚙️ What It Enables
 
-Capability Description
-Trustless Identity Beyond static wallets – presence as a dynamic credential
-Proof‑of‑Action Verify real activity, not just assertions
-Presence‑Based Transactions Value tied to actual participation, not just ownership
-Decentralized Coordination Systems that respond to real‑time existence
-Cross‑System Composability Presence proofs from one domain can be used in another
+| Capability | Description |
+|------------|-------------|
+| **Trustless Identity** | Beyond static wallets – presence as a dynamic credential |
+| **Proof of Action** | Verify real activity, not just assertions |
+| **Presence‑Based Transactions** | Value tied to actual participation, not just ownership |
+| **Decentralized Coordination** | Systems that respond to real‑time existence |
+| **Cross‑System Composability** | Presence proofs from one domain can be used in another |
 
 ---
 
-🧩 Architecture
+## 🧩 Architecture
 
 Radiant is a full‑stack protocol composed of:
 
-· Smart Contracts (contracts/) – Registry, token, fee logic, staking, and verification
-· SDK & Core Logic (RadiantSDK.ts, RadiantDiscovery.ts) – Developer integration interfaces
-· Frontend Layer (RadiantPresenceUI.tsx, frontend/) – User interaction and presence visualization
-· Backend Services (backend/, Relayer/, Worker/, Websocket/) – Event processing, relaying, real‑time communication
-· Deployment & Infra (ignition/, docker-compose.yml) – Multi‑chain and containerized deployment
+- **Smart Contracts** (`contracts/`) – Registry, token, fee logic, staking, verification
+- **SDK & Core Logic** (`RadiantSDK.ts`, `RadiantDiscovery.ts`) – Developer integration
+- **Frontend Layer** (`RadiantPresenceUI.tsx`, `frontend/`) – User interaction & presence visualization
+- **Backend Services** (`backend/`, `Relayer/`, `Worker/`, `Websocket/`) – Event processing, relaying, real‑time communication
+- **Deployment & Infra** (`ignition/`, `docker-compose.yml`) – Multi‑chain and containerized deployment
 
 All components are open source (MIT) and designed for modular use.
 
 ---
 
-🔐 How It Works (Simplified)
+## 🔐 How It Works (Simplified)
 
-1. A user or system generates a presence event (e.g., a message, a stake, a login).
-2. The event is encoded into a zero‑knowledge proof (ZK proof) – revealing no extra data.
-3. Proofs are recursively linked over time using Nova folding, creating a single compact proof.
+1. A user or system generates a **presence event** (e.g., a message, a stake, a login).
+2. The event is encoded into a **zero‑knowledge proof** (ZK proof) – revealing no extra data.
+3. Proofs are **recursively linked** over time (using Nova folding or similar), creating a single compact proof.
 4. The network verifies the proof, confirming presence without exposing sensitive information.
 
-Result: A continuous, verifiable chain of “being there” – lightweight enough for high‑frequency interactions.
+**Result:** A continuous, verifiable chain of “being there” – lightweight enough for high‑frequency interactions.
 
 ---
 
-📦 Example Use Cases
+## 📦 Example Use Cases
 
-· Decentralized social networks – prove you participated in a conversation without leaking content.
-· Secure communication layers – verify message delivery and read receipts.
-· On‑chain reputation – earn reputation for consistent presence, not just token holdings.
-· Autonomous coordination – DAOs that require proof of attendance for voting.
-· Gaming & virtual worlds – prove you were at an event to claim rewards.
+- **Decentralized social networks** – prove you participated in a conversation without leaking content.
+- **Secure communication layers** – verify message delivery and read receipts.
+- **On‑chain reputation** – earn reputation for consistent presence, not just token holdings.
+- **Autonomous coordination** – DAOs that require proof of attendance for voting.
+- **Gaming & virtual worlds** – prove you were at an event to claim rewards.
 
 ---
 
-🛠️ Getting Started
+## 🛠️ Getting Started
 
 ```bash
 # Clone the repository
@@ -119,7 +125,9 @@ Radiant is built on a single principle:
 
 Truth is not identity. Truth is presence.
 
-Identity can be faked, borrowed, or stolen. Presence – being there, acting, existing in a moment – is the only thing that cannot be delegated without cost. By making presence verifiable, Radiant restores trust to systems that have lost it.
+Identity can be faked, borrowed, or stolen.
+Presence – being there, acting, existing in a moment – is the only thing that cannot be delegated without cost.
+By making presence verifiable, Radiant restores trust to systems that have lost it.
 
 ---
 
@@ -156,5 +164,6 @@ A system where being there is the foundation of truth.
 
 📄 License
 
-MIT – open for innovation and expansion.
-License fee required for commercial use – see LICENSE.md and LicenseRegistry contract.
+The core protocol is licensed under MIT – open for innovation.
+Commercial use of the RadiantShares token or fee‑bearing contracts requires a separate commercial license.
+See LICENSE.md and the LicenseRegistry contract for details.
