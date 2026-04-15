@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiant Protocol – Proof of Presence (On‑Chain)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #0a1a2a 0%, #1a2a3a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 32px;
+            padding: 32px 28px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.2);
+        }
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1a2a3a, #2c5a7a);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+        .sub {
+            color: #5a6e85;
+            margin-bottom: 28px;
+            font-size: 0.9rem;
+        }
+        input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 60px;
+            border: 1px solid #cbd5e1;
+            font-size: 1rem;
+            margin-bottom: 16px;
+            transition: all 0.2s;
+            background: white;
+        }
+        input:focus {
+            outline: none;
+            border-color: #2c7a4d;
+            box-shadow: 0 0 0 3px rgba(44,122,77,0.2);
+        }
+        button {
+            background: #1a2a3a;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 60px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 16px;
+        }
+        button:hover:not(:disabled) {
+            background: #2c4a6a;
+        }
+        button:disabled {
+            background: #8a9aaa;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #2c5a7a;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: #1e3a5a;
+        }
+        .score-panel {
+            background: #f0f4f8;
+            border-radius: 24px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .score-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #4a5a6a;
+            margin-bottom: 8px;
+        }
+        .score-value {
+            font-size: 3.2rem;
+            font-weight: 800;
+            font-family: monospace;
+            color: #2c7a4d;
+        }
+        .wallet-badge {
+            background: #e6f0ff;
+            border-radius: 40px;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            display: inline-block;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+        .timestamp {
+            font-size: 0.7rem;
+            color: #6c8ea0;
+            margin-top: 8px;
+        }
+        .status {
+            font-size: 0.75rem;
+            margin-top: 12px;
+            padding: 8px;
+            border-radius: 20px;
+            background: #e8f0f8;
+            color: #2c5a7a;
+        }
+        .loader {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        footer {
+            font-size: 0.7rem;
+            color: #8a9aaa;
+            margin-top: 24px;
+            text-align: center;
+        }
+        .flex-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .flex-buttons button {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>✨ Proof of Presence</h1>
+    <div class="sub">Immutable on‑chain record · Persistent identity</div>
+
+    <input type="text" id="userInput" placeholder="Your unique identifier (wallet address or name)" autocomplete="off">
+    
+    <div class="flex-buttons">
+        <button id="registerLocalBtn">📀 Register Local</button>
+        <button id="registerOnchainBtn" class="btn-secondary">🌐 Anchor On‑Chain</button>
+    </div>
+
+    <div class="score-panel" id="scorePanel" style="display: none;">
+        <div class="score-label">Your Presence Score</div>
+        <div class="score-value" id="scoreValue">—</div>
+        <div class="wallet-badge" id="walletBadge"></div>
+        <div class="timestamp" id="timestampDisplay"></div>
+        <div id="onchainStatus" style="font-size:0.75rem; margin-top:10px;"></div>
+    </div>
+
+    <div class="status" id="statusMsg">Ready. Enter your identifier.</div>
+    <footer>
+        🔒 Local storage + on‑chain anchor (Sepolia/Goerli).<br>
+        Contract: <span id="contractDisplay">0x...</span>
+    </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+<script>
+    // ==================== CONFIGURATION ====================
+    // Replace with your deployed contract address and ABI
+    const CONTRACT_ADDRESS = "0xYourContractAddressHere"; 
+    const CONTRACT_ABI = [
+        "function registerPresence(bytes32 commitment) external",
+        "function getCommitment(address user) external view returns (bytes32)",
+        "event PresenceRegistered(address indexed user, bytes32 commitment, uint256 timestamp)"
+    ];
+    document.getElementById('contractDisplay').innerText = CONTRACT_ADDRESS !== "0xYourContractAddressHere" ? 
+        CONTRACT_ADDRESS.slice(0,10)+'...' : "Not set";
+
+    // Helper: compute commitment (keccak256 of identifier + score + timestamp)
+    function computeCommitment(identifier, score, timestamp) {
+        const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
+            ['string', 'uint256', 'uint256'],
+            [identifier, score, timestamp]
+        );
+        return ethers.keccak256(encoded);
+    }
+
+    // Deterministic score from identifier (using keccak256 for collision resistance)
+    function getScoreFromIdentifier(identifier) {
+        const hash = ethers.keccak256(ethers.toUtf8Bytes(identifier));
+        const bytes = hash.slice(2, 10); // first 4 bytes (8 hex chars)
+        const num = parseInt(bytes, 16);
+        return num % 101;
+    }
+
+    // DOM elements
+    const userInput = document.getElementById('userInput');
+    const registerLocalBtn = document.getElementById('registerLocalBtn');
+    const registerOnchainBtn = document.getElementById('registerOnchainBtn');
+    const scorePanel = document.getElementById('scorePanel');
+    const scoreValueSpan = document.getElementById('scoreValue');
+    const walletBadgeSpan = document.getElementById('walletBadge');
+    const timestampDisplayDiv = document.getElementById('timestampDisplay');
+    const onchainStatusSpan = document.getElementById('onchainStatus');
+    const statusMsgDiv = document.getElementById('statusMsg');
+
+    let provider, signer, contract;
+    let currentUser = null;
+    let currentScore = null;
+    let currentTimestamp = null;
+
+    // Load from localStorage
+    function loadLocalPresence() {
+        const storedId = localStorage.getItem('radiant_presence_id');
+        const storedScore = localStorage.getItem('radiant_presence_score');
+        const storedTs = localStorage.getItem('radiant_presence_timestamp');
+        if (storedId && storedScore !== null) {
+            currentUser = storedId;
+            currentScore = parseInt(storedScore);
+            currentTimestamp = storedTs ? parseInt(storedTs) : null;
+            updateUI();
+            return true;
+        }
+        return false;
+    }
+
+    function updateUI() {
+        if (currentUser) {
+            scoreValueSpan.innerText = currentScore;
+            walletBadgeSpan.innerText = currentUser.length > 24 ? currentUser.slice(0,22)+'...' : currentUser;
+            if (currentTimestamp) {
+                const date = new Date(currentTimestamp);
+                timestampDisplayDiv.innerHTML = `🕒 First registered: ${date.toLocaleString()}`;
+            } else {
+                timestampDisplayDiv.innerHTML = '';
+            }
+            scorePanel.style.display = 'block';
+            statusMsgDiv.innerHTML = `Local presence active for ${currentUser}. Score: ${currentScore}`;
+        } else {
+            scorePanel.style.display = 'none';
+        }
+    }
+
+    // Register locally (persist)
+    function registerLocal() {
+        const identifier = userInput.value.trim();
+        if (!identifier) {
+            statusMsgDiv.innerHTML = '❌ Please enter an identifier.';
+            return;
+        }
+        const score = getScoreFromIdentifier(identifier);
+        const now = Date.now();
+        const existingId = localStorage.getItem('radiant_presence_id');
+        let timestamp = (existingId === identifier) ? localStorage.getItem('radiant_presence_timestamp') : now.toString();
+        if (!timestamp) timestamp = now.toString();
+        localStorage.setItem('radiant_presence_id', identifier);
+        localStorage.setItem('radiant_presence_score', score);
+        localStorage.setItem('radiant_presence_timestamp', timestamp);
+        
+        currentUser = identifier;
+        currentScore = score;
+        currentTimestamp = parseInt(timestamp);
+        updateUI();
+        statusMsgDiv.innerHTML = `✅ Local registration successful. Score: ${score}`;
+        onchainStatusSpan.innerHTML = '';
+    }
+
+    // On-chain anchoring
+    async function registerOnChain() {
+        if (!currentUser) {
+            statusMsgDiv.innerHTML = '❌ Please register locally first.';
+            return;
+        }
+        if (!window.ethereum) {
+            statusMsgDiv.innerHTML = '❌ MetaMask not detected. Please install MetaMask.';
+            return;
+        }
+        if (CONTRACT_ADDRESS === "0xYourContractAddressHere") {
+            statusMsgDiv.innerHTML = '❌ Contract address not configured. Please update the script.';
+            return;
+        }
+        try {
+            if (!provider) {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = await provider.getSigner();
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+            }
+            const userAddress = await signer.getAddress();
+            statusMsgDiv.innerHTML = `⏳ Anchoring presence for ${userAddress.slice(0,6)}...${userAddress.slice(-4)}...`;
+            registerOnchainBtn.disabled = true;
+            registerOnchainBtn.innerHTML = '<span class="loader"></span> Processing...';
+            
+            const timestamp = currentTimestamp || Date.now();
+            const commitment = computeCommitment(currentUser, currentScore, timestamp);
+            
+            const tx = await contract.registerPresence(commitment);
+            await tx.wait();
+            
+            localStorage.setItem('radiant_presence_anchored', 'true');
+            onchainStatusSpan.innerHTML = `✅ Anchored on-chain! Tx: ${tx.hash.slice(0,10)}...`;
+            statusMsgDiv.innerHTML = `🎉 Presence anchored on blockchain. Score: ${currentScore}`;
+        } catch (err) {
+            console.error(err);
+            statusMsgDiv.innerHTML = `❌ Transaction failed: ${err.message}`;
+            onchainStatusSpan.innerHTML = '';
+        } finally {
+            registerOnchainBtn.disabled = false;
+            registerOnchainBtn.innerHTML = '🌐 Anchor On‑Chain';
+        }
+    }
+
+    // Check if current user has already been anchored (optional)
+    async function checkOnChainStatus() {
+        if (!currentUser || !window.ethereum || CONTRACT_ADDRESS === "0xYourContractAddressHere") return;
+        try {
+            if (!provider) {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                signer = await provider.getSigner();
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+            }
+            const address = await signer.getAddress();
+            const storedCommitment = await contract.getCommitment(address);
+            if (storedCommitment !== ethers.ZeroHash) {
+                onchainStatusSpan.innerHTML = `🔗 Already anchored on-chain.`;
+            } else {
+                onchainStatusSpan.innerHTML = `📡 Ready to anchor on-chain.`;
+            }
+        } catch (e) {
+            onchainStatusSpan.innerHTML = `⚠️ Contract not reachable (deploy first).`;
+        }
+    }
+
+    // Event listeners
+    registerLocalBtn.addEventListener('click', registerLocal);
+    registerOnchainBtn.addEventListener('click', registerOnChain);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') registerLocal();
+    });
+
+    // Load local presence on start
+    loadLocalPresence();
+    if (window.ethereum && currentUser && CONTRACT_ADDRESS !== "0xYourContractAddressHere") {
+        checkOnChainStatus();
+    } else if (!window.ethereum) {
+        statusMsgDiv.innerHTML = 'ℹ️ Install MetaMask to use on-chain anchoring.';
+    } else if (CONTRACT_ADDRESS === "0xYourContractAddressHere") {
+        onchainStatusSpan.innerHTML = '📝 Configure contract address to enable on-chain anchoring.';
+    }
+</script>
+</body>
+</html>
