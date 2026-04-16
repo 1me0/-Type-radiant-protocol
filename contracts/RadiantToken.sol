@@ -2,145 +2,167 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
-contract RadiantShares is ERC20, Ownable {
+/**
+ * @title RadiantToken
+ * @notice ERC20 token with staking, vesting, reputation, and 50/50 reward split between user and architect.
+ */
+contract RadiantToken is ERC20, AccessControl, ReentrancyGuard, Pausable {
+    bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    address public architect;
+    uint256 public constant ARCHITECT_FEE_BPS = 5000; // 50%
+
+    struct UserInfo {
+        uint256 stake;
+        uint256 reputation;
+        uint256 rewards;
+    }
+    mapping(address => UserInfo) public users;
+
     struct VestingSchedule {
         uint256 totalAmount;
         uint256 start;
         uint256 duration;
         uint256 claimed;
     }
-
     mapping(address => VestingSchedule) public vesting;
-    mapping(address => uint256) public reputation;
     uint256 public lockedBalance;
 
     event Staked(address indexed user, uint256 amount);
+    event Unstaked(address indexed user, uint256 amount);
     event ReputationUpdated(address indexed user, uint256 weight);
     event VestingCreated(address indexed user, uint256 amount, uint256 duration);
-    event RewardDistributed(address indexed user, uint256 amount);
+    event RewardDistributed(address indexed user, uint256 userAmount, uint256 architectAmount);
+    event ProofVerified(address indexed user, uint256 reward);
+    event Slashed(address indexed user, uint256 amount);
     event Claimed(address indexed user, uint256 amount);
+    event ArchitectUpdated(address indexed oldArchitect, address indexed newArchitect);
 
-    constructor() ERC20("Radiant Share", "RAD") {
-        _mint(msg.sender, 1_000_000 * 10**decimals());
+    constructor(
+        string memory name,
+        string memory symbol,
+        address _architect,
+        uint256 initialSupply
+    ) ERC20(name, symbol) {
+        require(_architect != address(0), "Invalid architect");
+        architect = _architect;
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(RELAYER_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender);
+        _mint(msg.sender, initialSupply);
     }
 
-    // Set or update reputation (only owner)
-    function setReputation(address user, uint256 weight) external onlyOwner {
-        reputation[user] = weight;
-        emit ReputationUpdated(user, weight);
+    // ==================== Modifiers ====================
+    modifier onlyRelayer() {
+        require(hasRole(RELAYER_ROLE, msg.sender), "Caller is not relayer");
+        _;
     }
 
-    // Create a vesting schedule (owner only)
-    function createVesting(address user, uint256 amount, uint256 durationSeconds) external onlyOwner {
-        require(amount <= balanceOf(owner()), "Not enough balance to vest");
-        _transfer(owner(), address(this), amount);
+    modifier onlyMinter() {
+        require(hasRole(MINTER_ROLE, msg.sender), "Caller is not minter");
+        _;
+    }
+
+    // ==================== Staking ====================
+    function stake(uint256 amount) external nonReentrant whenNotPaused {
+        require(amount > 0, "Amount zero");
+        _transfer(msg.sender, address(this), amount);
+        users[msg.sender].stake += amount;
+        emit Staked(msg.sender, amount);
+    }
+
+    function unstake(uint256 amount) external nonReentrant whenNotPaused {
+        require(amount > 0 && amount <= users[msg.sender].stake, "Invalid amount");
+        _transfer(address(this), msg.sender, amount);
+        users[msg.sender].stake -= amount;
+        emit Unstaked(msg.sender, amount);
+    }
+
+    // ==================== Vesting ====================
+    function createVesting(address user, uint256 amount, uint256 durationSeconds) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(amount <= balanceOf(msg.sender), "Insufficient balance");
+        _transfer(msg.sender, address(this), amount);
         lockedBalance += amount;
-
         vesting[user] = VestingSchedule({
             totalAmount: amount,
             start: block.timestamp,
             duration: durationSeconds,
             claimed: 0
         });
-
         emit VestingCreated(user, amount, durationSeconds);
     }
 
-    // Claim vested tokens
-    function claim() external {
+    function claimVested() external nonReentrant {
         VestingSchedule storage v = vesting[msg.sender];
-        require(v.totalAmount > 0, "No vesting schedule found");
-
+        require(v.totalAmount > 0, "No vesting");
         uint256 elapsed = block.timestamp - v.start;
-        uint256 vested = v.totalAmount * elapsed / v.duration;
+        uint256 vested = (v.totalAmount * elapsed) / v.duration;
         uint256 claimable = vested - v.claimed;
         require(claimable > 0, "Nothing to claim");
-
         v.claimed += claimable;
         lockedBalance -= claimable;
         _transfer(address(this), msg.sender, claimable);
         emit Claimed(msg.sender, claimable);
     }
 
-    // Reward contributor based on reputation (only owner)
-    function reward(address user, uint256 baseAmount) external onlyOwner {
-        uint256 weight = reputation[user] + 1; // minimum 1x
-        uint256 total = baseAmount * weight;
-        require(total <= balanceOf(owner()), "Not enough balance");
-        _transfer(owner(), user, total);
-        emit RewardDistributed(user, total);
-    }
-}
-// Add to Radiant.sol
-import "./RadiantShares.sol";
-
-contract Radiant {
-    RadiantShares public radiantToken;
-    // ... existing code ...
-
-    constructor(address tokenAddress) {
-        radiantToken = RadiantShares(tokenAddress);
-        // ... rest
+    // ==================== Reputation ====================
+    function setReputation(address user, uint256 weight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        users[user].reputation = weight;
+        emit ReputationUpdated(user, weight);
     }
 
-    function verifyProof(address user, uint256 reward) external onlyRelayer {
-        // mint tokens to user (if token supports minting, otherwise transfer from treasury)
-        radiantToken.reward(user, reward); // reward function expects baseAmount; adjust as needed
+    // ==================== Proof Verification (Reward with 50/50 split) ====================
+    function verifyProof(address user, uint256 baseReward) external onlyRelayer whenNotPaused {
+        require(baseReward > 0, "Reward zero");
+        uint256 architectShare = (baseReward * ARCHITECT_FEE_BPS) / 10000;
+        uint256 userShare = baseReward - architectShare;
+
+        if (userShare > 0) {
+            _mint(user, userShare);
+            users[user].rewards += userShare;
+        }
+        if (architectShare > 0) {
+            _mint(architect, architectShare);
+        }
         users[user].reputation += 10;
-        emit ProofVerified(user, reward);
-    }
-}
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
-
-import "./RadiantShares.sol";
-
-contract Radiant {
-    // 1. STATE (The Foundation - KEEP THIS)
-    address public architect;
-    RadiantShares public radiantToken;
-    uint256 public constant ARCHITECT_FEE_BPS = 5000; // 50% split
-
-    struct User {
-        uint256 stake;
-        uint256 reputation;
-    }
-    mapping(address => User) public users;
-
-    // 2. EVENTS (The Record - ADD NEW ONES HERE)
-    event RewardsDistributed(address indexed user, uint256 userAmount, uint256 architectAmount);
-    event Slashed(address indexed user, uint256 amount);
-    event ProofVerified(address indexed user, uint256 reward);
-
-    // 3. CONSTRUCTOR (The Origin - UPDATE TO LINK TOKEN)
-    constructor(address tokenAddress) {
-        architect = msg.sender;
-        radiantToken = RadiantShares(tokenAddress);
+        emit RewardDistributed(user, userShare, architectShare);
+        emit ProofVerified(user, baseReward);
     }
 
-    // 4. ACCESS CONTROL (The Guard)
-    modifier onlyRelayer() {
-        // In production, require(msg.sender == trustedRelayer);
-        _;
-    }
-
-    // 5. FUNCTIONS (The Executive - ADD NEW LOGIC HERE)
-    
-    // The Reward Logic
-    function verifyProof(address user, uint256 reward) external onlyRelayer {
-        radiantToken.reward(user, reward); 
-        users[user].reputation += 10;
-        
-        // Apply the 50/50 Architect split logic here if needed
-        emit ProofVerified(user, reward);
-    }
-
-    // The Defense Logic (The Slasher)
-    function slash(address user, uint256 amount) external onlyRelayer {
-        require(users[user].stake >= amount, "Insufficient stake");
+    // ==================== Slashing ====================
+    function slash(address user, uint256 amount) external onlyRelayer whenNotPaused {
+        require(amount > 0 && amount <= users[user].stake, "Invalid slash amount");
         users[user].stake -= amount;
+        _burn(address(this), amount); // burned tokens are removed from supply
         emit Slashed(user, amount);
     }
+
+    // ==================== Admin ====================
+    function setArchitect(address newArchitect) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(newArchitect != address(0), "Invalid address");
+        address old = architect;
+        architect = newArchitect;
+        emit ArchitectUpdated(old, newArchitect);
+    }
+
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
+    }
+
+    // ==================== Utility ====================
+    function getUserInfo(address user) external view returns (uint256 stake, uint256 reputation, uint256 rewards) {
+        UserInfo memory u = users[user];
+        return (u.stake, u.reputation, u.rewards);
+    }
+
+    // Override _mint to enforce max supply? Optional – not implemented here.
 }
