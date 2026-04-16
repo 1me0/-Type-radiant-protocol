@@ -1,63 +1,159 @@
 import { ethers } from 'ethers';
-import { Contract, Signer } from 'ethers';
 
-// NOTE: You must paste your actual ABI here after running 'npx hardhat compile'
+// ============================================================
+// ABI – Replace with your actual contract ABI after compilation
+// ============================================================
 const CONTRACT_ABI = [
+    // Token conversion
     "function convertPointsToRAD(uint256 points) external",
+    // Staking
     "function stake() external payable",
-    "function submitProof(string proofHash) external",
+    // Proof submission
+    "function submitProof(string memory proofHash) external",
+    // Reward claim
     "function claim() external",
-    "function users(address) view returns (uint256 stake, uint256 reputation, uint256 rewards)"
+    // User data
+    "function users(address) view returns (uint256 stake, uint256 reputation, uint256 rewards)",
+    // Additional helper (optional)
+    "function getReputation(address user) external view returns (uint256)",
+    // Events (optional, for listening)
+    "event Staked(address indexed user, uint256 amount)",
+    "event ProofSubmitted(address indexed user, string proofHash)",
+    "event Claimed(address indexed user, uint256 amount)",
+    "event PointsConverted(address indexed user, uint256 points, uint256 radAmount)"
 ];
 
+// ============================================================
+// SDK Class
+// ============================================================
 export class RadiantSDK {
-    private contract: Contract;
-    private signer: Signer;
+    private contract: ethers.Contract;
+    private signer: ethers.Signer;
+    private provider: ethers.Provider;
 
-    constructor(contractAddress: string, signer: Signer) {
+    /**
+     * Creates a new RadiantSDK instance.
+     * @param contractAddress – deployed contract address
+     * @param signer – ethers Signer (from MetaMask or other wallet)
+     */
+    constructor(contractAddress: string, signer: ethers.Signer) {
         this.signer = signer;
+        this.provider = signer.provider!;
         this.contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
     }
 
     /**
-     * @dev Bridges the HTML/Frontend points to the Sovereign $RAD Tokens
-     * Matches the logic in Radiant (1).sol
+     * Convert CIS points (earned from the Truth Engine) into $RAD tokens.
+     * @param points – number of points (must be positive integer)
      */
-    async claimTokensToWallet(points: number) {
+    async convertPointsToRAD(points: number): Promise<ethers.TransactionReceipt> {
+        if (!Number.isInteger(points) || points <= 0) {
+            throw new Error('Points must be a positive integer');
+        }
+        console.log(`🔄 Converting ${points} points to RAD...`);
+        const tx = await this.contract.convertPointsToRAD(points);
+        const receipt = await tx.wait();
+        console.log(`✅ Converted ${points} points → Tx: ${receipt?.hash}`);
+        return receipt;
+    }
+
+    /**
+     * Stake ETH to participate in the protocol.
+     * @param amountEth – amount in ETH (e.g., "0.01")
+     */
+    async stake(amountEth: string): Promise<ethers.TransactionReceipt> {
+        const amountWei = ethers.parseEther(amountEth);
+        console.log(`🔒 Staking ${amountEth} ETH...`);
+        const tx = await this.contract.stake({ value: amountWei });
+        const receipt = await tx.wait();
+        console.log(`✅ Staked ${amountEth} ETH → Tx: ${receipt?.hash}`);
+        return receipt;
+    }
+
+    /**
+     * Submit a proof hash (e.g., from a conversation or presence event).
+     * @param proofHash – string hash (can be any identifier)
+     */
+    async submitProof(proofHash: string): Promise<ethers.TransactionReceipt> {
+        if (!proofHash || proofHash.trim() === '') {
+            throw new Error('Proof hash cannot be empty');
+        }
+        console.log(`📝 Submitting proof: ${proofHash.slice(0, 10)}...`);
+        const tx = await this.contract.submitProof(proofHash);
+        const receipt = await tx.wait();
+        console.log(`✅ Proof submitted → Tx: ${receipt?.hash}`);
+        return receipt;
+    }
+
+    /**
+     * Claim accumulated rewards (ETH or tokens) from staking and proof verification.
+     */
+    async claim(): Promise<ethers.TransactionReceipt> {
+        console.log(`💰 Claiming rewards...`);
+        const tx = await this.contract.claim();
+        const receipt = await tx.wait();
+        console.log(`✅ Rewards claimed → Tx: ${receipt?.hash}`);
+        return receipt;
+    }
+
+    /**
+     * Load user statistics (stake, reputation, rewards).
+     * @param address – user's wallet address
+     */
+    async loadUserStats(address: string): Promise<{
+        stake: string;
+        reputation: number;
+        rewards: string;
+    }> {
         try {
-            console.log(`Initiating anchor for ${points} points...`);
-            // This calls the conversion law in your smart contract
-            const tx = await this.contract.convertPointsToRAD(points); 
-            
-            await tx.wait(); // Wait for the blockchain to confirm the "Energy"
-            alert("Sovereign Energy Anchored to Wallet! $RAD minted.");
+            const user = await this.contract.users(address);
+            return {
+                stake: ethers.formatEther(user.stake),
+                reputation: Number(user.reputation),
+                rewards: ethers.formatEther(user.rewards)
+            };
         } catch (error) {
-            console.error("Anchoring failed:", error);
-            alert("Failed to anchor points. Ensure you have 1000+ points and gas fee.");
+            console.error('Failed to load user stats:', error);
+            return { stake: '0', reputation: 0, rewards: '0' };
         }
     }
 
-    async stake(amountEth: string) {
-        const tx = await this.contract.stake({ value: ethers.parseEther(amountEth) });
-        await tx.wait();
+    /**
+     * Get the contract address.
+     */
+    getContractAddress(): string {
+        return this.contract.target as string;
     }
 
-    async submitProof(proofHash: string) {
-        const tx = await this.contract.submitProof(proofHash);
-        await tx.wait();
-    }
-
-    async claim() {
-        const tx = await this.contract.claim();
-        await tx.wait();
-    }
-
-    async loadUserStats(address: string) {
-        const user = await this.contract.users(address);
-        return {
-            stake: ethers.formatEther(user.stake),
-            reputation: Number(user.reputation),
-            rewards: ethers.formatEther(user.rewards)
-        };
+    /**
+     * Get the signer's address.
+     */
+    async getSignerAddress(): Promise<string> {
+        return await this.signer.getAddress();
     }
 }
+
+// ============================================================
+// Example usage (commented out)
+// ============================================================
+/*
+async function example() {
+    // In a browser environment with MetaMask:
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const sdk = new RadiantSDK('0xYourContractAddress', signer);
+
+    // Stake 0.01 ETH
+    await sdk.stake('0.01');
+
+    // Submit a proof
+    await sdk.submitProof('0x123...');
+
+    // Claim rewards
+    await sdk.claim();
+
+    // Get user stats
+    const stats = await sdk.loadUserStats(await sdk.getSignerAddress());
+    console.log(stats);
+}
+*/
