@@ -59,12 +59,31 @@ For a detailed step‑by‑step tutorial, refer to [TUTORIAL.md](TUTORIAL.md).
 
 ---
 
+## 🔒 Security
+
+- **Audit status**: This release has not yet undergone a professional third‑party audit. The contracts have been tested on Sepolia and are considered experimental. A full security audit is planned before mainnet deployment.
+- **Bug bounty**: We welcome responsible disclosure of vulnerabilities. Please report security issues via the process in [SECURITY.md](SECURITY.md) – do not use public issues.
+- **Key management**: All administrative roles (architect, council, fee recipient) are controlled by the deployer wallet. For mainnet, a multi‑signature wallet (e.g., Gnosis Safe) will be used to reduce centralisation risk.
+- **License enforcement**: The `LicenseRegistry` contract enforces commercial licenses on‑chain. Attempts to bypass it void the license.
+
+---
+
 ## ⚠️ Known Issues / Limitations
 
 - The Rust worker currently simulates proof validation (actual Nova folding not yet integrated).
 - On‑chain anchoring for Proof of Presence requires a deployed `PresenceRegistry` contract (provided).
 - WebSocket server is not yet scaled for high concurrency (single instance only).
 - The CIS scoring API uses a rule‑based fallback; AI‑powered scoring requires additional setup (see `ai/` directory).
+
+---
+
+## 🗺️ Roadmap (Next Release)
+
+- **Nova integration** – replace the placeholder Rust worker with real recursive proof folding.
+- **Mainnet deployment** – deploy contracts to Arbitrum One or Base after audit.
+- **Scalability** – horizontal scaling for WebSocket server and Kafka workers.
+- **AI improvement** – integrate the fine‑tuned SLM for CIS scoring.
+- **Governance** – transition to a multi‑sig or DAO for protocol parameters.
 
 ---
 
