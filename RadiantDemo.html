@@ -84,6 +84,12 @@
         button:hover {
             background: #1e5a3a;
         }
+        .btn-secondary {
+            background: #3a5a7a;
+        }
+        .btn-secondary:hover {
+            background: #2c4a6a;
+        }
         .score-badge {
             background: #1e2a3a;
             border-radius: 30px;
@@ -124,6 +130,17 @@
             margin-top: 40px;
             color: #5a7a9a;
             font-size: 0.75rem;
+        }
+        .flex-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .reset-btn {
+            background: #8a2a2a;
+        }
+        .reset-btn:hover {
+            background: #6a1a1a;
         }
     </style>
 </head>
@@ -178,7 +195,7 @@
             <div id="recordDisplay" class="score-badge">Architect's last record: 0 RAD</div>
         </div>
 
-        <!-- 4. Staking Simulation -->
+        <!-- 4. Staking & Rewards -->
         <div class="card">
             <h2>🏦 Staking & Rewards</h2>
             <p>Stake RAD to earn from the fee pool. Rewards are distributed proportionally.</p>
@@ -189,6 +206,9 @@
             <div id="stakingInfo" class="score-badge"></div>
             <div id="rewardInfo" class="score-badge"></div>
         </div>
+    </div>
+    <div class="flex-buttons" style="justify-content: center; margin-top: 20px;">
+        <button id="resetDemoBtn" class="reset-btn">🗑️ Reset Demo (Clear All Data)</button>
     </div>
     <footer>
         🔐 This demo runs locally in your browser (simulated). All logic is client‑side.<br>
@@ -206,6 +226,7 @@
     };
     let lastRecord = parseFloat(localStorage.getItem('architect_last_record') || '0');
     let userStake = parseFloat(localStorage.getItem('user_stake') || '0');
+    let totalStaked = parseFloat(localStorage.getItem('total_staked') || '0');
     let rewardPool = parseFloat(localStorage.getItem('reward_pool') || '0');
     let userRewards = parseFloat(localStorage.getItem('user_rewards') || '0');
 
@@ -222,11 +243,24 @@
     // Update UI
     function updateUI() {
         document.getElementById('recordDisplay').innerHTML = `Architect's last record: ${lastRecord.toFixed(2)} RAD`;
-        document.getElementById('stakingInfo').innerHTML = `Your stake: ${userStake.toFixed(2)} RAD`;
+        document.getElementById('stakingInfo').innerHTML = `Your stake: ${userStake.toFixed(2)} RAD | Total staked: ${totalStaked.toFixed(2)} RAD`;
         document.getElementById('rewardInfo').innerHTML = `Reward pool: ${rewardPool.toFixed(2)} RAD | Your pending rewards: ${userRewards.toFixed(2)} RAD`;
         if (presence.identifier) {
             document.getElementById('presenceResult').innerHTML = `<div class="score-badge">✅ Presence: ${presence.identifier.slice(0,10)}... Score: ${presence.score}</div>`;
+        } else {
+            document.getElementById('presenceResult').innerHTML = '';
         }
+    }
+
+    // Save all state to localStorage
+    function persistState() {
+        localStorage.setItem('radiant_presence_id', presence.identifier);
+        localStorage.setItem('radiant_presence_score', presence.score);
+        localStorage.setItem('architect_last_record', lastRecord);
+        localStorage.setItem('user_stake', userStake);
+        localStorage.setItem('total_staked', totalStaked);
+        localStorage.setItem('reward_pool', rewardPool);
+        localStorage.setItem('user_rewards', userRewards);
     }
 
     // 1. Proof of Presence
@@ -235,8 +269,7 @@
         if (!id) { alert('Enter a name or address'); return; }
         const score = hashToScore(id);
         presence = { identifier: id, score };
-        localStorage.setItem('radiant_presence_id', id);
-        localStorage.setItem('radiant_presence_score', score);
+        persistState();
         updateUI();
     });
 
@@ -263,7 +296,7 @@
     function updateRecord(newAmount) {
         if (newAmount > lastRecord) {
             lastRecord = newAmount;
-            localStorage.setItem('architect_last_record', lastRecord);
+            persistState();
             updateUI();
             return true;
         }
@@ -278,7 +311,6 @@
 
         const fee = amount * 0.5;
         const total = amount + fee;
-        // Simulate user balance (mock)
         let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
         if (userBalance < total) {
             alert(`Insufficient balance: need ${total.toFixed(2)} RAD (you have ${userBalance.toFixed(2)})`);
@@ -286,21 +318,19 @@
         }
         userBalance -= total;
         localStorage.setItem('user_balance', userBalance);
-        // Architect receives fee (mock)
+
         let architectBalance = parseFloat(localStorage.getItem('architect_balance') || '0');
         architectBalance += fee;
         localStorage.setItem('architect_balance', architectBalance);
-        // Recipient receives amount
+
         let recipientBalance = parseFloat(localStorage.getItem(`balance_${recipient}`) || '0');
         recipientBalance += amount;
         localStorage.setItem(`balance_${recipient}`, recipientBalance);
 
-        // Check record and bonus
         let bonus = 0;
         const beatsRecord = amount > lastRecord;
         if (beatsRecord) {
             bonus = amount * 0.5;
-            // Bonus comes from treasury (simulated)
             let treasury = parseFloat(localStorage.getItem('treasury') || '1000');
             if (treasury >= bonus) {
                 treasury -= bonus;
@@ -309,12 +339,14 @@
                 localStorage.setItem('user_balance', userBalance);
             } else {
                 bonus = 0;
+                alert('Treasury insufficient for bonus.');
             }
             updateRecord(amount);
         }
 
-        document.getElementById('txResult').innerHTML = `<div class="score-badge">✅ Sent ${amount} RAD to ${recipient}. Fee: ${fee} RAD to architect.${beatsRecord ? ` Bonus: +${bonus} RAD!` : ''}</div>`;
+        document.getElementById('txResult').innerHTML = `<div class="score-badge">✅ Sent ${amount.toFixed(2)} RAD to ${recipient}. Fee: ${fee.toFixed(2)} RAD to architect.${beatsRecord ? ` Bonus: +${bonus.toFixed(2)} RAD!` : ''}</div>`;
         updateUI();
+        setTimeout(() => document.getElementById('txResult').innerHTML = '', 3000);
     });
 
     // 4. Staking & Rewards
@@ -325,18 +357,20 @@
         if (userBalance < amount) { alert('Insufficient balance'); return; }
         userBalance -= amount;
         userStake += amount;
+        totalStaked += amount;
         localStorage.setItem('user_balance', userBalance);
-        localStorage.setItem('user_stake', userStake);
+        persistState();
         updateUI();
     });
     document.getElementById('unstakeBtn').addEventListener('click', () => {
         let amount = parseFloat(document.getElementById('stakeAmount').value);
         if (isNaN(amount) || amount <= 0 || amount > userStake) return;
         userStake -= amount;
+        totalStaked -= amount;
         let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
         userBalance += amount;
         localStorage.setItem('user_balance', userBalance);
-        localStorage.setItem('user_stake', userStake);
+        persistState();
         updateUI();
     });
     document.getElementById('claimRewardsBtn').addEventListener('click', () => {
@@ -345,31 +379,46 @@
         userBalance += userRewards;
         localStorage.setItem('user_balance', userBalance);
         userRewards = 0;
-        localStorage.setItem('user_rewards', userRewards);
+        persistState();
         updateUI();
     });
 
-    // Simulate periodic reward distribution (every 10 seconds, for demo)
+    // Periodic reward distribution (every 10 seconds)
     setInterval(() => {
-        if (userStake > 0 && rewardPool > 0) {
-            // simple proportional reward
-            const share = rewardPool * (userStake / (userStake + 1)); // simplified
+        if (totalStaked > 0 && rewardPool > 0) {
+            // Proportional reward based on user's stake relative to totalStaked
+            const share = rewardPool * (userStake / totalStaked);
             userRewards += share;
             rewardPool -= share;
-            localStorage.setItem('user_rewards', userRewards);
-            localStorage.setItem('reward_pool', rewardPool);
+            persistState();
             updateUI();
         }
     }, 10000);
 
-    // Initialize demo with some mock data
+    // Reset demo: clear all data
+    document.getElementById('resetDemoBtn').addEventListener('click', () => {
+        if (confirm('Reset all demo data? This will erase presence, stake, rewards, and transaction records.')) {
+            localStorage.clear();
+            // Re-initialize defaults
+            localStorage.setItem('user_balance', '1000');
+            localStorage.setItem('architect_balance', '0');
+            localStorage.setItem('treasury', '500');
+            localStorage.setItem('reward_pool', '100');
+            localStorage.setItem('total_staked', '0');
+            location.reload();
+        }
+    });
+
+    // Initialize demo with mock data if missing
     if (!localStorage.getItem('user_balance')) localStorage.setItem('user_balance', '1000');
     if (!localStorage.getItem('architect_balance')) localStorage.setItem('architect_balance', '0');
     if (!localStorage.getItem('treasury')) localStorage.setItem('treasury', '500');
     if (!localStorage.getItem('reward_pool')) localStorage.setItem('reward_pool', '100');
+    if (!localStorage.getItem('total_staked')) localStorage.setItem('total_staked', '0');
     rewardPool = parseFloat(localStorage.getItem('reward_pool'));
     userRewards = parseFloat(localStorage.getItem('user_rewards') || '0');
+    totalStaked = parseFloat(localStorage.getItem('total_staked') || '0');
     updateUI();
 </script>
 </body>
-              </html>
+</html>
