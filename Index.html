@@ -3,656 +3,298 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant AI – Adaptive Conversation Intelligence</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: system-ui, 'Segoe UI', sans-serif;
-        }
-        body {
-            background: #f0f2f5;
-            margin: 0;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1300px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 28px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.1);
-            padding: 24px;
-        }
-        .flex {
-            display: flex;
-            gap: 24px;
-            flex-wrap: wrap;
-        }
-        .chat-panel {
-            flex: 2;
-            min-width: 300px;
-        }
-        .side-panel {
-            flex: 1;
-            min-width: 280px;
-            background: #f8f9fc;
-            border-radius: 20px;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
-        }
-        .user-info {
-            background: #e6f0ff;
-            border-radius: 16px;
-            padding: 12px;
-            margin-bottom: 20px;
-        }
-        .score-badge {
-            font-size: 1.8rem;
-            font-weight: bold;
-            font-family: monospace;
-        }
-        button, input, select, textarea {
-            padding: 8px 12px;
-            border-radius: 30px;
-            border: 1px solid #cbd5e1;
-            background: white;
-        }
-        button {
-            background: #1a2a3a;
-            color: white;
-            cursor: pointer;
-        }
-        button:disabled {
-            background: #b0c4de;
-            cursor: not-allowed;
-        }
-        .chat-messages {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #e2e8f0;
-            border-radius: 20px;
-            padding: 12px;
-            margin-bottom: 12px;
-            background: #ffffff;
-        }
-        .message {
-            margin-bottom: 12px;
-            padding: 8px 12px;
-            border-radius: 18px;
-            max-width: 80%;
-        }
-        .user-message {
-            background: #e6f7e6;
-            align-self: flex-end;
-            margin-left: auto;
-        }
-        .ai-message {
-            background: #f1f5f9;
-            align-self: flex-start;
-        }
-        .cis-score {
-            font-size: 0.7rem;
-            color: #5a6e85;
-        }
-        .graph-canvas {
-            width: 100%;
-            height: 200px;
-            margin-top: 12px;
-        }
-        .toggle-switch {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 12px 0;
-        }
-        .public-users {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 12px;
-        }
-        .public-user {
-            cursor: pointer;
-            padding: 6px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .public-user:hover {
-            background: #e2e8f0;
-        }
-        .premium-badge {
-            background: #ffd966;
-            color: #2c3e50;
-            border-radius: 20px;
-            padding: 2px 8px;
-            font-size: 0.7rem;
-            display: inline-block;
-            margin-left: 8px;
-        }
-    </style>
+    <title>Radiant Protocol – AI + Transaction</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+    <style>
+        *{box-sizing:border-box;font-family:system-ui,sans-serif;}
+        body{background:#f0f2f5;margin:0;padding:20px;}
+        .container{max-width:1200px;margin:auto;background:white;border-radius:28px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,0.1);}
+        .flex{display:flex;gap:24px;flex-wrap:wrap;}
+        .chat-panel{flex:2;min-width:280px;}
+        .tx-panel{flex:1;min-width:260px;background:#f8f9fc;border-radius:20px;padding:16px;border:1px solid #e2e8f0;}
+        .user-info{background:#e6f0ff;border-radius:16px;padding:12px;margin-bottom:16px;}
+        button, input, select, textarea{padding:8px 12px;border-radius:30px;border:1px solid #cbd5e1;}
+        button{background:#1a2a3a;color:white;cursor:pointer;}
+        button:disabled{background:#b0c4de;}
+        .chat-messages{height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:20px;padding:12px;margin-bottom:12px;background:#fff;}
+        .message{margin-bottom:10px;padding:6px 12px;border-radius:18px;max-width:80%;}
+        .user-message{background:#e6f7e6;margin-left:auto;}
+        .ai-message{background:#f1f5f9;}
+        .cis-score{font-size:0.7rem;color:#5a6e85;}
+        canvas{max-height:180px;width:100%;margin-top:12px;}
+        .toggle-switch{display:flex;align-items:center;gap:10px;margin:10px 0;flex-wrap:wrap;}
+        .public-users{max-height:150px;overflow-y:auto;margin-top:8px;}
+        .public-user{cursor:pointer;padding:6px;border-bottom:1px solid #e2e8f0;}
+        .note{font-size:0.7rem;color:#7f8c8d;margin-top:12px;}
+        hr{margin:16px 0;}
+    </style>
 </head>
 <body>
 <div class="container">
-    <h1>🤖 Radiant AI – Adaptive Intelligence</h1>
+    <h1>⚡ Radiant Protocol – AI + Fee Game</h1>
     <div class="flex">
+        <!-- CHAT PANEL -->
         <div class="chat-panel">
             <div class="chat-messages" id="chatMessages"></div>
-            <div class="flex" style="gap: 8px; margin-bottom: 8px;">
-                <textarea id="userInput" rows="2" style="flex:1;" placeholder="Type your message..."></textarea>
+            <div class="flex" style="gap:8px; margin-bottom:8px;">
+                <textarea id="userInput" rows="1" style="flex:1;" placeholder="Message..."></textarea>
                 <button id="sendBtn">Send</button>
             </div>
             <div class="toggle-switch">
-                <input type="checkbox" id="premiumModeToggle" disabled>
-                <label for="premiumModeToggle">✨ Highest Response AI (costs 1000 points/day)</label>
-                <span id="pointsDisplay" style="margin-left: auto;">Points: 0</span>
+                <input type="checkbox" id="premiumToggle" disabled>
+                <label>✨ Premium AI (1000 pts/day)</label>
+                <span id="pointsDisplay" style="margin-left:auto;">Points: 0</span>
             </div>
             <div class="user-info">
                 <strong>Your Stats</strong><br>
                 <div id="userStats"></div>
                 <div id="premiumStatus"></div>
             </div>
-        </div>
-        <div class="side-panel">
-            <h3>📈 Conversation History</h3>
-            <canvas id="historyGraph" width="400" height="200" class="graph-canvas"></canvas>
+            <canvas id="historyChart"></canvas>
             <div class="toggle-switch">
-                <label>Compare with:</label>
-                <select id="compareSelect">
-                    <option value="none">None</option>
-                </select>
+                <label>Compare:</label>
+                <select id="compareSelect"><option value="none">None</option></select>
             </div>
-            <div id="compareGraphContainer" style="margin-top: 12px;"></div>
-            <h3>👥 Public Users (Top 5)</h3>
+            <div id="compareContainer"></div>
+        </div>
+
+        <!-- TRANSACTION PANEL (Architect Fee) -->
+        <div class="tx-panel">
+            <h3>💰 Architect Fee (50%)</h3>
+            <div id="txAccountInfo"></div>
+            <div id="txRecordInfo"></div>
+            <input type="text" id="recipient" placeholder="Recipient address">
+            <input type="number" id="amount" step="0.0001" placeholder="Amount (tokens)">
+            <button id="sendTxBtn" disabled>Send Transaction</button>
+            <div id="txStatus" class="note"></div>
+            <hr>
+            <div><strong>👥 Public Users (Top 5)</strong></div>
             <div id="publicUsersList" class="public-users"></div>
-            <div class="note" style="font-size:0.7rem; margin-top:12px;">
-                💡 First month free. Score 1000 total CIS in a month to renew free access.
-            </div>
+            <div class="note">💡 First month free. 1000 total CIS renews premium.</div>
         </div>
     </div>
 </div>
 
 <script>
-    // ------------------------------------------------------------------
-    // IndexedDB for persistent storage (users, conversations, points)
-    // ------------------------------------------------------------------
+    // ========== IndexedDB ==========
     const DB_NAME = "RadiantAI_DB";
-    const DB_VERSION = 1;
-    let db = null;
-
+    let db;
     function openDB() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                db = request.result;
-                resolve(db);
-            };
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains("users")) {
-                    db.createObjectStore("users", { keyPath: "id" });
-                }
-                if (!db.objectStoreNames.contains("conversations")) {
-                    db.createObjectStore("conversations", { keyPath: "id", autoIncrement: true });
-                }
+            const req = indexedDB.open(DB_NAME, 2);
+            req.onerror = () => reject(req.error);
+            req.onsuccess = () => { db = req.result; resolve(db); };
+            req.onupgradeneeded = (e) => {
+                const d = e.target.result;
+                if (!d.objectStoreNames.contains("users")) d.createObjectStore("users", { keyPath: "id" });
+                if (!d.objectStoreNames.contains("conv")) d.createObjectStore("conv", { keyPath: "id", autoIncrement: true });
             };
         });
     }
+    async function store(storeName, mode) { if (!db) await openDB(); return db.transaction(storeName, mode).objectStore(storeName); }
+    async function saveUser(u) { return (await store("users", "readwrite")).put(u); }
+    async function getUser(id) { return (await store("users")).get(id); }
+    async function getAllUsers() { return (await store("users")).getAll(); }
+    async function saveConv(c) { return (await store("conv", "readwrite")).add(c); }
+    async function getConvs(uid) { const all = await (await store("conv")).getAll(); return all.filter(c => c.userId === uid); }
 
-    async function getStore(storeName, mode = "readonly") {
-        if (!db) await openDB();
-        return db.transaction(storeName, mode).objectStore(storeName);
+    // ========== Global state ==========
+    let currentUser = null, convs = [], chat = [], points = 0, premiumActive = false, premiumExpiry = null, lastPointsDay = null;
+    let historyChart = null, compareChart = null;
+
+    // ========== Helper ==========
+    function escapeHtml(s) { return s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    function computeCIS(msg) { return Math.min(10, 5 + (msg.length>20?1:0) + (msg.includes('?')?1:0) + Math.random()*1.5); }
+    async function generateResponse(userMsg, cis) {
+        let resp = "I understand. Could you elaborate?";
+        if (premiumActive && document.getElementById('premiumToggle').checked) resp = "✨ Premium: " + resp + " Deeper insight added.";
+        return resp;
     }
-
-    async function saveUser(user) {
-        const store = await getStore("users", "readwrite");
-        return store.put(user);
+    function renderChat() {
+        const container = document.getElementById('chatMessages');
+        container.innerHTML = chat.map(m => `<div class="message ${m.sender==='user'?'user-message':'ai-message'}">
+            <strong>${m.sender==='user'?'You':'AI'}</strong><div>${escapeHtml(m.text)}</div>${m.cis?`<div class="cis-score">CIS: ${m.cis.toFixed(2)}</div>`:''}</div>`).join('');
+        container.scrollTop = container.scrollHeight;
     }
-
-    async function getUser(userId) {
-        const store = await getStore("users");
-        return store.get(userId);
-    }
-
-    async function getAllUsers() {
-        const store = await getStore("users");
-        return store.getAll();
-    }
-
-    async function saveConversation(conv) {
-        const store = await getStore("conversations", "readwrite");
-        return store.put(conv);
-    }
-
-    async function getConversations(userId) {
-        const store = await getStore("conversations");
-        return store.getAll();
-    }
-
-    // ------------------------------------------------------------------
-    // User management (simplified: one user per browser)
-    // ------------------------------------------------------------------
-    let currentUser = null;
-    let currentConversations = [];
-    let chatHistory = [];
-    let pointsBalance = 0;
-    let premiumActive = false;
-    let premiumExpiry = null; // timestamp
-    let currentPointsDay = null; // day of last deduction
-
-    // CIS scoring (simplified for demo)
-    function computeCIS(message, aiResponse) {
-        // Dummy: based on message length, sentiment etc.
-        let score = 5 + Math.random() * 3;
-        return Math.min(10, Math.max(0, score));
-    }
-
-    // AI that adapts to user's logic (simple rule-based)
-    function adaptAIPrompt(userMessages, userCISHistory) {
-        // In real system, would use ML; here we just store patterns
-        let style = "neutral";
-        let avgScore = userCISHistory.reduce((a,b)=>a+b,0) / (userCISHistory.length || 1);
-        if (avgScore > 7) style = "enthusiastic";
-        else if (avgScore < 4) style = "encouraging";
-        return style;
-    }
-
-    async function generateAIResponse(userMessage, userCIS) {
-        const style = adaptAIPrompt(chatHistory.map(m => m.text), chatHistory.map(m => m.cisScore || 0));
-        let response = "";
-        if (style === "enthusiastic") {
-            response = `That's a great point! ${userMessage} really resonates. Let's explore further.`;
-        } else if (style === "encouraging") {
-            response = `I see. Maybe we can rephrase to improve clarity. How about: ${userMessage}?`;
-        } else {
-            response = `I understand. Could you elaborate on "${userMessage}"?`;
-        }
-        // Simulate premium mode: more elaborate response
-        if (premiumActive && document.getElementById('premiumModeToggle').checked) {
-            response = `✨ (Premium) ` + response + " Also, I've aligned with your logic and suggest a deeper perspective.";
-        }
-        return response;
-    }
-
-    async function addMessage(sender, text, aiResponse, cisScore) {
-        const msg = {
-            sender,
-            text,
-            timestamp: Date.now(),
-            cisScore
-        };
-        chatHistory.push(msg);
+    async function addMessage(sender, text, cis=null) {
+        const msg = { sender, text, timestamp: Date.now(), cis };
+        chat.push(msg);
+        await saveConv({ userId: currentUser.id, sender, text, cis, timestamp: Date.now() });
+        convs.push({ userId: currentUser.id, sender, text, cis, timestamp: Date.now() });
         renderChat();
-
-        // Save conversation
-        currentConversations.push({
-            userId: currentUser.id,
-            timestamp: Date.now(),
-            sender,
-            text,
-            cisScore
-        });
-        await saveConversation({ userId: currentUser.id, timestamp: Date.now(), sender, text, cisScore });
         updateGraphs();
     }
 
-    function renderChat() {
-        const container = document.getElementById('chatMessages');
-        container.innerHTML = chatHistory.map(msg => `
-            <div class="message ${msg.sender === 'user' ? 'user-message' : 'ai-message'}">
-                <div><strong>${msg.sender === 'user' ? 'You' : 'AI'}</strong></div>
-                <div>${msg.text}</div>
-                ${msg.cisScore ? `<div class="cis-score">CIS: ${msg.cisScore.toFixed(2)}</div>` : ''}
-            </div>
-        `).join('');
-        container.scrollTop = container.scrollHeight;
-    }
-
-    // Points and free month logic
-    async function updatePointsAndPremium() {
+    // ========== Points & Premium ==========
+    async function updatePremium() {
         if (!currentUser) return;
         const now = Date.now();
-        // Check if free month expired
         if (!premiumActive && currentUser.freeMonthExpiry && now > currentUser.freeMonthExpiry) {
-            // free month over
-            if (currentUser.totalCIS >= 1000) {
-                // renew free month
-                currentUser.freeMonthExpiry = now + 30*24*60*60*1000;
+            if ((currentUser.totalCIS||0) >= 1000) {
+                currentUser.freeMonthExpiry = now + 30*86400000;
                 await saveUser(currentUser);
                 premiumActive = true;
                 premiumExpiry = currentUser.freeMonthExpiry;
-                document.getElementById('premiumStatus').innerHTML = `<span style="color:green;">✅ Premium active until ${new Date(premiumExpiry).toLocaleDateString()}</span>`;
+                document.getElementById('premiumStatus').innerHTML = `<span style="color:green;">✅ Premium until ${new Date(premiumExpiry).toLocaleDateString()}</span>`;
             } else {
                 premiumActive = false;
-                premiumExpiry = null;
-                document.getElementById('premiumStatus').innerHTML = `<span style="color:red;">❌ Free trial expired. Score 1000 total CIS to renew.</span>`;
+                document.getElementById('premiumStatus').innerHTML = `<span style="color:red;">❌ Trial expired. Need 1000 total CIS.</span>`;
             }
         } else if (premiumActive) {
-            // deduct points daily for premium mode if toggled
             const today = new Date().toISOString().slice(0,10);
-            if (currentPointsDay !== today && document.getElementById('premiumModeToggle').checked && premiumActive) {
-                if (pointsBalance >= 1000) {
-                    pointsBalance -= 1000;
-                    currentPointsDay = today;
-                    document.getElementById('pointsDisplay').innerText = `Points: ${pointsBalance.toFixed(0)}`;
+            const toggle = document.getElementById('premiumToggle');
+            if (lastPointsDay !== today && toggle.checked && premiumActive) {
+                if (points >= 1000) {
+                    points -= 1000;
+                    lastPointsDay = today;
+                    currentUser.points = points;
                     await saveUser(currentUser);
+                    document.getElementById('pointsDisplay').innerText = `Points: ${points.toFixed(0)}`;
                 } else {
-                    alert("Not enough points to use Premium mode today.");
-                    document.getElementById('premiumModeToggle').checked = false;
+                    alert("Not enough points for Premium today.");
+                    toggle.checked = false;
                 }
             }
         }
-        document.getElementById('pointsDisplay').innerText = `Points: ${pointsBalance.toFixed(0)}`;
-        document.getElementById('premiumModeToggle').disabled = !premiumActive;
+        document.getElementById('pointsDisplay').innerText = `Points: ${points.toFixed(0)}`;
+        document.getElementById('premiumToggle').disabled = !premiumActive;
     }
 
-    // Graphs
-    let historyChart = null;
-    let compareChart = null;
-
-    function getConversationScores(conversations, userId) {
-        const userConvs = conversations.filter(c => c.userId === userId);
-        return userConvs.map(c => c.cisScore).filter(s => s !== undefined);
-    }
-
-    function renderHistoryGraph() {
-        const scores = getConversationScores(currentConversations, currentUser.id);
-        const ctx = document.getElementById('historyGraph').getContext('2d');
+    // ========== Graphs ==========
+    function getScores(uid) { return convs.filter(c => c.userId === uid && c.cis !== null).map(c => c.cis); }
+    function renderHistory() {
+        const scores = getScores(currentUser.id);
+        const ctx = document.getElementById('historyChart').getContext('2d');
         if (historyChart) historyChart.destroy();
-        historyChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: scores.map((_, i) => i+1),
-                datasets: [{
-                    label: 'Your CIS over time',
-                    data: scores,
-                    borderColor: '#1a2a3a',
-                    fill: false
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: true, scales: { y: { min: 0, max: 10 } } }
-        });
+        historyChart = new Chart(ctx, { type: 'line', data: { labels: scores.map((_,i)=>i+1), datasets: [{ label: 'Your CIS', data: scores, borderColor: '#1a2a3a', fill: false }] }, options: { responsive: true, scales: { y: { min: 0, max: 10 } } } });
     }
-
-    async function renderComparisonGraph() {
-        const compareUserId = document.getElementById('compareSelect').value;
-        if (!compareUserId || compareUserId === 'none') {
-            if (compareChart) compareChart.destroy();
-            document.getElementById('compareGraphContainer').innerHTML = '';
-            return;
-        }
-        const otherUser = await getUser(compareUserId);
-        if (!otherUser) return;
-        const otherConvs = await getConversations();
-        const otherScores = getConversationScores(otherConvs, compareUserId);
-        const myScores = getConversationScores(currentConversations, currentUser.id);
+    async function renderComparison() {
+        const compareId = document.getElementById('compareSelect').value;
+        if (!compareId || compareId === 'none') { if(compareChart) compareChart.destroy(); document.getElementById('compareContainer').innerHTML = ''; return; }
+        const other = await getUser(compareId);
+        if (!other) return;
+        const otherScores = getScores(compareId);
+        const myScores = getScores(currentUser.id);
         const maxLen = Math.max(myScores.length, otherScores.length);
-        const labels = Array.from({ length: maxLen }, (_, i) => i+1);
-        const ctx = document.createElement('canvas');
-        ctx.id = 'compareCanvas';
-        document.getElementById('compareGraphContainer').innerHTML = '';
-        document.getElementById('compareGraphContainer').appendChild(ctx);
+        const labels = Array.from({ length: maxLen }, (_,i)=>i+1);
+        const container = document.getElementById('compareContainer');
+        container.innerHTML = '<canvas id="compareCanvas"></canvas>';
+        const ctx = document.getElementById('compareCanvas').getContext('2d');
         if (compareChart) compareChart.destroy();
-        compareChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'You', data: myScores, borderColor: '#2e7d32' },
-                    { label: otherUser.name, data: otherScores, borderColor: '#1976d2' }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: true, scales: { y: { min: 0, max: 10 } } }
-        });
+        compareChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'You', data: myScores, borderColor: '#2e7d32' }, { label: other.name, data: otherScores, borderColor: '#1976d2' }] }, options: { responsive: true, scales: { y: { min: 0, max: 10 } } } });
     }
+    function updateGraphs() { renderHistory(); renderComparison(); }
 
-    function updateGraphs() {
-        renderHistoryGraph();
-        renderComparisonGraph();
-    }
-
-    // Public users list (top 5 by total CIS)
+    // ========== Public Users ==========
     async function updatePublicUsers() {
-        const allUsers = await getAllUsers();
-        const usersWithScores = [];
-        for (const user of allUsers) {
-            const convs = await getConversations();
-            const scores = getConversationScores(convs, user.id);
-            const totalCIS = scores.reduce((a,b)=>a+b,0);
-            usersWithScores.push({ ...user, totalCIS });
+        const all = await getAllUsers();
+        const withScores = [];
+        for (const u of all) {
+            const scores = getScores(u.id);
+            const total = scores.reduce((a,b)=>a+b,0);
+            withScores.push({ ...u, totalCIS: total });
         }
-        usersWithScores.sort((a,b) => b.totalCIS - a.totalCIS);
-        const top5 = usersWithScores.slice(0,5);
+        withScores.sort((a,b)=>b.totalCIS - a.totalCIS);
+        const top5 = withScores.slice(0,5);
         const container = document.getElementById('publicUsersList');
-        container.innerHTML = top5.map(u => `
-            <div class="public-user" data-id="${u.id}">
-                ${u.name} - CIS: ${u.totalCIS.toFixed(0)} points
-            </div>
-        `).join('');
-        // Add click to compare
+        container.innerHTML = top5.map(u => `<div class="public-user" data-id="${u.id}">${escapeHtml(u.name)} - CIS: ${u.totalCIS.toFixed(0)}</div>`).join('');
         document.querySelectorAll('.public-user').forEach(el => {
-            el.addEventListener('click', () => {
-                const userId = el.getAttribute('data-id');
-                const select = document.getElementById('compareSelect');
-                // Add option if not exists
-                if (![...select.options].some(opt => opt.value === userId)) {
-                    const opt = document.createElement('option');
-                    opt.value = userId;
-                    opt.text = `Compare with ${el.innerText.split(' -')[0]}`;
-                    select.appendChild(opt);
-                }
-                select.value = userId;
-                renderComparisonGraph();
-            });
+            el.onclick = () => {
+                const uid = el.getAttribute('data-id');
+                const sel = document.getElementById('compareSelect');
+                if (![...sel.options].some(o=>o.value===uid)) sel.add(new Option(`Compare with ${el.innerText.split(' -')[0]}`, uid));
+                sel.value = uid;
+                renderComparison();
+            };
         });
     }
 
-    // Main send logic
-    document.getElementById('sendBtn').addEventListener('click', async () => {
+    // ========== Send Message ==========
+    document.getElementById('sendBtn').onclick = async () => {
         const input = document.getElementById('userInput');
         const text = input.value.trim();
         if (!text) return;
         input.value = '';
-
-        // Add user message
-        await addMessage('user', text, null, null);
-
-        // Compute CIS for this turn (simulate)
-        const cisScore = computeCIS(text, "");
-        // Update user's totalCIS
-        currentUser.totalCIS = (currentUser.totalCIS || 0) + cisScore;
-        // Points: each CIS point = 1 point (for demo)
-        pointsBalance += cisScore;
-        currentUser.points = pointsBalance;
+        await addMessage('user', text);
+        const cis = computeCIS(text);
+        currentUser.totalCIS = (currentUser.totalCIS||0) + cis;
+        points += cis;
+        currentUser.points = points;
         await saveUser(currentUser);
-
-        // Generate AI response
-        const aiText = await generateAIResponse(text, cisScore);
-        await addMessage('ai', aiText, null, cisScore);
-
-        // Update UI
-        updateUserDisplay();
-        updatePointsAndPremium();
-        await updatePublicUsers();
-        await updateGraphs();
-    });
-
-    async function updateUserDisplay() {
-        const statsDiv = document.getElementById('userStats');
-        statsDiv.innerHTML = `
-            Name: ${currentUser.name}<br>
-            Total CIS: ${currentUser.totalCIS?.toFixed(2) || 0}<br>
-            Free month expiry: ${currentUser.freeMonthExpiry ? new Date(currentUser.freeMonthExpiry).toLocaleDateString() : 'Not started'}
-        `;
-    }
-
-    // Initialize user (first time or existing)
-    async function initUser() {
-        let userId = localStorage.getItem('radiant_user_id');
-        if (userId) {
-            currentUser = await getUser(userId);
-        }
-        if (!currentUser) {
-            const name = prompt("Enter your name for Radiant AI:", "Explorer");
-            if (!name) return;
-            currentUser = {
-                id: Date.now().toString(),
-                name,
-                totalCIS: 0,
-                points: 0,
-                freeMonthExpiry: Date.now() + 30*24*60*60*1000
-            };
-            await saveUser(currentUser);
-            localStorage.setItem('radiant_user_id', currentUser.id);
-        }
-        pointsBalance = currentUser.points || 0;
-        premiumActive = (currentUser.freeMonthExpiry && Date.now() < currentUser.freeMonthExpiry);
-        premiumExpiry = currentUser.freeMonthExpiry;
-        // Load conversations
-        const allConvs = await getConversations();
-        currentConversations = allConvs.filter(c => c.userId === currentUser.id).sort((a,b) => a.timestamp - b.timestamp);
-        chatHistory = currentConversations.map(c => ({ sender: c.sender, text: c.text, cisScore: c.cisScore }));
-        renderChat();
-        updateUserDisplay();
-        updatePointsAndPremium();
+        const aiResp = await generateResponse(text, cis);
+        await addMessage('ai', aiResp, cis);
+        await updatePremium();
+        document.getElementById('userStats').innerHTML = `Name: ${escapeHtml(currentUser.name)}<br>Total CIS: ${(currentUser.totalCIS||0).toFixed(2)}<br>Free until: ${currentUser.freeMonthExpiry?new Date(currentUser.freeMonthExpiry).toLocaleDateString():'—'}`;
         await updatePublicUsers();
         updateGraphs();
-    }
+    };
 
-    openDB().then(() => initUser()).catch(console.error);
-</script>
-</body>
-  </html>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant Transaction – Architect Fee Game</title>
-    <style>
-        * { box-sizing: border-box; font-family: system-ui; }
-        body { background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
-        .container { max-width: 600px; background: white; border-radius: 24px; padding: 24px; box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
-        h1 { margin-top: 0; }
-        .info { background: #e6f0ff; padding: 12px; border-radius: 16px; margin-bottom: 20px; }
-        input, button { padding: 10px; margin: 6px 0; width: 100%; border-radius: 30px; border: 1px solid #cbd5e1; }
-        button { background: #1a2a3a; color: white; cursor: pointer; }
-        button:disabled { background: #b0c4de; }
-        .status { font-size: 0.8rem; color: #5a6e85; margin-top: 12px; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <h1>⚡ Radiant Transaction</h1>
-    <div class="info">
-        <strong>Architect Fee: 50%</strong><br>
-        If your transaction amount > Architect's last record, you keep the fee (reward).<br>
-        Otherwise, the fee goes to the architect.
-    </div>
-
-    <div id="accountInfo"></div>
-    <div id="recordInfo"></div>
-
-    <label>Recipient Address</label>
-    <input type="text" id="recipient" placeholder="0x...">
-
-    <label>Amount (tokens)</label>
-    <input type="number" id="amount" step="0.0001" placeholder="e.g., 100">
-
-    <button id="sendBtn" disabled>Send</button>
-    <div id="status" class="status"></div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
-<script>
-    // ---------- CONFIG ----------
-    // Replace with your deployed contract addresses (testnet)
-    const TOKEN_ADDRESS = "0xYourTokenAddress";   // e.g., RadiantShares token
-    const FEE_CONTRACT_ADDRESS = "0xYourFeeContractAddress";
-
-    // Minimal ERC20 ABI
-    const ERC20_ABI = [
-        "function approve(address spender, uint256 amount) returns (bool)",
-        "function transferFrom(address from, address to, uint256 amount) returns (bool)",
-        "function transfer(address to, uint256 amount) returns (bool)",
-        "function balanceOf(address owner) view returns (uint256)",
-        "function decimals() view returns (uint8)"
-    ];
-
-    // ArchitectFee contract ABI
-    const FEE_CONTRACT_ABI = [
-        "function transferWithFee(address recipient, uint256 amount) external",
-        "function lastArchitectTransactionAmount() view returns (uint256)",
-        "function architect() view returns (address)"
-    ];
-
-    let provider, signer, tokenContract, feeContract;
-    let userAddress;
-
-    async function init() {
-        if (!window.ethereum) {
-            alert("MetaMask not detected. Please install.");
-            return;
-        }
+    // ========== Transaction Panel ==========
+    const TOKEN_ADDR = "0xYourTokenAddress";        // replace
+    const FEE_CONTRACT_ADDR = "0xYourFeeContractAddress";
+    const ERC20_ABI = ["function approve(address,uint256)","function balanceOf(address) view returns (uint256)","function decimals() view returns (uint8)"];
+    const FEE_ABI = ["function transferWithFee(address,uint256)","function lastArchitectTransactionAmount() view returns (uint256)","function architect() view returns (address)"];
+    let provider, signer, token, feeContract, userAddr;
+    async function initTx() {
+        if (!window.ethereum) { alert("MetaMask required"); return; }
         provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = await provider.getSigner();
-        userAddress = await signer.getAddress();
-
-        tokenContract = new ethers.Contract(TOKEN_ADDRESS, ERC20_ABI, signer);
-        feeContract = new ethers.Contract(FEE_CONTRACT_ADDRESS, FEE_CONTRACT_ABI, signer);
-
-        // Update UI
-        document.getElementById("accountInfo").innerHTML = `
-            <strong>Your address:</strong> ${userAddress.slice(0,6)}...${userAddress.slice(-4)}
-        `;
-        updateRecord();
-        document.getElementById("sendBtn").disabled = false;
+        userAddr = await signer.getAddress();
+        token = new ethers.Contract(TOKEN_ADDR, ERC20_ABI, signer);
+        feeContract = new ethers.Contract(FEE_CONTRACT_ADDR, FEE_ABI, signer);
+        document.getElementById('txAccountInfo').innerHTML = `<strong>Your address:</strong> ${userAddr.slice(0,6)}...${userAddr.slice(-4)}`;
+        await updateRecord();
+        document.getElementById('sendTxBtn').disabled = false;
     }
-
     async function updateRecord() {
         const record = await feeContract.lastArchitectTransactionAmount();
-        const architect = await feeContract.architect();
-        const decimals = await tokenContract.decimals();
-        const recordHuman = ethers.formatUnits(record, decimals);
-        document.getElementById("recordInfo").innerHTML = `
-            <div><strong>Architect:</strong> ${architect}</div>
-            <div><strong>Architect's last transaction record:</strong> ${recordHuman} tokens</div>
-        `;
+        const arch = await feeContract.architect();
+        const dec = await token.decimals();
+        document.getElementById('txRecordInfo').innerHTML = `<div><strong>Architect:</strong> ${arch}</div><div><strong>Last record:</strong> ${ethers.formatUnits(record, dec)} tokens</div>`;
     }
-
-    document.getElementById("sendBtn").addEventListener("click", async () => {
-        const recipient = document.getElementById("recipient").value.trim();
-        const amountStr = document.getElementById("amount").value;
-        if (!recipient || !amountStr || amountStr <= 0) {
-            alert("Enter valid recipient and amount.");
-            return;
-        }
-
-        const decimals = await tokenContract.decimals();
-        const amount = ethers.parseUnits(amountStr, decimals);
+    document.getElementById('sendTxBtn').onclick = async () => {
+        const recipient = document.getElementById('recipient').value.trim();
+        const amountStr = document.getElementById('amount').value;
+        if (!recipient || !amountStr || amountStr<=0) { alert("Invalid input"); return; }
+        const dec = await token.decimals();
+        const amount = ethers.parseUnits(amountStr, dec);
         const fee = amount * 50n / 100n;
-        const totalNeeded = amount + fee;
-
-        // Check balance
-        const balance = await tokenContract.balanceOf(userAddress);
-        if (balance < totalNeeded) {
-            alert(`Insufficient balance. You need ${ethers.formatUnits(totalNeeded, decimals)} tokens (${amountStr} + 50% fee).`);
-            return;
-        }
-
-        // Approve the fee contract to spend totalNeeded
-        const approveTx = await tokenContract.approve(FEE_CONTRACT_ADDRESS, totalNeeded);
+        const total = amount + fee;
+        const balance = await token.balanceOf(userAddr);
+        if (balance < total) { alert(`Insufficient balance. Need ${ethers.formatUnits(total, dec)} tokens`); return; }
+        const approveTx = await token.approve(FEE_CONTRACT_ADDR, total);
         await approveTx.wait();
-
-        // Send transaction
         const tx = await feeContract.transferWithFee(recipient, amount);
         await tx.wait();
+        document.getElementById('txStatus').innerHTML = `✅ Tx sent: ${tx.hash.slice(0,10)}...`;
+        await updateRecord();
+    };
 
-        document.getElementById("status").innerHTML = `✅ Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
-        updateRecord();
-    });
-
-    init().catch(console.error);
+    // ========== Initialization ==========
+    (async () => {
+        await openDB();
+        let userId = localStorage.getItem('radiant_user_id');
+        if (userId) currentUser = await getUser(userId);
+        if (!currentUser) {
+            let name = prompt("Enter your name:", "Explorer") || "Explorer";
+            currentUser = { id: Date.now().toString(), name, totalCIS: 0, points: 0, freeMonthExpiry: Date.now() + 30*86400000 };
+            await saveUser(currentUser);
+            localStorage.setItem('radiant_user_id', currentUser.id);
+        }
+        points = currentUser.points || 0;
+        premiumActive = currentUser.freeMonthExpiry && Date.now() < currentUser.freeMonthExpiry;
+        convs = await getConvs(currentUser.id);
+        convs.sort((a,b)=>a.timestamp-b.timestamp);
+        chat = convs.map(c => ({ sender: c.sender, text: c.text, cis: c.cis }));
+        renderChat();
+        document.getElementById('userStats').innerHTML = `Name: ${escapeHtml(currentUser.name)}<br>Total CIS: ${(currentUser.totalCIS||0).toFixed(2)}<br>Free until: ${currentUser.freeMonthExpiry?new Date(currentUser.freeMonthExpiry).toLocaleDateString():'—'}`;
+        await updatePremium();
+        await updatePublicUsers();
+        updateGraphs();
+        await initTx();
+    })().catch(console.error);
 </script>
 </body>
 </html>
