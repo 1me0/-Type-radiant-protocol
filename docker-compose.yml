@@ -1,31 +1,183 @@
 version: '3.8'
 
+# ============================================================
+# Radiant Protocol – Docker Compose Stack
+# Services:
+#   - zookeeper   : Kafka coordination
+#   - kafka       : Event streaming (presence proofs, CIS updates)
+#   - backend     : FastAPI server (truth scoring, challenge, improve, probe)
+#   - worker      : Background worker (proof validation, Nova folding)
+#   - ganache     : Local Ethereum blockchain (for testing smart contracts)
+# ============================================================
+
+networks:
+  radiant-net:
+    driver: bridge
+
+volumes:
+  ganache-data:
+  kafka-data:
+  zookeeper-data:
+
 services:
-  # --- THE PULSE (Keep these) ---
+  # ------------------------------------------------------------------
+  # 1. Zookeeper (required by Kafka)
+  # ------------------------------------------------------------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.3.0
-    # ... existing config ...
+    container_name: radiant-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-data:/var/lib/zookeeper/log
+    networks:
+      - radiant-net
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ------------------------------------------------------------------
+  # 2. Kafka (message broker for presence events and scoring requests)
+  # ------------------------------------------------------------------
   kafka:
     image: confluentinc/cp-kafka:7.3.0
-    # ... existing config ...
+    container_name: radiant-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - radiant-net
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
 
-  # --- THE MIND (ADD THIS NOW) ---
+  # ------------------------------------------------------------------
+  # 3. Backend API (FastAPI) – truth scoring, challenge, improve, probe
+  # ------------------------------------------------------------------
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.backend   # assumes a Dockerfile for the backend
+    container_name: radiant-backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
-      - ./app.py:/app/app.py
+      - ./app.py:/app/app.py          # hot‑reload for development
+      - ./models:/app/models          # pre‑trained embeddings, etc.
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_URL=redis://redis:6379/0   # optional, if you add Redis
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/radiant  # optional
+      - WEB3_PROVIDER=http://ganache:8545
+      - RADIANT_SHARES_ADDRESS=0xYourContractAddress
+      - LOG_LEVEL=info
     depends_on:
-      - kafka
-    command: uvicorn app:app --host 0.0.0.0 --port 8000
+      kafka:
+        condition: service_healthy
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - radiant-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # --- THE ENGINE (Keep this) ---
+  # ------------------------------------------------------------------
+  # 4. Worker (background proof validation, Nova folding, relayer)
+  # ------------------------------------------------------------------
   worker:
-    build: ./worker
-    # ... existing config ...
-    docker-compose up ganache
-docker-compose up --build
+    build:
+      context: ./worker
+      dockerfile: Dockerfile.worker
+    container_name: radiant-worker
+    restart: unless-stopped
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - WEB3_PROVIDER=http://ganache:8545
+      - WORKER_CONCURRENCY=5
+      - LOG_LEVEL=info
+    depends_on:
+      kafka:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./worker:/app
+    networks:
+      - radiant-net
+    command: ["python", "main.py"]
+
+  # ------------------------------------------------------------------
+  # 5. Ganache (local Ethereum blockchain for testing)
+  # ------------------------------------------------------------------
+  ganache:
+    image: trufflesuite/ganache:latest
+    container_name: radiant-ganache
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+    command: >
+      --chain.chainId 1337
+      --chain.networkId 1337
+      --wallet.mnemonic "radiant test mnemonic twelve words for development only"
+      --wallet.totalAccounts 10
+      --wallet.defaultBalance 1000
+      --server.host 0.0.0.0
+    volumes:
+      - ganache-data:/ganache/data
+    networks:
+      - radiant-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ------------------------------------------------------------------
+  # Optional: Redis (for caching embeddings) – uncomment if needed
+  # ------------------------------------------------------------------
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: radiant-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - radiant-net
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+# ============================================================
+# Note: You need to create the following Dockerfiles:
+#   - Dockerfile.backend (based on python:3.10, install requirements)
+#   - Dockerfile.worker (similar, with worker dependencies)
+# ============================================================
