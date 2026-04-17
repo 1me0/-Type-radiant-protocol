@@ -1,3 +1,10 @@
 {"text": "Thank you for explaining clearly. I now understand.", "label": 1}
 {"text": "What? That makes no sense.", "label": 0}
 {"text": "Could you please rephrase the last part? I'm not following.", "label": 1}
+{"text": "Excellent explanation! This clarifies everything perfectly.", "label": 1}
+{"text": "I disagree completely. Your reasoning is flawed.", "label": 0}
+{"text": "Interesting point. Can you provide more evidence?", "label": 1}
+{"text": "That's the worst idea I've ever heard.", "label": 0}
+{"text": "I appreciate your patience; I think I'm starting to get it.", "label": 1}
+{"text": "This is confusing and contradictory.", "label": 0}
+{"text": "Thank you for the detailed breakdown. It really helped.", "label": 1}
