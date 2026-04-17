@@ -18,15 +18,24 @@ from cryptography.hazmat.primitives import hashes
 VAULT_DIR = ".vault"
 REQUESTS_FILE = os.path.join(VAULT_DIR, "requests.json")
 
+
+# ----------------------------------------------------------------------
+# Initialisation
+# ----------------------------------------------------------------------
 def init():
+    """Create the vault directory and requests file if they don't exist."""
     if not os.path.exists(VAULT_DIR):
         os.makedirs(VAULT_DIR)
     if not os.path.exists(REQUESTS_FILE):
         with open(REQUESTS_FILE, 'w') as f:
             json.dump([], f)
 
+
+# ----------------------------------------------------------------------
+# Cryptographic helpers
+# ----------------------------------------------------------------------
 def derive_key(password: str, salt: bytes, iterations: int = 600_000) -> bytes:
-    """Standard PBKDF2 key derivation (secure and simple)."""
+    """Derive a 32‑byte AES key from a password using PBKDF2‑HMAC‑SHA256."""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -36,13 +45,16 @@ def derive_key(password: str, salt: bytes, iterations: int = 600_000) -> bytes:
     )
     return kdf.derive(password.encode())
 
-def encrypt_file(file_path):
+
+def encrypt_file(file_path: str) -> None:
+    """Encrypt a file using AES‑256‑GCM. Output is <file>.enc."""
     if not os.path.exists(file_path):
-        print("File not found.")
+        print(f"Error: File '{file_path}' not found.")
         return
+
     password = getpass.getpass("Enter encryption password: ")
     salt = os.urandom(16)
-    iv = os.urandom(12)                     # 12 bytes for GCM
+    iv = os.urandom(12)
     key = derive_key(password, salt)
 
     cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
@@ -59,14 +71,24 @@ def encrypt_file(file_path):
     output_file = file_path + ".enc"
     with open(output_file, 'wb') as f:
         f.write(encrypted_data)
+
     print(f"Encrypted to {output_file}")
 
-def decrypt_file(enc_file):
-    if not can_decrypt(enc_file):
+
+def decrypt_file(enc_file: str) -> None:
+    """Decrypt a .enc file if access is granted (architect approval or 5‑day delay)."""
+    if not os.path.exists(enc_file):
+        print(f"Error: File '{enc_file}' not found.")
         return
+
+    # Check if decryption is allowed
+    if not is_decryption_allowed(enc_file):
+        return
+
     password = getpass.getpass("Enter encryption password: ")
     with open(enc_file, 'rb') as f:
         data = f.read()
+
     salt = data[:16]
     iv = data[16:28]
     tag = data[28:44]
@@ -82,23 +104,28 @@ def decrypt_file(enc_file):
             f.write(plaintext)
         print(f"Decrypted to {out_file}")
     except Exception as e:
-        print("Decryption failed (wrong password or corrupted file).", e)
+        print(f"Decryption failed (wrong password or corrupted file): {e}")
 
-# --- The rest of your request/approval functions remain unchanged ---
-# (request_access, approve_request, can_decrypt, list_requests, etc.)
-# They are identical to your original, so we keep them.
 
-def request_access(enc_file):
+# ----------------------------------------------------------------------
+# Access control (request / approval / delay)
+# ----------------------------------------------------------------------
+def request_access(enc_file: str) -> None:
+    """Request permission to decrypt a file. Generates a request ID."""
     if not os.path.exists(enc_file):
-        print("Encrypted file not found.")
+        print(f"Error: File '{enc_file}' not found.")
         return
+
     init()
     with open(REQUESTS_FILE, 'r') as f:
         requests = json.load(f)
+
+    # Check for existing pending request
     for req in requests:
         if req['file'] == enc_file and req['status'] == 'pending':
-            print("Access already requested. Waiting approval or 5 days.")
+            print("Access already requested. Waiting for approval or 5 days.")
             return
+
     request_id = hashlib.sha256(f"{enc_file}{time.time()}".encode()).hexdigest()[:8]
     requests.append({
         'id': request_id,
@@ -110,13 +137,17 @@ def request_access(enc_file):
     })
     with open(REQUESTS_FILE, 'w') as f:
         json.dump(requests, f, indent=2)
+
     print(f"Request created. ID: {request_id}")
     print("Waiting for architect approval or 5 days.")
 
-def approve_request(request_id):
+
+def approve_request(request_id: str) -> None:
+    """Approve a pending request (architect action)."""
     init()
     with open(REQUESTS_FILE, 'r') as f:
         requests = json.load(f)
+
     for req in requests:
         if req['id'] == request_id and req['status'] == 'pending':
             req['status'] = 'approved'
@@ -126,46 +157,112 @@ def approve_request(request_id):
                 json.dump(requests, f, indent=2)
             print(f"Request {request_id} approved. Decryption now allowed.")
             return
+
     print("Request not found or already processed.")
 
-def can_decrypt(enc_file):
+
+def is_decryption_allowed(enc_file: str) -> bool:
+    """
+    Check whether decryption of a file is allowed.
+    If a request exists and is approved, returns True.
+    If a request exists and is pending but the 5‑day delay has passed,
+    automatically approves it and returns True.
+    Otherwise prints a message and returns False.
+    """
     init()
     with open(REQUESTS_FILE, 'r') as f:
         requests = json.load(f)
+
     for req in requests:
         if req['file'] == enc_file:
             if req['status'] == 'approved':
                 return True
             elif req['status'] == 'pending':
-                if time.time() - req['request_time'] >= 5 * 24 * 3600:
+                elapsed = time.time() - req['request_time']
+                if elapsed >= 5 * 24 * 3600:
+                    # Auto‑approve after 5 days
                     req['status'] = 'approved'
                     req['approved'] = True
                     req['architect_approval_time'] = time.time()
                     with open(REQUESTS_FILE, 'w') as f:
                         json.dump(requests, f, indent=2)
+                    print("5‑day period elapsed. Decryption automatically allowed.")
                     return True
                 else:
-                    remaining = 5 * 24 * 3600 - (time.time() - req['request_time'])
-                    days = remaining // (24*3600)
-                    hours = (remaining % (24*3600)) // 3600
+                    remaining = 5 * 24 * 3600 - elapsed
+                    days = int(remaining // (24 * 3600))
+                    hours = int((remaining % (24 * 3600)) // 3600)
                     print(f"Access not yet allowed. Wait {days} days {hours} hours (or architect approval).")
                     return False
-    print("No access request for this file. Please request first.")
+
+    print("No access request found for this file. Please run 'request' first.")
     return False
 
-def list_requests():
+
+def list_requests() -> None:
+    """List all access requests with their status."""
     init()
     with open(REQUESTS_FILE, 'r') as f:
         requests = json.load(f)
+
+    if not requests:
+        print("No requests.")
+        return
+
     for req in requests:
         status = "approved" if req['approved'] else "pending"
         print(f"{req['id']}: {req['file']} - {status}")
 
-if __name__ == "__main__":
+
+def status(enc_file: str) -> None:
+    """Show the status of a specific file's access request."""
+    init()
+    with open(REQUESTS_FILE, 'r') as f:
+        requests = json.load(f)
+
+    for req in requests:
+        if req['file'] == enc_file:
+            if req['status'] == 'approved':
+                print(f"Request approved (architect approved or delay passed).")
+            else:
+                elapsed = time.time() - req['request_time']
+                remaining = 5 * 24 * 3600 - elapsed
+                if remaining <= 0:
+                    print("Request pending but already eligible (run decrypt).")
+                else:
+                    days = int(remaining // (24 * 3600))
+                    hours = int((remaining % (24 * 3600)) // 3600)
+                    print(f"Request pending. Auto‑approval in {days} days {hours} hours.")
+            return
+    print("No request found for this file.")
+
+
+# ----------------------------------------------------------------------
+# Command line interface
+# ----------------------------------------------------------------------
+def print_usage():
+    print("""
+Usage: vault.py <command> [arguments]
+
+Commands:
+  encrypt <file>          Encrypt a file (creates <file>.enc)
+  request <file.enc>      Request access to decrypt a file
+  approve <request_id>    Approve a pending request (architect)
+  decrypt <file.enc>      Decrypt a file (if access granted)
+  list                    List all access requests
+  status <file.enc>       Show access status for a file
+
+Note: All state is stored in the .vault/ directory.
+""")
+
+
+def main():
     if len(sys.argv) < 2:
-        print("Usage: vault.py [encrypt|request|approve|decrypt|list] [file]")
+        print_usage()
         sys.exit(1)
-    cmd = sys.argv[1]
+
+    cmd = sys.argv[1].lower()
+
     if cmd == "encrypt" and len(sys.argv) == 3:
         encrypt_file(sys.argv[2])
     elif cmd == "request" and len(sys.argv) == 3:
@@ -176,5 +273,15 @@ if __name__ == "__main__":
         decrypt_file(sys.argv[2])
     elif cmd == "list":
         list_requests()
+    elif cmd == "status" and len(sys.argv) == 3:
+        status(sys.argv[2])
+    elif cmd == "--help" or cmd == "-h":
+        print_usage()
     else:
         print("Invalid command or missing arguments.")
+        print_usage()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
