@@ -1,4 +1,5 @@
-# This repository is solely owned and maintained by @1me0.
-# Any changes require their explicit approval.
+# .github/CODEOWNERS
+# Defines the default owners for the entire repository.
+# Any change requires approval from @1me0.
 
 * @1me0
