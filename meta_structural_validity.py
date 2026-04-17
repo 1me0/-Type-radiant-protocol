@@ -1,17 +1,19 @@
 """
-meta_structural_validity.py (FINAL RIGOROUS VERSION)
+meta_structural_validity.py
 
-Computational framework for testing meta-structural stability
-of stochastic dynamical systems using:
+Computational framework for testing meta-structural stability of stochastic dynamical systems.
 
-1. Lyapunov consistency (not existence)
-2. Global Foster–Lyapunov drift condition (empirical estimate)
+Features:
+1. Lyapunov consistency (empirical check that V ≈ 0 on M and V > 0 outside)
+2. Global Foster–Lyapunov drift condition (empirical estimate over multiple states)
 3. Empirical stationarity via Wasserstein distance (proxy for invariant measure)
 4. Support containment via violation rate
 
-NOTE:
-This module does NOT prove theoretical existence of invariant measures.
-It provides empirical diagnostics for stochastic stability.
+All thresholds are configurable. The module provides empirical diagnostics,
+not theoretical proofs of existence of invariant measures.
+
+Author: Radiant Protocol
+License: MIT
 """
 
 import numpy as np
@@ -22,6 +24,7 @@ from scipy.stats import wasserstein_distance
 
 @dataclass
 class ValidityReport:
+    """Report containing all validity flags and diagnostic details."""
     lyapunov_consistent: bool
     foster_lyapunov_holds: bool
     empirical_stationarity: bool
@@ -35,10 +38,11 @@ class MetaStructuralValidity:
     Empirical verifier for meta-structural stability.
 
     A system is defined by:
-        T: transition function
-        V: Lyapunov / coherence functional
-        M: invariant/coherent set indicator
-        ξ: noise sampler
+        T: transition function (state, noise) -> next state
+        V: Lyapunov / coherence functional (state -> non‑negative float)
+        M: invariant/coherent set indicator (state -> bool)
+        ξ: noise sampler (returns a noise vector)
+        state_dim: dimension of the state space
     """
 
     def __init__(
@@ -48,95 +52,100 @@ class MetaStructuralValidity:
         invariant_set: Callable[[np.ndarray], bool],
         noise_sampler: Callable[[], np.ndarray],
         state_dim: int,
+        seed: Optional[int] = None,
     ):
         self.T = transition
         self.V = lyapunov
         self.in_M = invariant_set
         self.noise = noise_sampler
         self.n = state_dim
+        if seed is not None:
+            np.random.seed(seed)
 
-    # ============================================================
-    # 1. LYAPUNOV CONSISTENCY (NOT EXISTENCE)
-    # ============================================================
-    def check_lyapunov_consistency(self, samples: int = 2000) -> Tuple[bool, str]:
+    # ------------------------------------------------------------
+    # 1. LYAPUNOV CONSISTENCY (empirical)
+    # ------------------------------------------------------------
+    def check_lyapunov_consistency(self, samples: int = 2000, eps: float = 1e-6) -> Tuple[bool, str]:
         """
         Checks whether V behaves consistently with M:
         - V ≈ 0 on M
         - V > 0 outside M
-        (empirical test only)
-        """
-        eps = 1e-6
 
+        Returns:
+            (bool, message): True if consistent, plus diagnostic message.
+        """
         for _ in range(samples):
             P = np.random.randn(self.n)
             v = self.V(P)
             inM = self.in_M(P)
 
             if inM and v > eps:
-                return False, "Violation: V>0 inside M"
+                return False, f"Violation: V={v:.2e} > {eps} inside M"
             if not inM and v < eps:
-                return False, "Violation: V≈0 outside M"
-
+                return False, f"Violation: V≈0 ({v:.2e}) outside M"
         return True, "Lyapunov consistency satisfied (empirical)."
 
-    # ============================================================
+    # ------------------------------------------------------------
     # 2. LOCAL FOSTER–LYAPUNOV DRIFT (single point)
-    # ============================================================
+    # ------------------------------------------------------------
     def check_foster_lyapunov(self, P: np.ndarray, samples: int = 100) -> Tuple[bool, float]:
         """
-        Estimates:
-            δ(P) = V(P) - E[V(T(P,ξ))]
-        Condition:
-            δ(P) > 0 for P ∉ M
+        Estimates δ(P) = V(P) - E[V(T(P,ξ))].
+        Condition: δ(P) > 0 for P ∉ M.
+
+        Returns:
+            (holds, drift_estimate): True if drift > 0, plus the drift value.
         """
         if self.in_M(P):
             return True, 0.0
 
         V0 = self.V(P)
-        V_next = []
-
-        for _ in range(samples):
-            xi = self.noise()
-            Pn = self.T(P, xi)
-            V_next.append(self.V(Pn))
-
+        V_next = [self.V(self.T(P, self.noise())) for _ in range(samples)]
         drift = V0 - np.mean(V_next)
-
         return drift > 0, drift
 
-    # ============================================================
-    # 2b. GLOBAL FOSTER–LYAPUNOV DRIFT
-    # ============================================================
+    # ------------------------------------------------------------
+    # 2b. GLOBAL FOSTER–LYAPUNOV DRIFT (multi‑state)
+    # ------------------------------------------------------------
     def check_foster_lyapunov_global(
-        self, num_states: int = 20, samples_per_state: int = 50
+        self,
+        num_states: int = 20,
+        samples_per_state: int = 50,
+        violation_tolerance: float = 0.05,
     ) -> Tuple[bool, float]:
         """
-        Global drift test: sample multiple initial states, compute average drift.
-        Returns (holds, violation_rate) where violation_rate = fraction of states with drift <= 0.
+        Global drift test: sample multiple initial states, estimate drift for each.
+        Returns (holds, violation_rate) where violation_rate = fraction of states with drift ≤ 0.
+        The condition is considered satisfied if violation_rate < violation_tolerance.
         """
         violations = 0
+        total = 0
         for _ in range(num_states):
             P = np.random.randn(self.n)
+            if self.in_M(P):
+                continue
             ok, _ = self.check_foster_lyapunov(P, samples_per_state)
             if not ok:
                 violations += 1
-        violation_rate = violations / num_states
-        # We consider the condition satisfied if less than 5% of states violate
-        return violation_rate < 0.05, violation_rate
+            total += 1
+        violation_rate = violations / total if total > 0 else 1.0
+        return violation_rate < violation_tolerance, violation_rate
 
-    # ============================================================
-    # 3. EMPIRICAL STATIONARITY (INVARIANT MEASURE PROXY)
-    # ============================================================
+    # ------------------------------------------------------------
+    # 3. EMPIRICAL STATIONARITY (Wasserstein distance)
+    # ------------------------------------------------------------
     def check_empirical_stationarity(
         self,
         steps: int = 10000,
         burn_in: int = 1000,
-        split_ratio: float = 0.5
+        split_ratio: float = 0.5,
+        stationarity_threshold: float = 0.5,
     ) -> Tuple[bool, float, np.ndarray]:
         """
-        Approximates invariant measure via trajectory sampling.
-        Tests stationarity by comparing distribution of early vs late segments using Wasserstein distance.
-        Returns (stationary, wasserstein_distance, trajectory).
+        Simulate a long trajectory, discard burn‑in, split into two halves,
+        and compare distributions via Wasserstein distance (averaged over dimensions).
+        Returns:
+            (stationary, wasserstein_distance, trajectory)
         """
         P = np.zeros(self.n)
         traj = []
@@ -147,12 +156,13 @@ class MetaStructuralValidity:
                 traj.append(P.copy())
 
         traj = np.array(traj)
-        # Check boundedness (non-divergence) as a basic sanity
-        bounded = np.all(np.abs(traj) < 1e6)
-        if not bounded:
+        if len(traj) == 0:
             return False, np.inf, traj
 
-        # Split trajectory into two halves and compute Wasserstein distance per dimension
+        # Basic sanity: trajectory should not diverge to infinity
+        if np.any(np.abs(traj) > 1e6):
+            return False, np.inf, traj
+
         split = int(len(traj) * split_ratio)
         if split == 0 or split == len(traj):
             return False, np.inf, traj
@@ -166,60 +176,72 @@ class MetaStructuralValidity:
             dists.append(wasserstein_distance(first_half[:, d], second_half[:, d]))
         avg_wass = np.mean(dists)
 
-        # If distributions are close (small Wasserstein), we consider it stationary
-        stationary = avg_wass < 0.5  # threshold, may need tuning
+        stationary = avg_wass < stationarity_threshold
         return stationary, avg_wass, traj
 
-    # ============================================================
+    # ------------------------------------------------------------
     # 4. SUPPORT VIOLATION TEST
-    # ============================================================
-    def check_support_violation(self, traj: np.ndarray) -> Tuple[bool, float]:
+    # ------------------------------------------------------------
+    def check_support_violation(
+        self,
+        traj: np.ndarray,
+        violation_tolerance: float = 0.01,
+    ) -> Tuple[bool, float]:
         """
-        Checks:
-            P(P_t ∉ M) → 0
+        Checks that the empirical frequency of states outside M is below tolerance.
+        Returns (ok, violation_rate).
         """
         if len(traj) == 0:
             return False, 1.0
-
         violations = np.mean([not self.in_M(p) for p in traj])
+        return violations < violation_tolerance, violations
 
-        return violations < 0.01, violations
-
-    # ============================================================
+    # ------------------------------------------------------------
     # FULL VALIDATION PIPELINE
-    # ============================================================
-    def validate(self) -> ValidityReport:
+    # ------------------------------------------------------------
+    def validate(
+        self,
+        lyapunov_samples: int = 2000,
+        lyapunov_eps: float = 1e-6,
+        foster_num_states: int = 20,
+        foster_samples_per_state: int = 50,
+        foster_violation_tolerance: float = 0.05,
+        stationarity_steps: int = 10000,
+        stationarity_burn_in: int = 1000,
+        stationarity_threshold: float = 0.5,
+        support_violation_tolerance: float = 0.01,
+    ) -> ValidityReport:
         """
-        Full meta-structural validation pipeline.
+        Run all empirical tests and produce a ValidityReport.
 
-        Combines:
-        1. Lyapunov consistency check
-        2. Global Foster–Lyapunov drift test
-        3. Empirical stationarity test
-        4. Support violation test
+        Parameters can be adjusted to control the sensitivity of each test.
         """
-
-        # 1. Lyapunov consistency (V aligned with M)
-        lyap_ok, lyap_msg = self.check_lyapunov_consistency()
-
-        # 2. Global Foster–Lyapunov condition
-        drift_ok, violation_rate = self.check_foster_lyapunov_global()
-
-        # 3. Empirical stationarity (distributional convergence)
-        stat_ok, wasserstein_dist, traj = self.check_empirical_stationarity()
-
-        # 4. Support containment (violation rate of M)
-        supp_ok, support_violation = self.check_support_violation(traj)
-
-        # 5. Global validity decision
-        is_valid = (
-            lyap_ok
-            and drift_ok
-            and stat_ok
-            and supp_ok
+        # 1. Lyapunov consistency
+        lyap_ok, lyap_msg = self.check_lyapunov_consistency(
+            samples=lyapunov_samples, eps=lyapunov_eps
         )
 
-        # 6. Structured report
+        # 2. Global Foster–Lyapunov drift
+        drift_ok, violation_rate = self.check_foster_lyapunov_global(
+            num_states=foster_num_states,
+            samples_per_state=foster_samples_per_state,
+            violation_tolerance=foster_violation_tolerance,
+        )
+
+        # 3. Empirical stationarity
+        stat_ok, wasserstein_dist, traj = self.check_empirical_stationarity(
+            steps=stationarity_steps,
+            burn_in=stationarity_burn_in,
+            stationarity_threshold=stationarity_threshold,
+        )
+
+        # 4. Support violation
+        supp_ok, support_violation = self.check_support_violation(
+            traj=traj, violation_tolerance=support_violation_tolerance
+        )
+
+        is_valid = lyap_ok and drift_ok and stat_ok and supp_ok
+
         return ValidityReport(
             lyapunov_consistent=lyap_ok,
             foster_lyapunov_holds=drift_ok,
@@ -237,39 +259,44 @@ class MetaStructuralValidity:
 
 
 # ============================================================
-# EXAMPLE SYSTEM (STOCHASTIC PROJECTION DYNAMICS)
+# EXAMPLE SYSTEM: Projection onto line y = x
 # ============================================================
 if __name__ == "__main__":
-
-    # Invariant manifold: diagonal line y = x
-    def project(P):
+    # Define projection onto the invariant manifold (line y = x)
+    def project(P: np.ndarray) -> np.ndarray:
         m = (P[0] + P[1]) / 2
         return np.array([m, m])
 
-    def V(P):
+    # Lyapunov function: squared distance to manifold
+    def V(P: np.ndarray) -> float:
         return np.linalg.norm(P - project(P)) ** 2
 
-    def in_M(P):
+    # Invariant set indicator (within 1e-6 of the line)
+    def in_M(P: np.ndarray) -> bool:
         return V(P) < 1e-6
 
-    def T(P, xi):
+    # Stochastic transition (Master Formula with projection)
+    def T(P: np.ndarray, xi: np.ndarray) -> np.ndarray:
         alpha, beta = 0.4, 0.6
         Pi = project(P)
         correction = (1 + beta) * Pi - beta * P
         return P + alpha * correction + 0.05 * xi
 
-    def noise():
+    def noise() -> np.ndarray:
         return np.random.randn(2)
 
-    system = MetaStructuralValidity(
+    # Create validity checker with fixed seed for reproducibility
+    checker = MetaStructuralValidity(
         transition=T,
         lyapunov=V,
         invariant_set=in_M,
         noise_sampler=noise,
         state_dim=2,
+        seed=42,
     )
 
-    report = system.validate()
+    # Run validation
+    report = checker.validate()
 
     print("\n=== META-STRUCTURAL VALIDITY REPORT ===")
     for k, v in report.__dict__.items():
