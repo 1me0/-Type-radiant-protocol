@@ -1,8 +1,34 @@
 {
-  "name": "relayer",
+  "name": "radiant-relayer",
   "version": "1.0.0",
+  "description": "Radiant Protocol Relayer – Listens for pending proofs, forwards to Kafka, submits transactions to blockchain, and manages gas optimization.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "radiant",
+    "relayer",
+    "kafka",
+    "ethers",
+    "blockchain",
+    "proof"
+  ],
+  "author": "Radiant Protocol Contributors",
+  "license": "MIT",
   "dependencies": {
     "ethers": "^6.7.0",
     "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "eslint": "^8.56.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
