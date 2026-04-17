@@ -9,8 +9,8 @@
 # ============================================================
 
 # Core ML / Deep Learning
-torch==2.1.0                     # PyTorch (CUDA 11.8 / CPU fallback)
-transformers==4.36.2             # Hugging Face Transformers (LLMs, NLI)
+torch==2.8.0                     # PyTorch (CUDA 11.8 / CPU fallback)
+transformers==5.0.0rc3             # Hugging Face Transformers (LLMs, NLI)
 sentence-transformers==2.2.2     # Embeddings (all-MiniLM-L6-v2)
 datasets==2.15.0                 # Dataset loading (for MNLI training)
 
@@ -20,7 +20,7 @@ uvicorn[standard]==0.24.0        # ASGI server (with standard extras)
 pydantic==2.4.2                  # Data validation (v2)
 
 # Utilities
-requests==2.31.0                 # HTTP client (for external APIs)
+requests==2.33.0                 # HTTP client (for external APIs)
 numpy==1.24.3                    # Numerical computing
 python-dotenv==1.0.0             # Environment variables (for API keys)
 
