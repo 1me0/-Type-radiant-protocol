@@ -1,13 +1,15 @@
-# ============================================================
-# 🌌 ADAPTIVE FALSIFICATION ENGINE (IMPROVED)
-# ============================================================
 """
+adaptive_falsification_engine.py
+
 A falsification-driven engine that discovers the survivability kernel
 by probing extremes, adapting to failure asymmetries, and recursively
 re-centering the origin at the Chebyshev center of the current kernel.
 
 Based on the principle: truth is the intersection of constraints revealed
 by failure boundaries when the origin is corrupted.
+
+Author: Radiant Protocol
+License: MIT
 """
 
 import numpy as np
@@ -15,10 +17,10 @@ from scipy.optimize import linprog
 from typing import List, Tuple, Optional, Callable, Dict
 import warnings
 
+
 # ============================================================
 # UTILITIES
 # ============================================================
-
 def normalize(v: np.ndarray) -> np.ndarray:
     """Return unit vector in the same direction; zero vector remains unchanged."""
     norm = np.linalg.norm(v)
@@ -26,12 +28,18 @@ def normalize(v: np.ndarray) -> np.ndarray:
         return v
     return v / norm
 
+
 def is_independent(d: np.ndarray, basis: List[np.ndarray], tol: float = 1e-6) -> bool:
-    """Check if direction d is linearly independent of the existing orthonormal basis."""
+    """
+    Check if direction d is linearly independent of the existing orthonormal basis.
+    For an orthonormal basis, independence is equivalent to d having negligible
+    projection onto each basis vector.
+    """
     for b in basis:
         if abs(np.dot(d, b)) > tol:
             return False
     return True
+
 
 def orthogonalize(vectors: List[np.ndarray]) -> List[np.ndarray]:
     """Gram–Schmidt orthogonalization, returning orthonormal basis (ignores zero vectors)."""
@@ -46,9 +54,8 @@ def orthogonalize(vectors: List[np.ndarray]) -> List[np.ndarray]:
 
 
 # ============================================================
-# BOUNDARY SEARCH (with adaptive step size for local mode)
+# BOUNDARY SEARCH (linear mode)
 # ============================================================
-
 def find_failure_boundary_linear(
     failure_func: Callable[[np.ndarray], bool],
     simulate_linear: Callable[[np.ndarray, np.ndarray, float], np.ndarray],
@@ -56,7 +63,7 @@ def find_failure_boundary_linear(
     d: np.ndarray,
     t_max: float = 10.0,
     refine_iter: int = 20,
-    stochastic_trials: int = 1
+    stochastic_trials: int = 1,
 ) -> Optional[np.ndarray]:
     """
     Binary search for failure boundary along a straight line from P in direction d.
@@ -66,7 +73,7 @@ def find_failure_boundary_linear(
     if failure_func(P):
         return None
 
-    # Ensure there is a failure at t_max (with optional stochastic checks)
+    # Check if there is a failure at t_max (with optional stochastic checks)
     has_failure = False
     for _ in range(stochastic_trials):
         if failure_func(simulate_linear(P, d, t_max)):
@@ -77,7 +84,7 @@ def find_failure_boundary_linear(
 
     t_low, t_high = 0.0, t_max
     for _ in range(refine_iter):
-        t_mid = (t_low + t_high) / 2
+        t_mid = (t_low + t_high) / 2.0
         P_mid = simulate_linear(P, d, t_mid)
         if failure_func(P_mid):
             t_high = t_mid
@@ -86,6 +93,9 @@ def find_failure_boundary_linear(
     return simulate_linear(P, d, t_high)
 
 
+# ============================================================
+# BOUNDARY SEARCH (local dynamics mode)
+# ============================================================
 def find_failure_boundary_local(
     failure_func: Callable[[np.ndarray], bool],
     local_step: Callable[[np.ndarray, np.ndarray], np.ndarray],
@@ -95,7 +105,7 @@ def find_failure_boundary_local(
     max_steps: int = 200,
     base_step_size: float = 0.1,
     min_step_size: float = 1e-6,
-    stochastic_trials: int = 1
+    stochastic_trials: int = 1,
 ) -> Optional[np.ndarray]:
     """
     Find failure boundary by stepping in direction d using a local dynamics step,
@@ -161,7 +171,6 @@ def find_failure_boundary_local(
 # ============================================================
 # KERNEL (Convex Polytope)
 # ============================================================
-
 class SurvivabilityKernel:
     """
     Convex polytope defined by half-spaces n_i · P ≤ b_i.
@@ -194,11 +203,11 @@ class SurvivabilityKernel:
         # Invalidate cached Chebyshev center
         self._cache_valid = False
 
-    def decay_weights(self):
+    def decay_weights(self) -> None:
         """Apply exponential decay to all failure weights to prioritize recent directions."""
-        for k in self._failure_weights:
+        for k in list(self._failure_weights.keys()):
             self._failure_weights[k] *= self.weight_decay
-        # Optionally remove near-zero weights to keep dictionary small
+        # Remove near-zero weights to keep dictionary small
         self._failure_weights = {k: v for k, v in self._failure_weights.items() if v > 1e-6}
 
     def get_weight(self, d: np.ndarray) -> float:
@@ -209,7 +218,7 @@ class SurvivabilityKernel:
         return max(self._failure_weights.get(key, 0), self._failure_weights.get(key_neg, 0))
 
     def is_safe(self, P: np.ndarray) -> bool:
-        """Check if point satisfies all constraints."""
+        """Check if point satisfies all constraints (with small numerical tolerance)."""
         return all(np.dot(n, P) <= b + 1e-9 for n, b in self.constraints)
 
     def project(self, P: np.ndarray, max_iter: int = 50) -> np.ndarray:
@@ -268,11 +277,13 @@ class SurvivabilityKernel:
             self._cache_valid = True
             return center
 
+    def __repr__(self) -> str:
+        return f"SurvivabilityKernel(dim={self.dim}, constraints={len(self.constraints)}, basis_size={len(self._basis)})"
+
 
 # ============================================================
 # EXPLORER
 # ============================================================
-
 class FalsificationExplorer:
     """
     Adaptive falsification engine. Probes random independent directions,
@@ -287,7 +298,8 @@ class FalsificationExplorer:
         dim: int,
         simulation_type: str = "linear",   # "linear" or "local"
         stochastic_trials: int = 1,
-        weight_decay: float = 0.95
+        weight_decay: float = 0.95,
+        seed: Optional[int] = None,
     ):
         """
         Args:
@@ -298,7 +310,10 @@ class FalsificationExplorer:
             simulation_type: "linear" or "local".
             stochastic_trials: number of trials for stochastic failure detection.
             weight_decay: decay factor for directional weights (0 < weight_decay < 1).
+            seed: random seed for reproducibility.
         """
+        if simulation_type not in ("linear", "local"):
+            raise ValueError("simulation_type must be 'linear' or 'local'")
         self.failure = failure_func
         self.sim_type = simulation_type
         self.simulate_func = simulate_func
@@ -306,12 +321,12 @@ class FalsificationExplorer:
         self.dim = dim
         self.kernel = SurvivabilityKernel(dim, weight_decay=weight_decay)
         self._seed_state = None
-        self._basis = []   # independent direction basis (for exploration)
+        self._rng = np.random.default_rng(seed)
 
     def _get_initial_safe_state(self, max_attempts: int = 100) -> np.ndarray:
         """Find a random safe state; fallback to zero."""
         for _ in range(max_attempts):
-            P = np.random.randn(self.dim) * 5.0
+            P = self._rng.normal(0, 5.0, self.dim)
             if not self.failure(P):
                 return P
         return np.zeros(self.dim)
@@ -324,8 +339,10 @@ class FalsificationExplorer:
             if self.sim_type == "linear":
                 t_max = 10.0 * (1 + weight)
                 refine_iter = 20 + int(10 * weight)
+
                 def sim_linear(P, dir_vec, t):
                     return self.simulate_func(P, dir_vec, t)
+
                 boundary = find_failure_boundary_linear(
                     self.failure,
                     sim_linear,
@@ -333,7 +350,7 @@ class FalsificationExplorer:
                     direction,
                     t_max=t_max,
                     refine_iter=refine_iter,
-                    stochastic_trials=self.stochastic_trials
+                    stochastic_trials=self.stochastic_trials,
                 )
             else:  # local
                 boundary = find_failure_boundary_local(
@@ -345,7 +362,7 @@ class FalsificationExplorer:
                     max_steps=200,
                     base_step_size=0.1,
                     min_step_size=1e-6,
-                    stochastic_trials=self.stochastic_trials
+                    stochastic_trials=self.stochastic_trials,
                 )
             if boundary is not None:
                 self.kernel.add_constraint(direction, boundary, weight=1.0)
@@ -364,7 +381,7 @@ class FalsificationExplorer:
         self.kernel.decay_weights()  # initial decay
 
         for i in range(iterations):
-            d = normalize(np.random.randn(self.dim))
+            d = normalize(self._rng.normal(0, 1, self.dim))
 
             # Only explore if independent of existing normals
             if is_independent(d, self.kernel._basis):
@@ -388,7 +405,6 @@ class FalsificationExplorer:
 # ============================================================
 if __name__ == "__main__":
     # Define a simple nonlinear system: failure if state leaves a circular region of radius 10
-    # but with a twist: the dynamics are a simple rotation + radial drift
     def failure_func(P):
         return np.linalg.norm(P) > 10.0
 
@@ -409,7 +425,8 @@ if __name__ == "__main__":
         dim=2,
         simulation_type="local",
         stochastic_trials=1,
-        weight_decay=0.95
+        weight_decay=0.95,
+        seed=42,
     )
 
     kernel = explorer.run(iterations=200, reset_every=20)
