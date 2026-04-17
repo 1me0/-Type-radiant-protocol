@@ -13,9 +13,14 @@ contract Registry {
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event AddressSet(string indexed key, address indexed oldAddress, address indexed newAddress);
 
-    constructor() {
-        owner = msg.sender;
-        emit OwnershipTransferred(address(0), msg.sender);
+    /**
+     * @dev Constructor sets the initial owner.
+     * @param initialOwner The address that will own the registry (cannot be zero).
+     */
+    constructor(address initialOwner) {
+        require(initialOwner != address(0), "Registry: initial owner is zero");
+        owner = initialOwner;
+        emit OwnershipTransferred(address(0), initialOwner);
     }
 
     modifier onlyOwner() {
@@ -62,8 +67,4 @@ contract Registry {
         emit OwnershipTransferred(owner, address(0));
         owner = address(0);
     }
-}
-constructor(address initialOwner) {
-    owner = initialOwner;
-    emit OwnershipTransferred(address(0), initialOwner);
 }
