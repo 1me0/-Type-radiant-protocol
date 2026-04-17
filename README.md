@@ -167,3 +167,5 @@ A system where being there is the foundation of truth.
 The core protocol is licensed under MIT – open for innovation.
 Commercial use of the RadiantShares token or fee‑bearing contracts requires a separate commercial license.
 See LICENSE.md and the LicenseRegistry contract for details.
+
+---
