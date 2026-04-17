@@ -1,4 +1,24 @@
-fastapi
-uvicorn
-numpy
-pydantic
+# ============================================================
+# Radiant Protocol – Core Backend Dependencies
+# ============================================================
+# This file lists the essential Python packages for running
+# the Radiant Protocol's FastAPI backend and numerical simulations.
+# ============================================================
+
+# Web Framework & Server
+fastapi==0.104.1                 # Modern async web framework
+uvicorn[standard]==0.24.0        # ASGI server with standard extras (websockets, reload)
+
+# Numerical & Data
+numpy==1.24.3                    # Array computing and linear algebra
+
+# Data Validation
+pydantic==2.4.2                  # Data validation and settings management (v2)
+
+# Optional (uncomment if needed):
+# python-dotenv==1.0.0           # Environment variables
+# httpx==0.25.0                  # Async HTTP client
+
+# ============================================================
+# Install with: pip install -r requirements.txt
+# ============================================================
