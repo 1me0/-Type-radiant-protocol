@@ -5,13 +5,15 @@
 ### 1.1 Presence Event
 
 A **presence event** is a tuple  
+
 \[
 e = (u, a, t, \sigma)
 \]  
-where:
-- \(u\) is a unique identifier of the entity (e.g., public key or wallet address).
-- \(a\) is the action or statement (e.g., a message, a stake, a login).
-- \(t\) is a timestamp (Unix seconds, monotonic).
+
+where:  
+- \(u\) is a unique identifier of the entity (e.g., public key or wallet address).  
+- \(a\) is the action or statement (e.g., a message, a stake, a login).  
+- \(t\) is a timestamp, expressed either as Unix seconds or as a block height (e.g., Ethereum block number). Timestamps are monotonic and globally agreed (e.g., via a blockchain).  
 - \(\sigma\) is a digital signature of \((u, a, t)\) under the entity’s private key.
 
 ### 1.2 Proof Structure
@@ -21,9 +23,10 @@ A **proof of presence** for a single event is a zero‑knowledge succinct non‑
 \[
 \exists \; (u, a, t, \sigma) \text{ such that } \mathsf{VerifySig}(u, (u, a, t), \sigma) = 1,
 \]  
-and additionally that \(t\) is within a specified validity window \(\Delta\).
 
-The proof \(\pi\) reveals **no** information about \(u\), \(a\), or \(t\) beyond the fact that the event occurred.
+and additionally that \(t\) lies within a specified validity window \(\Delta\) (e.g., the last 1000 blocks or the last 24 hours).  
+
+**Publicly verifiable information:** The proof reveals **only** the existence of a valid event within \(\Delta\). No other information – neither \(u\), \(a\), nor the exact \(t\) – is disclosed. The verifier can check that the event occurred but cannot identify who performed it, what exactly was said, or the precise moment. (If the application layer explicitly chooses to reveal additional public inputs – e.g., a Merkle root or a session identifier – those may be attached separately, but they are not part of the zero‑knowledge proof itself.)
 
 ### 1.3 Recursion Rule
 
@@ -37,7 +40,7 @@ Define the **recursive folding** rule:
 where \(\mathsf{Fold}\) is a deterministic algorithm (e.g., Nova’s folding scheme) that takes an existing aggregated proof \(\Pi_n\) and a new single‑event proof \(\pi_{n+1}\) and outputs a new aggregated proof \(\Pi_{n+1}\) of size independent of \(n\). The recursive rule satisfies:
 
 - **Correctness:** If \(\Pi_n\) verifies for events \(e_1..e_n\) and \(\pi_{n+1}\) verifies for \(e_{n+1}\), then \(\Pi_{n+1}\) verifies for \(e_1..e_{n+1}\).
-- **Compactness:** \(|\Pi_{n+1}| = O(1)\) (polylogarithmic in \(n\)).
+- **Compactness:** \(|\Pi_{n+1}| = O(1)\) (constant size, independent of \(n\)).
 
 ## 2. Security Guarantees
 
@@ -95,7 +98,7 @@ P_n &: \text{Event } e_n \text{ at } t_n
 \Rightarrow \quad \Pi_n = \mathsf{Fold}( \mathsf{Fold}( \dots \mathsf{Fold}(\pi_1, \pi_2) \dots , \pi_n))
 \]
 
-The final proof \(\Pi_n\) is of constant size (e.g., a few hundred bytes) regardless of \(n\). Verification time is linear in the number of events only when verifying the folded proof? Actually, verification of the folded proof is also constant time (amortised). For a full recursive composition, verification of \(\Pi_n\) takes \(O(\log n)\) time using recursion, but with folding it can be \(O(1)\) after preprocessing. We simplify: after \(n\) folds, one final verification of a single proof suffices.
+**Verification time:** Verification of the final folded proof \(\Pi_n\) is \(O(1)\) (constant time) after the initial trusted setup or preprocessing, thanks to the folding scheme. The prover performs incremental folding work linear in \(n\), but the verifier’s work does not grow with \(n\). The final proof size is constant (e.g., a few hundred bytes).
 
 ## 4. Adversarial Argument
 
@@ -122,7 +125,9 @@ An adversary cannot produce a valid proof of presence for an event that did not 
 - **Computational cost:** Generating a ZK proof is non‑trivial (millions of CPU cycles). Even with specialised hardware, the cost is measurable. For a recursive proof, the cost scales with the number of events but remains practical for legitimate users.
 - **Reputational cost:** On‑chain proof submissions are public. A detected forgery permanently damages the attacker’s address reputation and may lead to blacklisting.
 
-**Conclusion:** The protocol makes cheating economically irrational. The cost to produce a fake presence proof exceeds any possible benefit, especially when combined with slashing and reputation mechanisms.
+### 4.4 Conclusion
+
+The protocol makes cheating economically irrational. The cost to produce a fake presence proof exceeds any possible benefit, especially when combined with slashing and reputation mechanisms.
 
 ---
 
