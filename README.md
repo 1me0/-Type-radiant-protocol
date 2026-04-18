@@ -1,133 +1,159 @@
-# Radiant Protocol – Formal Specification
+# Radiant Protocol: Proof of Presence via Recursive Zero‑Knowledge Arguments
 
-## 1. Formal Definition
+## Abstract
 
-### 1.1 Presence Event
+We introduce Radiant Protocol, a cryptographic system for proving presence—the fact that an entity was actively responsive within a specific time window—without revealing sensitive information. Unlike traditional identity systems, Radiant focuses on liveness-bound participation rather than static identity. The protocol combines digital signatures, blockchain-derived challenges, zero-knowledge proofs, and recursive proof composition (IVC) to produce compact, verifiable attestations of ordered presence events. We formalise the model, define security properties, and analyse adversarial strategies under both cryptographic and economic assumptions.
+
+## 1. Introduction
+
+Modern distributed systems rely heavily on identity and ownership, yet these primitives fail to capture a critical dimension: **presence**. Presence refers to the ability of an entity to act within a constrained time window, demonstrating real‑time responsiveness.
+
+We propose Radiant Protocol, which replaces identity‑based trust with **proof of presence**. The protocol leverages:
+
+- Blockchain‑derived randomness for liveness challenges
+- Zero‑knowledge proofs for privacy
+- Recursive proof composition for scalability
+
+## 2. Preliminaries
+
+### 2.1 Notation
+
+- $\lambda$: security parameter. For production deployment, we target $\lambda = 128$ bits of security, achievable with the BLS12‑381 curve for the ZK circuit and BLS signatures for aggregation.
+- $H$: cryptographic hash function
+- $\mathsf{VerifySig}$: signature verification algorithm
+- $\mathsf{VerifyMerkle}$: Merkle inclusion verification
+
+### 2.2 Assumptions
+
+- Existential unforgeability of signatures
+- Collision resistance of hash functions
+- Blockchain satisfies chain quality and unpredictability
+
+## 3. System Model
+
+### 3.1 Presence Event
 
 A **presence event** is a tuple  
 
 \[
-e = (u, a, t, \sigma)
+e = (u, a, t, \sigma, c, \sigma_c, \pi_s)
 \]  
 
 where:  
-- \(u\) is a unique identifier of the entity (e.g., public key or wallet address).  
-- \(a\) is the action or statement (e.g., a message, a stake, a login).  
-- \(t\) is a timestamp, expressed either as Unix seconds or as a block height (e.g., Ethereum block number). Timestamps are monotonic and globally agreed (e.g., via a blockchain).  
-- \(\sigma\) is a digital signature of \((u, a, t)\) under the entity’s private key.
+- $u$ – entity identifier (public key)  
+- $a$ – action or statement  
+- $t$ – block height  
+- $\sigma$ – signature of $(u,a,t)$  
+- $c$ – challenge $H(\text{block}_{t-1} \| \text{domain\_sep})$  
+- $\sigma_c$ – signature of $c$  
+- $\pi_s$ – zero‑knowledge proof of stake $s_u \ge S_{\min}$  
 
-### 1.2 Proof Structure
+**Privacy note:** The tuple components $c$, $\sigma_c$, and $\pi_s$ are included in the **private witness** of the ZK proof $\pi$, while the verifier only receives the public inputs $(\text{root}_t, \Delta, n, \text{domain\_sep})$.
 
-A **proof of presence** for a single event is a zero‑knowledge succinct non‑interactive argument (ZK‑SNARK) \(\pi\) that attests:
+**Minimum stake:** $S_{\min}$ is a protocol parameter initially set to **1000 RAD** (0.001% of max supply) and adjustable via governance with a 2‑day timelock (as implemented in `RadiantShares.sol`).
+
+### 3.2 Challenge Construction
 
 \[
-\exists \; (u, a, t, \sigma) \text{ such that } \mathsf{VerifySig}(u, (u, a, t), \sigma) = 1,
-\]  
+c = H(\text{block}_{t-1} \,\|\, \text{domain\_sep})
+\]
 
-and additionally that \(t\) lies within a specified validity window \(\Delta\) (e.g., the last 1000 blocks or the last 24 hours).  
+where  
 
-**Publicly verifiable information:** The proof reveals **only** the existence of a valid event within \(\Delta\). No other information – neither \(u\), \(a\), nor the exact \(t\) – is disclosed. The verifier can check that the event occurred but cannot identify who performed it, what exactly was said, or the precise moment. (If the application layer explicitly chooses to reveal additional public inputs – e.g., a Merkle root or a session identifier – those may be attached separately, but they are not part of the zero‑knowledge proof itself.)
+\[
+\text{domain\_sep} = \text{"RADIANT\_PRESENCE\_CHALLENGE\_V1"}
+\]
 
-### 1.3 Recursion Rule
+to prevent cross‑protocol replay attacks. Bias is bounded by the economic cost of withholding blocks ($\varepsilon_{\text{hash}} + \varepsilon_{\text{MEV}}$).
 
-Let \(\Pi_n\) be a proof that aggregates \(n\) consecutive presence events \(e_1, e_2, \dots, e_n\) with timestamps \(t_1 < t_2 < \dots < t_n\).  
-Define the **recursive folding** rule:
+### 3.3 Response Constraint
+
+\[
+t_c \le t \le t_c + \delta
+\]
+
+with **slack tolerance** of at most one block to account for propagation delay: the signature time may be up to one block earlier than the final inclusion block.
+
+## 4. Protocol Definition
+
+### 4.1 Prover Algorithm
+
+1. Observe block $\text{block}_{t-1}$.
+2. Compute $c$ and sign it.
+3. Sign the event $(u,a,t)$.
+4. Generate ZK proof $\pi$ of the relation in Section 3.1.
+5. Optionally fold $\pi$ into an existing aggregated proof $\Pi_n$.
+
+### 4.2 Verifier Algorithm
+
+Given $\Pi_n$ and public inputs $(\text{root}_t, \Delta, n, \text{domain\_sep})$:
+
+- Verify the recursive proof $\Pi_n$ (constant time).
+- The recursive proof $\Pi_n$ **attests** that every challenge $c_i$ was correctly derived from $\text{block}_{t_i-1}$ and that the timestamps are strictly increasing.
+- No per‑event verification is performed on‑chain; all checks are inside the ZK circuit.
+
+## 5. Recursive Aggregation
+
+Define  
 
 \[
 \Pi_{n+1} = \mathsf{Fold}(\Pi_n, \pi_{n+1})
-\]  
-
-where \(\mathsf{Fold}\) is a deterministic algorithm (e.g., Nova’s folding scheme) that takes an existing aggregated proof \(\Pi_n\) and a new single‑event proof \(\pi_{n+1}\) and outputs a new aggregated proof \(\Pi_{n+1}\) of size independent of \(n\). The recursive rule satisfies:
-
-- **Correctness:** If \(\Pi_n\) verifies for events \(e_1..e_n\) and \(\pi_{n+1}\) verifies for \(e_{n+1}\), then \(\Pi_{n+1}\) verifies for \(e_1..e_{n+1}\).
-- **Compactness:** \(|\Pi_{n+1}| = O(1)\) (constant size, independent of \(n\)).
-
-## 2. Security Guarantees
-
-Let \(\mathcal{R}\) be the relation of valid presence event sequences.
-
-### 2.1 Completeness
-For any valid sequence of presence events \(e_1..e_n\) generated by honest entities, there exists a recursive proof \(\Pi_n\) such that:
-
-\[
-\Pr[\mathsf{Verify}(\Pi_n) = 1] = 1.
 \]
 
-### 2.2 Soundness
-For any adversary \(\mathcal{A}\) that outputs a proof \(\Pi_n\) for a sequence \(e_1'..e_n'\) that is **not** in \(\mathcal{R}\) (i.e., at least one event is invalid or the order is inconsistent), the probability that \(\mathsf{Verify}(\Pi_n) = 1\) is negligible in the security parameter \(\lambda\):
+Properties:
+
+- **Correctness** – if $\Pi_n$ and $\pi_{n+1}$ verify, then $\Pi_{n+1}$ verifies.
+- **Compactness** – $|\Pi_{n+1}| = O(1)$, verification $O(1)$.
+
+## 6. Security Model
+
+### 6.1 Completeness  
+For any honest entity, a valid proof exists and verifies with probability 1.
+
+### 6.2 Soundness (Game‑Based)  
+
+**Game 1 (Forgery):**  
+1. Challenger generates system parameters.  
+2. Adversary $\mathcal{A}$ may query presence proofs for chosen events (adaptive).  
+3. $\mathcal{A}$ outputs a proof $\Pi_n$ for a sequence **not** in the relation $\mathcal{R}$ (i.e., at least one event invalid, challenge missing, order wrong, or stake insufficient).  
+4. $\mathcal{A}$ wins if $\mathsf{Verify}(\Pi_n) = 1$.
+
+The advantage of $\mathcal{A}$ is  
 
 \[
-\Pr[\mathcal{A} \text{ wins}] \le \mathsf{negl}(\lambda).
+\mathsf{Adv}_{\mathcal{A}}(\lambda) = \left|\Pr[\mathcal{A} \text{ wins}] - \frac{1}{2}\right| \le \mathsf{negl}(\lambda).
 \]
 
-### 2.3 Zero‑Knowledge Property
-For any adversary \(\mathcal{A}\), there exists a simulator \(\mathcal{S}\) such that for any valid sequence \(e_1..e_n\), the distribution of proofs \(\Pi_n\) produced by the honest prover is computationally indistinguishable from the distribution produced by \(\mathcal{S}\) without access to the private witnesses:
+### 6.3 Zero‑Knowledge  
+For any valid sequence, the proof distribution is computationally indistinguishable from a simulator’s output without access to private witnesses.
 
-\[
-\{\mathsf{Prove}(e_1..e_n)\} \approx_c \{\mathcal{S}(1^\lambda, n)\}.
-\]
+## 7. Adversarial Analysis
 
-Thus, no information about the individual events (identities, actions, exact timestamps) leaks from the aggregated proof.
+| Attack | Mitigation |
+|--------|-------------|
+| Replay | Timestamp + fresh challenge |
+| Sybil | Minimum stake (economic) |
+| Long‑range | Block‑anchored timestamps |
+| Miner bias | Economic cost of withholding blocks |
 
-## 3. Minimal Working Example (Mathematical)
+## 8. Implementation Considerations
 
-Let events be represented as elements of a finite field \(\mathbb{F}\). Define:
+- **Signatures:** BLS (Boneh–Lynn–Shacham) for aggregation or ECDSA for Ethereum compatibility.
+- **Merkle tree:** Sparse Merkle tree (e.g., using Poseidon hash) as used in Ethereum’s state.
+- **ZK circuit:** Use Nova folding scheme [Kothapalli2022] with SNARK‑friendly primitives.
+- **On‑chain verification:** The contract receives $\Pi_n$ and verifies it using a pre‑compiled verifier (e.g., via `SnarkVerifier`).
 
-- **Single‑event proof** \(\pi_i = \mathsf{Prove}(x_i, w_i)\) where \(x_i\) is the public input (e.g., a hash of the event) and \(w_i\) is the private witness (signature, timestamp).
-- **Recursive aggregation** using a folding scheme:
+## 9. Conclusion
 
-Let \(\Pi_1 = \pi_1\). For \(i = 2\) to \(n\):
+Radiant introduces a new primitive: **verifiable presence**. It enables trustless systems grounded in real‑time activity rather than static identity. The protocol is scalable, private, and economically secure.
 
-\[
-\Pi_i = \mathsf{Fold}(\Pi_{i-1}, \pi_i).
-\]
+## References
 
-The folding operation \(\mathsf{Fold}\) takes two proofs of length \(O(1)\) and outputs a single proof of length \(O(1)\) that attests to the conjunction of both statements.
+[Kothapalli2022] Kothapalli, A., Setty, S., & Tzialla, I. (2022). Nova: Recursive Zero-Knowledge Arguments from Folding Schemes. *Cryptology ePrint Archive*, Report 2022/1252.  
 
-**Illustration:**
+[BLS2004] Boneh, D., Lynn, B., & Shacham, H. (2004). Short signatures from the Weil pairing. *Journal of Cryptology*, 17(4), 297–319.  
 
-\[
-\begin{aligned}
-P_1 &: \text{Event } e_1 \text{ at } t_1 \\
-P_2 &: \text{Event } e_2 \text{ at } t_2 \;(t_2 > t_1) \\
-&\;\;\vdots \\
-P_n &: \text{Event } e_n \text{ at } t_n
-\end{aligned}
-\]
-\[
-\Rightarrow \quad \Pi_n = \mathsf{Fold}( \mathsf{Fold}( \dots \mathsf{Fold}(\pi_1, \pi_2) \dots , \pi_n))
-\]
-
-**Verification time:** Verification of the final folded proof \(\Pi_n\) is \(O(1)\) (constant time) after the initial trusted setup or preprocessing, thanks to the folding scheme. The prover performs incremental folding work linear in \(n\), but the verifier’s work does not grow with \(n\). The final proof size is constant (e.g., a few hundred bytes).
-
-## 4. Adversarial Argument
-
-### 4.1 Why Fake Presence Fails
-
-An adversary cannot produce a valid proof of presence for an event that did not occur because:
-
-- The proof must include a valid digital signature of the event under the entity’s private key. Without the key, the adversary cannot produce the signature.
-- Timestamps are embedded in the signed message; an attacker cannot backdate a signature because the signature scheme is unforgeable.
-- The recursive folding ensures that each event is independently verified; a single invalid event breaks the entire aggregated proof with overwhelming probability (soundness).
-
-### 4.2 Possible Attacks
-
-| Attack | Description | Mitigation |
-|--------|-------------|-------------|
-| **Replay attack** | Submitting an old event with a fresh timestamp. | The signature includes the timestamp; a new timestamp would require a new signature (impossible without the key). |
-| **Sybil attack** | Creating many fake identities to inflate presence. | Each identity must have a unique public key; generating many keys is possible, but each event still requires a valid signature. Staking or economic cost per event can be added (e.g., fee in Radiant tokens). |
-| **Long‑range attack** | After compromising an old key, signing past events. | Timestamps are anchored to a globally agreed clock (e.g., blockchain block height). Past blocks cannot be altered. |
-| **Proof malleability** | Modifying a proof to change its meaning without detection. | The ZK proof is non‑malleable by construction (e.g., using a random oracle or commitment scheme). |
-
-### 4.3 Cost of Cheating
-
-- **Economic cost:** Each proof submission can require a stake or fee (e.g., 1 RAD). A successful fake would cost the attacker the stake (which is slashed if caught) plus the computational cost of generating the proof.
-- **Computational cost:** Generating a ZK proof is non‑trivial (millions of CPU cycles). Even with specialised hardware, the cost is measurable. For a recursive proof, the cost scales with the number of events but remains practical for legitimate users.
-- **Reputational cost:** On‑chain proof submissions are public. A detected forgery permanently damages the attacker’s address reputation and may lead to blacklisting.
-
-### 4.4 Conclusion
-
-The protocol makes cheating economically irrational. The cost to produce a fake presence proof exceeds any possible benefit, especially when combined with slashing and reputation mechanisms.
+[ETHMerkle] Ethereum Foundation. (2020). “Sparse Merkle Trees”. Ethereum Wiki.
 
 ---
 
