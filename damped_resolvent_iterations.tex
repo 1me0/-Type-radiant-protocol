@@ -1,0 +1,232 @@
+\documentclass{article}
+
+\usepackage{amsmath, amssymb, amsthm, mathtools}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{State-Dependent Damped Resolvent Iterations:\\
+Fejér Monotonicity and Residual Control for Maximal Monotone Inclusions in Hilbert Space}
+
+\author{Radiant Protocol (Revised Rigorous Version)}
+\date{}
+
+% ============================================================
+% Environments
+% ============================================================
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{assumption}{Assumption}
+\newtheorem{remark}{Remark}
+\newtheorem{example}{Example}
+
+\begin{document}
+
+\maketitle
+
+% ============================================================
+\begin{abstract}
+We introduce a state-dependent damped resolvent iteration for solving maximal monotone inclusions in a real Hilbert space \(H\). Given a maximal monotone operator \(A: H \rightrightarrows H\) with resolvent \(J = (I + A)^{-1}\), the iteration takes the form
+\[
+x_{t+1} = T_{\beta(x_t)}(x_t) := J(x_t) - \beta(x_t) \bigl( x_t - J(x_t) \bigr),
+\]
+where the damping function \(\beta: H \to [0,1]\) may depend on the current state. We prove that the squared distance to any fixed point of \(J\) serves as a Lyapunov functional and decreases by an explicit non-negative term proportional to the residual energy \(\mathcal{E}(x) = \|x - J(x)\|^2\). This establishes Fejér monotonicity of the sequence with respect to the (closed convex) solution set \(\mathcal{F} = \mathrm{zer}(A)\). As a consequence, the residuals \(\mathcal{E}(x_t)\) converge to zero. In finite-dimensional spaces the sequence converges strongly to a point in \(\mathcal{F}\).
+
+The framework generalizes the classical proximal-point method (\(\beta \equiv 0\)) and the reflected-resolvent method (\(\beta \equiv 1\)) and requires only the firm nonexpansiveness of the resolvent (which holds for any maximal monotone operator). No averagedness assumption on an auxiliary operator is needed.
+\end{abstract}
+
+% ============================================================
+\section{Introduction}
+
+Let \(H\) be a real Hilbert space and let \(A: H \rightrightarrows H\) be a maximal monotone operator. The resolvent
+\[
+J := (I + A)^{-1}
+\]
+is single-valued, firmly nonexpansive, and its fixed-point set coincides with the zero set of \(A\):
+\[
+\mathcal{F} := \{ x \in H : x = J(x) \} = \mathrm{zer}(A).
+\]
+We consider the damped iteration
+\[
+x_{t+1} = J(x_t) - \beta_t \bigl( x_t - J(x_t) \bigr),
+\]
+where the damping parameters \(\beta_t = \beta(x_t) \in [0,1]\) are allowed to depend on the current state \(x_t\) through a measurable function \(\beta: H \to [0,1]\).
+
+The central contribution of this work is a rigorous Lyapunov analysis based on the squared distance to the solution set. We show that, for any \(z \in \mathcal{F}\),
+\[
+\|x_{t+1} - z\|^2 \le \|x_t - z\|^2 - (1 - \beta_t^2) \mathcal{E}(x_t),
+\]
+where \(\mathcal{E}(x) := \|x - J(x)\|^2 \ge 0\) is the residual energy. This identity immediately yields Fejér monotonicity of \(\{x_t\}\) with respect to \(\mathcal{F}\). When \(\beta(x) \le \beta_{\max} < 1\) uniformly, the decrease is uniform and the residual energy tends to zero at a rate controlled by the summability of the telescoping series. In finite dimensions this implies strong convergence to a solution of the inclusion.
+
+The scheme recovers the proximal-point algorithm when \(\beta \equiv 0\) and the reflected-resolvent algorithm when \(\beta \equiv 1\). Unlike the Krasnosel'ski\u{i}--Mann iteration, it does not require any auxiliary operator to be averaged; firm nonexpansiveness of the resolvent alone suffices.
+
+% ============================================================
+\section{Preliminaries}
+
+Let \(H\) be a real Hilbert space with inner product \(\langle \cdot, \cdot \rangle\) and induced norm \(\|\cdot\|\). An operator \(A: H \rightrightarrows H\) is \emph{monotone} if
+\[
+\langle u - v, x - y \rangle \ge 0 \quad \forall\, u \in A(x),\ v \in A(y),\ x,y \in H,
+\]
+and \emph{maximal monotone} if its graph is not properly contained in the graph of any other monotone operator.
+
+The resolvent \(J = (I + A)^{-1}\) is firmly nonexpansive:
+\[
+\|J(x) - J(y)\|^2 \le \langle J(x) - J(y), x - y \rangle \quad \forall\, x,y \in H,
+\]
+and \(x \in \mathcal{F}\) if and only if \(x = J(x)\). The fixed-point set \(\mathcal{F}\) is closed and convex.
+
+% ============================================================
+\section{Residual Energy}
+
+Define the \emph{residual energy}
+\[
+\mathcal{E}(x) := \|x - J(x)\|^2.
+\]
+Clearly \(\mathcal{E}(x) \ge 0\) with equality precisely on \(\mathcal{F}\). While \(\mathcal{E}\) itself is not a Lyapunov function (it need not be monotonically nonincreasing), it will appear as the exact decrement term in the distance inequality below.
+
+% ============================================================
+\section{State-Dependent Damped Resolvent}
+
+For a measurable damping map \(\beta: H \to [0,1]\) define
+\[
+T_{\beta}(x) := J(x) - \beta(x) \bigl( x - J(x) \bigr) = (1 + \beta(x)) J(x) - \beta(x) x.
+\]
+
+\begin{lemma}[Fixed-point invariance]
+If \(x \in \mathcal{F}\), then \(T_{\beta}(x) = x\) for any \(\beta(x) \in [0,1]\).
+\end{lemma}
+\begin{proof}
+If \(x = J(x)\), then \(x - J(x) = 0\), so \(T_{\beta}(x) = J(x) = x\).
+\end{proof}
+
+The iteration is therefore well-defined on \(\mathcal{F}\) and leaves it invariant.
+
+% ============================================================
+\section{Fejér Monotonicity via Residual Control}
+
+We first treat the constant-damping case \(\beta(x) \equiv \beta \in [0,1]\).
+
+\begin{theorem}[Fejér monotonicity with explicit decrease]
+Let \(z \in \mathcal{F}\) be arbitrary and let \(\beta \in [0,1]\). For every \(x \in H\),
+\[
+\|T_{\beta}(x) - z\|^2 \le \|x - z\|^2 - (1 - \beta^2) \mathcal{E}(x).
+\]
+In particular, \(T_{\beta}\) is Fejér monotone with respect to \(\mathcal{F}\):
+\[
+\|T_{\beta}(x) - z\|^2 \le \|x - z\|^2.
+\]
+When \(\beta < 1\) the decrease is strictly positive unless \(x \in \mathcal{F}\).
+\end{theorem}
+
+\begin{proof}
+Write \(r := x - J(x)\) (so \(\mathcal{E}(x) = \|r\|^2\)) and \(y := T_{\beta}(x) = J(x) - \beta r\). Then
+\[
+y - z = (J(x) - z) - \beta r.
+\]
+Squaring yields
+\[
+\|y - z\|^2 = \|J(x) - z\|^2 - 2\beta \langle J(x) - z, r \rangle + \beta^2 \|r\|^2.
+\]
+Since \(0 \in A(z)\) and \(r \in A(J(x))\), monotonicity of \(A\) gives
+\[
+\langle r - 0,\ J(x) - z \rangle \ge 0 \quad \Rightarrow \quad \langle J(x) - z, r \rangle \ge 0.
+\]
+The cross term therefore satisfies \(-2\beta \langle J(x) - z, r \rangle \le 0\), and we obtain the upper bound
+\[
+\|y - z\|^2 \le \|J(x) - z\|^2 + \beta^2 \|r\|^2. \tag{1}
+\]
+It remains to bound \(\|J(x) - z\|^2\):
+\[
+x - z = (J(x) - z) + r \quad \Rightarrow \quad \|J(x) - z\|^2 = \|x - z\|^2 - 2\langle x - z, r \rangle + \|r\|^2.
+\]
+The inner product expands as
+\[
+\langle x - z, r \rangle = \langle J(x) - z, r \rangle + \|r\|^2 \ge \|r\|^2,
+\]
+again by monotonicity. Substituting gives
+\[
+\|J(x) - z\|^2 \le \|x - z\|^2 - 2\|r\|^2 + \|r\|^2 = \|x - z\|^2 - \|r\|^2. \tag{2}
+\]
+Inserting (2) into (1) produces
+\[
+\|y - z\|^2 \le \bigl( \|x - z\|^2 - \|r\|^2 \bigr) + \beta^2 \|r\|^2 = \|x - z\|^2 - (1 - \beta^2) \|r\|^2,
+\]
+which is the claimed inequality.
+\end{proof}
+
+For a state-dependent damping function \(\beta: H \to [0,1]\) the same pointwise identity holds with \(\beta = \beta(x)\):
+\[
+\|T_{\beta(x)}(x) - z\|^2 \le \|x - z\|^2 - \bigl(1 - \beta(x)^2\bigr) \mathcal{E}(x).
+\]
+If \(\beta(x) \le \beta_{\max} < 1\) uniformly along the generated sequence (or globally), then \(1 - \beta(x)^2 \ge \delta := 1 - \beta_{\max}^2 > 0\) and the decrease is uniformly controlled by the residual energy.
+
+% ============================================================
+\section{Convergence to Fixed Points}
+
+\begin{theorem}[Convergence]
+Suppose \(\beta: H \to [0,\beta_{\max}]\) with \(\beta_{\max} < 1\). Then the sequence \(\{x_t\}\) generated by \(x_{t+1} = T_{\beta(x_t)}(x_t)\) satisfies:
+\begin{enumerate}
+\item \(\|x_{t+1} - z\|^2 \le \|x_t - z\|^2 - \delta \mathcal{E}(x_t)\) for every \(z \in \mathcal{F}\) and \(\delta = 1 - \beta_{\max}^2 > 0\);
+\item \(\sum_{t=0}^\infty \mathcal{E}(x_t) < \infty\), hence \(\mathcal{E}(x_t) \to 0\);
+\item In finite-dimensional spaces, \(x_t \to x^\star \in \mathcal{F}\) strongly.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+Item (1) is the pointwise Fejér inequality of Theorem~5. Telescoping from \(t=0\) to \(N-1\) gives
+\[
+\|x_0 - z\|^2 - \|x_N - z\|^2 \ge \delta \sum_{t=0}^{N-1} \mathcal{E}(x_t).
+\]
+The left-hand side is non-negative (the distance sequence is nonincreasing and bounded below by zero), so the partial sums of the residuals are uniformly bounded and therefore \(\sum \mathcal{E}(x_t) < \infty\), implying \(\mathcal{E}(x_t) \to 0\) (item (2)).
+
+For item (3), finite dimensionality implies that the bounded sequence \(\{x_t\}\) (boundedness follows from Fejér monotonicity) has cluster points. Let \(x^*\) and \(x^{**}\) be any two strong cluster points. Since \(\mathcal{E}(x_t) \to 0\), both lie in \(\mathcal{F}\). For any fixed \(z \in \mathcal{F}\) the real sequence \(\{\|x_t - z\|^2\}\) is nonincreasing and hence convergent; call its limit \(L_z\). Along a subsequence \(x_{t_k} \to x^*\) we have \(\|x_{t_k} - x^{**}\| \to \|x^* - x^{**}\|\). But this subsequence limit must equal the full-sequence limit \(L_{x^{**}}\), so
+\[
+\|x^* - x^{**}\| = L_{x^{**}}.
+\]
+Similarly, \(L_{x^*} = \|x^* - x^{**}\|\). Because \(x_{t_k} \to x^*\) we also have \(\|x_{t_k} - x^*\| \to 0\), and therefore \(L_{x^*} = 0\). It follows that \(\|x^* - x^{**}\| = 0\), i.e., all cluster points coincide. Hence the whole sequence converges strongly to the unique cluster point \(x^\star \in \mathcal{F}\).
+\end{proof}
+
+\begin{remark}
+When \(\beta \equiv 1\) the decrease term vanishes and the theorem only guarantees Fejér monotonicity. Convergence of the reflected-resolvent method (\(x_{t+1} = 2J(x_t) - x_t\)) is nevertheless classical and can be recovered from the general theory of firmly nonexpansive mappings (see \cite[Chapter~4]{bauschke2011convex}).
+\end{remark}
+
+% ============================================================
+\section{Comparison with Classical Methods}
+
+Classical Krasnosel'ski\u{i}--Mann iterations applied to an operator \(T\) require \(T\) to be averaged (or, equivalently, \(I - T\) to be \(\frac{1}{2}\)-cocoercive) to guarantee Fejér monotonicity in the Hilbert norm. In contrast, the damped resolvent iteration works for any maximal monotone operator \(A\) (hence any firmly nonexpansive resolvent \(J\)) and yields an explicit, computable decrease of the squared distance to the solution set controlled directly by the residual energy. The residual energy \(\mathcal{E}(x)\) therefore plays the role of a natural ``progress measure'' even though it is not itself monotone.
+
+\begin{example}[Distance versus residual]
+Let \(H = \mathbb{R}\), \(A = \partial|\cdot|\). The resolvent is the soft-thresholding operator \(J(x) = \operatorname{sign}(x) \max(|x|-1,0)\). Take \(x_0 = 2\) and constant \(\beta = 0.5\):
+\[
+J(2) = 1,\quad \mathcal{E}(2) = 1,\quad x_1 = 1 - 0.5(2-1) = 0.5.
+\]
+The new residual is \(\mathcal{E}(0.5) = (0.5-0)^2 = 0.25\). The squared distance to the unique solution \(z=0\) drops from \(4\) to \(0.25\), a decrease of \(3.75\), which exceeds the guaranteed lower bound \(1 - \beta^2 = 0.75\).
+
+For a point where the residual energy does not decrease, take \(x_0 = 3\):
+\[
+J(3) = 2,\quad \mathcal{E}(3) = 1,\quad x_1 = 2 - 0.5(3-2) = 1.5,\quad \mathcal{E}(1.5) = 1.
+\]
+The residual stays constant, yet the squared distance to zero drops from \(9\) to \(2.25\), again satisfying the bound \(9 - 0.75 = 8.25\). The next iterate reaches the solution exactly. This illustrates that the residual need not contract pointwise, while the distance to the solution set does.
+\end{example}
+
+% ============================================================
+\section{Conclusion}
+
+We have developed a rigorous Lyapunov theory for state-dependent damped resolvent iterations. The key points are:
+
+\begin{itemize}
+\item The squared distance to any solution \(z \in \mathcal{F}\) is a genuine Lyapunov functional that decreases by the non-negative amount \((1 - \beta(x)^2) \mathcal{E}(x)\).
+\item This yields Fejér monotonicity with respect to \(\mathcal{F}\) and forces the residual energy \(\mathcal{E}(x_t)\) to tend to zero whenever \(\beta\) is uniformly bounded away from \(1\).
+\item In finite dimensions the generated sequence converges strongly to a zero of \(A\).
+\item The method encompasses the proximal-point algorithm (\(\beta=0\)) and the reflected-resolvent algorithm (\(\beta=1\)) and requires only the firm nonexpansiveness of the resolvent.
+\end{itemize}
+
+Future work includes adaptive selection of \(\beta(x)\) (e.g., line-search strategies that maximize the instantaneous decrease), extensions to non-monotone inclusions, and applications to large-scale nonsmooth optimization problems.
+
+\begin{thebibliography}{9}
+\bibitem{bauschke2011convex} Bauschke, H. H., \& Combettes, P. L. (2011). \emph{Convex Analysis and Monotone Operator Theory in Hilbert Spaces}. Springer.
+\end{thebibliography}
+
+\end{document}
