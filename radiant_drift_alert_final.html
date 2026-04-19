@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiant · CIS · α · Drift Alert · 🔒</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *{box-sizing:border-box;font-family:system-ui,sans-serif}
+        body{background:#eef2f5;margin:0;padding:16px}
+        .grid{display:flex;flex-wrap:wrap;gap:16px;max-width:1400px;margin:auto}
+        .panel{background:white;border-radius:24px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+        .participants{flex:1.2;min-width:240px}
+        .chart-panel{flex:1.5}
+        .deep-panel{flex:1.2;background:#fef9e3}
+        .secure-panel{flex:1;background:#e0f2f1}
+        h3{margin:0 0 10px;border-left:4px solid #2c7da0;padding-left:10px;font-size:1rem}
+        .card{background:#f9fbfd;border-radius:16px;padding:8px;margin-bottom:10px;border:1px solid #e2e8f0}
+        .row{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+        .name{font-weight:700;background:#eef2ff;padding:2px 10px;border-radius:40px;font-size:0.8rem}
+        button{background:#1e4663;border:none;color:white;padding:4px 10px;border-radius:40px;cursor:pointer;font-size:0.75rem}
+        button.listening{background:#c2410c}
+        .status,.badge{font-size:0.65rem;background:#eef2ff;padding:2px 8px;border-radius:20px}
+        .transcript{font-size:0.65rem;background:#f8fafc;border-radius:12px;padding:4px;margin-top:4px;border-left:3px solid #2c7da0}
+        .add-bar{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+        input,select{padding:3px 6px;border-radius:40px;border:1px solid #cbd5e1;font-size:0.75rem}
+        canvas{max-height:220px;width:100%}
+        .summary{display:flex;justify-content:space-between;margin-top:10px;background:#eef2ff;border-radius:20px;padding:4px 8px;font-size:0.65rem}
+        .interpretation-box{background:#fff8e7;border-radius:16px;padding:8px;font-size:0.7rem;max-height:480px;overflow-y:auto}
+        .int-section{margin-bottom:6px;border-bottom:1px dashed #e2d5b6;padding-bottom:4px}
+        .section-title{font-weight:bold;color:#b45309}
+        .translator{background:#fef9e3;border-radius:20px;padding:6px;margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+        .secure-card{background:#f1f5f4;border-radius:16px;padding:8px;margin-bottom:6px;border:1px solid #a5f0c7}
+        .copy-btn{background:#10b981;color:white;font-size:0.65rem;padding:2px 6px;border-radius:9999px;border:none;cursor:pointer}
+        code{font-size:0.6rem;word-break:break-all}
+        .decrypted-result{background:#e8f5e9;border-radius:8px;padding:4px;margin-top:4px}
+        @keyframes driftPulse{0%{color:#c62828;background:#ffebee}50%{color:#fff;background:#c62828}100%{color:#c62828;background:#ffebee}}
+        .drift-alert{animation:driftPulse 1s ease-in-out 3;display:inline-block;padding:0 6px;border-radius:40px}
+    </style>
+</head>
+<body>
+<div class="grid">
+    <div class="panel participants">
+        <h3>🎙️ Radiant Interpreter</h3>
+        <div class="translator">
+            <label><input type="checkbox" id="transToggle" checked> 🌐</label>
+            <select id="targetLang"><option value="en">En</option><option value="sw">Sw</option><option value="es">Es</option><option value="fr">Fr</option></select>
+        </div>
+        <div id="participantsList"></div>
+        <div class="add-bar">
+            <input type="text" id="newName" placeholder="Name" value="Sp">
+            <select id="newLang"><option value="en">en</option><option value="sw">sw</option><option value="es">es</option></select>
+            <button id="addBtn">+</button>
+            <button id="resetBtn" style="background:#94a3b8">⟳</button>
+            <button id="stopAllBtn" style="background:#94a3b8">⏹️</button>
+        </div>
+        <div class="summary"><span>📊 <span id="turnCount">0</span></span><span>📐 <span id="driftValue">0.00</span></span><span>⚙️ α <span id="alphaValue">0.50</span></span><span>🔒 <span id="secureCount">0</span></span></div>
+    </div>
+
+    <div class="panel chart-panel">
+        <h3>📈 CIS · Alignment (α) · Thr 7</h3>
+        <canvas id="graph"></canvas>
+    </div>
+
+    <div class="panel deep-panel">
+        <h3>🧠 Deep (α·CIS+(1-α)·Trans)</h3>
+        <div id="interpretationBox" class="interpretation-box">Awaiting speech...</div>
+    </div>
+
+    <div class="panel secure-panel">
+        <h3>🔒 Vault</h3>
+        <div class="translator">
+            <input type="password" id="roomKey" value="radiant2026" style="width:100px">
+            <button id="regenKey" style="background:#10b981">New</button>
+            <label><input type="checkbox" id="autoEncrypt" checked> Auto</label>
+        </div>
+        <div class="add-bar">
+            <input type="text" id="secureMsg" placeholder="Secure msg..." style="flex:1">
+            <button id="encryptSend">🔒</button>
+        </div>
+        <div id="secureMessages" style="max-height:280px;overflow-y:auto;background:#f1f5f4;border-radius:16px;padding:8px"></div>
+        <div class="row" style="margin-top:8px">
+            <button id="simulateCall" style="background:#10b981;flex:1">📞 Sim</button>
+            <button id="clearSecure" style="background:#94a3b8">Clear</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ---------- CIS (0-10) ----------
+const cis=t=>{let w=(t||"").toLowerCase().match(/\b[\w']+\b/g)||[];if(!w.length)return 0;let u=new Set(w),f={};w.forEach(v=>f[v]=(f[v]||0)+1);let H=0;for(let c of Object.values(f)){let p=c/w.length;H-=p*Math.log2(p)}let Hnorm=u.size>1?Math.min(1,H/Math.log2(u.size)):0;let raw=0.4*Hnorm+0.4*(u.size/w.length)+0.2*Math.min(1,w.length/15);return Math.min(10,Math.max(0,10*Math.tanh(1.8*raw)))};
+let ema=null;const updE=v=>ema=ema===null?v:0.3*v+0.7*ema;
+
+// ---------- Translation (MyMemory + Swahili expressive) ----------
+const translate=async(txt,s,t)=>{if(!txt.trim()||s===t)return{trans:txt,conf:1};try{let r=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(txt)}&langpair=${s}|${t}`),d=await r.json();let trans=d.responseData.translatedText.replace(/&quot;/g,'"'),conf=d.responseData.match?d.responseData.match/100:0.7;conf=Math.min(0.99,Math.max(0.3,conf));if(t==='sw'&&txt.match(/\b(Lyapunov|convergence|gradient|algorithm|stability|monotone)\b/i))trans+=" (Hii: mfumo unapunguza makosa, hakuna kurudi, mwisho utulivu.)";return{trans,conf}}catch(e){return{trans:txt+" [off]",conf:0.4}}};
+const transScore=(txt,c)=>txt&&!txt.includes("off")?Math.min(10,10*(c*0.7+Math.min(1,txt.split(/\s+/).length/20)*0.3)):0;
+const speak=(txt,l)=>{let u=new SpeechSynthesisUtterance(txt);u.lang=l;speechSynthesis.cancel();speechSynthesis.speak(u)};
+
+// ---------- Dynamic α (technical density) ----------
+function computeAlpha(text){
+    if(!text)return 0.5;let w=text.toLowerCase().match(/\b[\w']+\b/g)||[];if(!w.length)return 0.5;
+    let avgLen=w.reduce((s,v)=>s+v.length,0)/w.length;
+    let lenFac=Math.min(1,(avgLen-4)/8);
+    let techKws=['lyapunov','convergence','gradient','algorithm','stability','monotone','operator','resolvent','fixed','damped','spectral','norm','eigenvalue'];
+    let techCnt=techKws.filter(kw=>text.toLowerCase().includes(kw)).length;
+    let techFac=Math.min(1,techCnt/3);
+    let uniqueRatio=new Set(w).size/w.length;
+    let divFac=1-Math.abs(uniqueRatio-0.6);
+    let raw=0.4*lenFac+0.4*techFac+0.2*divFac;
+    return Math.min(1,Math.max(0.5,0.5+0.5*raw));
+}
+const align=(c,ts,a)=>a*c+(1-a)*(ts||0);
+
+// ---------- Deep interpretation (compact) ----------
+function renderDeep(orig,c,trans,ts,alpha,al){
+    let drift=c-(trans?cis(trans):0);
+    let driftSpan=`<span id="driftNum">${drift.toFixed(2)}</span>`;
+    if(drift>1.5) driftSpan=`<span class="drift-alert" id="driftNum">${drift.toFixed(2)}</span>`;
+    document.getElementById('interpretationBox').innerHTML=`
+        <div class="int-section"><span class="section-title">📖 Core</span><br>${orig.split(/\s+/).length}w · CIS ${c.toFixed(1)} · α=${alpha.toFixed(2)} · Align ${al.toFixed(1)} · Drift ${driftSpan}</div>
+        <div class="int-section"><span class="section-title">🌍 Trans</span><br>${trans||'—'} (CIS ${c.toFixed(1)} / ${(ts||0).toFixed(1)})</div>
+        <div class="int-section"><span class="section-title">🌀 ${al>=8?"Perfect":al>=6?"Good":"Radiance loss"}</span><br>${al>=8?"Meaning preserved.":al>=6?"Minor shifts.":"Rephrase or change language."}</div>
+        <div class="int-section"><span class="section-title">🎯 ${al>=8?"Excellent":al>=5?"Adequate":"Restructure"}</span><br><button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('interpretationBox').innerText)">📋 Copy</button></div>`;
+    return drift;
+}
+
+// ---------- AES-GCM (simplified) ----------
+let secureMsgs=[];
+const deriveKey=async pw=>{let e=new TextEncoder(),k=await crypto.subtle.importKey("raw",e.encode(pw),"PBKDF2",!1,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt:e.encode("salt"),iterations:60000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},!1,["encrypt","decrypt"])};
+const encrypt=async(txt,pw)=>{let key=await deriveKey(pw),e=new TextEncoder(),iv=crypto.getRandomValues(new Uint8Array(12)),data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,e.encode(txt));let c=new Uint8Array(iv.length+data.byteLength);c.set(iv),c.set(new Uint8Array(data),12);return btoa(String.fromCharCode(...c))};
+const decrypt=async(ciph,pw)=>{try{let key=await deriveKey(pw),c=Uint8Array.from(atob(ciph),c=>c.charCodeAt(0)),iv=c.slice(0,12),data=c.slice(12);return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv},key,data))}catch(e){return"❌ Wrong key"}};
+
+// ---------- State ----------
+let parts=[],nextId=1,history=[],chart=null,activeId=null,transEnabled=1,targetLang="en";
+
+async function addTurn(name,cVal,transRes){
+    let ts=null,alpha=0.5,al=cVal,drift=0;
+    if(transEnabled&&transRes){
+        ts=transScore(transRes.trans,transRes.conf);
+        alpha=computeAlpha(transRes.original);
+        al=align(cVal,ts,alpha);
+        drift=cVal-cis(transRes.trans);
+        speak(transRes.trans,targetLang);
+    }
+    let emaVal=updE(cVal);
+    history.push({cis:cVal,ema:emaVal,transScore:ts,alignment:al,drift,alpha});
+    if(chart){
+        chart.data.labels=history.map((_,i)=>i+1);
+        chart.data.datasets[0].data=history.map(h=>h.cis);
+        chart.data.datasets[1].data=history.map(h=>h.ema);
+        chart.data.datasets[2].data=history.map(h=>h.transScore);
+        chart.data.datasets[3].data=history.map(h=>h.alignment);
+        chart.data.datasets[4].data=history.map(()=>7);
+        chart.update();
+    }
+    document.getElementById('turnCount').innerText=history.length;
+    let driftSpan=document.getElementById('driftValue');
+    driftSpan.innerText=drift.toFixed(2);
+    if(drift>1.5) driftSpan.classList.add('drift-alert'); else driftSpan.classList.remove('drift-alert');
+    document.getElementById('alphaValue').innerText=alpha.toFixed(2);
+    let p=parts.find(p=>p.name===name);if(p){p.lastCis=cVal;p.lastTrans=ts;updateCard(p);}
+    renderDeep(transRes?.original||"(no text)",cVal,transRes?.trans,ts,alpha,al);
+    if(document.getElementById('autoEncrypt').checked&&transRes?.original){
+        try{let pw=document.getElementById('roomKey').value||'radiant2026',ciph=await encrypt(transRes.original,pw);secureMsgs.push({sender:name,cipher:ciph,time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})});renderSecure()}catch(e){}
+    }
+}
+function createRecog(p){
+    let R=new(window.SpeechRecognition||window.webkitSpeechRecognition)();
+    R.continuous=1;R.interimResults=0;R.lang=p.lang;
+    R.onresult=async e=>{let final="";for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)final+=e.results[i][0].transcript+" ";if(!final.trim())return;let score=cis(final),trans=null;if(transEnabled){let tr=await translate(final,p.lang,targetLang);trans={trans:tr.trans,conf:tr.conf,original:final}}await addTurn(p.name,score,trans);let pre=document.getElementById(`preview-${p.id}`);if(pre)pre.innerText=`💬 "${final.slice(0,45)}..."`;let td=document.getElementById(`trans-${p.id}`);if(td&&trans)td.innerText=`🌍 ${trans.trans.slice(0,45)}...`};R.onerror=R.onend=()=>stop(p);return R}
+async function start(p){if(!p.recog)p.recog=createRecog(p);if(activeId&&activeId!==p.id)stop(parts.find(x=>x.id===activeId));if(p.isListening)return;await p.recog.start();p.isListening=1;activeId=p.id;updateStatus(p,"listening",1);updateButton(p,1)}
+function stop(p){if(p.recog&&p.isListening)try{p.recog.stop()}catch(e){}p.isListening=0;if(activeId===p.id)activeId=null;updateStatus(p,"stopped",0);updateButton(p,0)}
+function updateStatus(p,t,a){let s=document.getElementById(`status-${p.id}`);if(s)s.innerHTML=a?`🔴 ${t}`:`⏹️ ${t}`}
+function updateButton(p,a){let b=document.getElementById(`btn-${p.id}`);if(b){b.innerText=a?"⏹️":"🎤";b.classList.toggle("listening",a)}}
+function updateCard(p){let c=document.getElementById(`score-${p.id}`);if(c)c.innerText=`CIS: ${p.lastCis!==undefined?p.lastCis.toFixed(1):"—"}`;let t=document.getElementById(`tscore-${p.id}`);if(t)t.innerText=`🔁 ${p.lastTrans!==undefined?p.lastTrans.toFixed(1):"—"}`}
+function render(){document.getElementById('participantsList').innerHTML=parts.map(p=>`<div class="card"><div class="row"><span class="name">${escapeHtml(p.name)}</span><span>🌐 ${p.lang.toUpperCase()}</span><button id="btn-${p.id}">🎤</button></div><div class="row"><span class="status" id="status-${p.id}">⏹️</span><span class="badge" id="score-${p.id}">—</span><span class="badge" id="tscore-${p.id}">—</span><button id="remove-${p.id}" style="background:#f1f5f9;color:#1e293b">✖</button></div><div class="transcript" id="preview-${p.id}">💬...</div><div class="transcript" id="trans-${p.id}">🌍...</div></div>`).join('');parts.forEach(p=>{document.getElementById(`btn-${p.id}`).onclick=()=>p.isListening?stop(p):start(p);document.getElementById(`remove-${p.id}`).onclick=()=>{stop(p);parts=parts.filter(x=>x.id!==p.id);render()}})}
+const escapeHtml=s=>s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+function addPart(n,l){let id=nextId++;let p={id,name:n.trim()||"Sp",lang:l,isListening:0,recog:null,lastCis:null,lastTrans:null};parts.push(p);p.recog=createRecog(p);render()}
+function resetAll(){history=[];ema=null;secureMsgs=[];parts.forEach(p=>{p.lastCis=p.lastTrans=null;updateCard(p)});if(chart){chart.data.labels=[];chart.data.datasets.forEach(d=>d.data=[]);chart.update()}document.getElementById('turnCount').innerText='0';let driftSpan=document.getElementById('driftValue');driftSpan.innerText='0.00';driftSpan.classList.remove('drift-alert');document.getElementById('alphaValue').innerText='0.50';document.getElementById('secureCount').innerText='0';document.getElementById('interpretationBox').innerHTML='Awaiting speech...';renderSecure()}
+function stopAll(){parts.forEach(stop)}
+function renderSecure(){let html=secureMsgs.length?secureMsgs.map((m,i)=>`<div class="secure-card"><div class="row"><span class="name">${escapeHtml(m.sender)}</span><span>${m.time}</span></div><code>${m.cipher.slice(0,55)}…</code><button onclick="decryptMsg(${i},this)" style="margin-top:4px;background:#10b981">🔓</button><div class="decrypted-result" style="display:none"></div></div>`).join(''):'<p style="color:#666;text-align:center;padding:10px">🔒 Empty</p>';document.getElementById('secureMessages').innerHTML=html;document.getElementById('secureCount').innerText=secureMsgs.length}
+window.decryptMsg=async(i,btn)=>{let pw=document.getElementById('roomKey').value||'radiant2026',plain=await decrypt(secureMsgs[i].cipher,pw);let ddiv=btn.parentNode.querySelector('.decrypted-result');ddiv.innerHTML=`<strong>Plain:</strong> ${plain}`;ddiv.style.display='block';btn.style.display='none'};
+
+// ---------- Init ----------
+window.onload=()=>{
+    chart=new Chart(document.getElementById('graph'),{type:'line',data:{labels:[],datasets:[
+        {label:'CIS',data:[],borderColor:'#2c7da0',borderWidth:2},
+        {label:'EMA',data:[],borderColor:'#e9b35f',borderWidth:2,borderDash:[5,5]},
+        {label:'Trans',data:[],borderColor:'#9b59b6',borderWidth:2,hidden:1},
+        {label:'Alignment (α)',data:[],borderColor:'#10b981',borderWidth:2,borderDash:[2,4]},
+        {label:'Thr7',data:[],borderColor:'#dc2626',borderWidth:2,borderDash:[6,4],pointRadius:0}
+    ]},options:{responsive:1,scales:{y:{min:0,max:10}}}});
+    addPart("You","en");addPart("C1","es");
+    document.getElementById('transToggle').onchange=e=>transEnabled=e.target.checked;
+    document.getElementById('targetLang').onchange=e=>targetLang=e.target.value;
+    document.getElementById('addBtn').onclick=()=>{let n=document.getElementById('newName').value||'Sp';addPart(n,document.getElementById('newLang').value)};
+    document.getElementById('resetBtn').onclick=resetAll;
+    document.getElementById('stopAllBtn').onclick=stopAll;
+    document.getElementById('encryptSend').onclick=async()=>{let msg=document.getElementById('secureMsg').value.trim();if(!msg)return;let pw=document.getElementById('roomKey').value||'radiant2026';let ciph=await encrypt(msg,pw);secureMsgs.push({sender:"You",cipher:ciph,time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})});renderSecure();document.getElementById('secureMsg').value=''};
+    document.getElementById('regenKey').onclick=()=>{let k="";for(let i=0;i<12;i++)k+="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".charAt(Math.floor(Math.random()*62));document.getElementById('roomKey').value=k;alert("New key:\n"+k)};
+    document.getElementById('simulateCall').onclick=async()=>{if(!parts.length)return;let p=parts[Math.floor(Math.random()*parts.length)];let txt="Test of convergence in monotone operators.";let score=cis(txt);let trans=null;if(transEnabled){let tr=await translate(txt,p.lang,targetLang);trans={trans:tr.trans,conf:tr.conf,original:txt}}await addTurn(p.name,score,trans)};
+    document.getElementById('clearSecure').onclick=()=>{secureMsgs=[];renderSecure()};
+    renderSecure();
+};
+</script>
+</body>
+</html>
