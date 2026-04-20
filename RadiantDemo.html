@@ -93,10 +93,11 @@
         .score-badge {
             background: #1e2a3a;
             border-radius: 30px;
-            padding: 4px 12px;
-            font-size: 0.8rem;
+            padding: 6px 12px;
+            font-size: 0.85rem;
             display: inline-block;
             margin-top: 8px;
+            color: #cbd5e0;
         }
         .metric-slider {
             margin: 12px 0;
@@ -141,6 +142,14 @@
         }
         .reset-btn:hover {
             background: #6a1a1a;
+        }
+        .balance-display {
+            background: rgba(0,0,0,0.4);
+            border-radius: 30px;
+            padding: 6px 12px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            color: #9bb8d4;
         }
     </style>
 </head>
@@ -205,6 +214,7 @@
             <button id="claimRewardsBtn">💰 Claim Rewards</button>
             <div id="stakingInfo" class="score-badge"></div>
             <div id="rewardInfo" class="score-badge"></div>
+            <div class="balance-display" id="balanceDisplay"></div>
         </div>
     </div>
     <div class="flex-buttons" style="justify-content: center; margin-top: 20px;">
@@ -217,208 +227,222 @@
 </div>
 
 <script>
-    // ------------------------------
-    // Persistent Storage (localStorage)
-    // ------------------------------
-    let presence = {
-        identifier: localStorage.getItem('radiant_presence_id') || '',
-        score: parseInt(localStorage.getItem('radiant_presence_score') || '0')
-    };
-    let lastRecord = parseFloat(localStorage.getItem('architect_last_record') || '0');
-    let userStake = parseFloat(localStorage.getItem('user_stake') || '0');
-    let totalStaked = parseFloat(localStorage.getItem('total_staked') || '0');
-    let rewardPool = parseFloat(localStorage.getItem('reward_pool') || '0');
-    let userRewards = parseFloat(localStorage.getItem('user_rewards') || '0');
-
-    // Helper: deterministic hash to 0-100
-    function hashToScore(str) {
-        let hash = 5381;
-        for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) + hash) + str.charCodeAt(i);
-            hash = hash & hash;
-        }
-        return Math.abs(hash % 101);
-    }
-
-    // Update UI
-    function updateUI() {
-        document.getElementById('recordDisplay').innerHTML = `Architect's last record: ${lastRecord.toFixed(2)} RAD`;
-        document.getElementById('stakingInfo').innerHTML = `Your stake: ${userStake.toFixed(2)} RAD | Total staked: ${totalStaked.toFixed(2)} RAD`;
-        document.getElementById('rewardInfo').innerHTML = `Reward pool: ${rewardPool.toFixed(2)} RAD | Your pending rewards: ${userRewards.toFixed(2)} RAD`;
-        if (presence.identifier) {
-            document.getElementById('presenceResult').innerHTML = `<div class="score-badge">✅ Presence: ${presence.identifier.slice(0,10)}... Score: ${presence.score}</div>`;
-        } else {
-            document.getElementById('presenceResult').innerHTML = '';
-        }
-    }
-
-    // Save all state to localStorage
-    function persistState() {
-        localStorage.setItem('radiant_presence_id', presence.identifier);
-        localStorage.setItem('radiant_presence_score', presence.score);
-        localStorage.setItem('architect_last_record', lastRecord);
-        localStorage.setItem('user_stake', userStake);
-        localStorage.setItem('total_staked', totalStaked);
-        localStorage.setItem('reward_pool', rewardPool);
-        localStorage.setItem('user_rewards', userRewards);
-    }
-
-    // 1. Proof of Presence
-    document.getElementById('registerPresenceBtn').addEventListener('click', () => {
-        const id = document.getElementById('presenceId').value.trim();
-        if (!id) { alert('Enter a name or address'); return; }
-        const score = hashToScore(id);
-        presence = { identifier: id, score };
-        persistState();
-        updateUI();
-    });
-
-    // 2. CIS Scoring
-    const sliders = ['alignment', 'understanding', 'accuracy', 'distortion'];
-    sliders.forEach(s => {
-        const elem = document.getElementById(s);
-        const span = document.getElementById(s + 'Val');
-        elem.addEventListener('input', () => {
-            span.innerText = parseFloat(elem.value).toFixed(2);
-        });
-    });
-    document.getElementById('computeCISBtn').addEventListener('click', () => {
-        const a = parseFloat(document.getElementById('alignment').value);
-        const u = parseFloat(document.getElementById('understanding').value);
-        const c = parseFloat(document.getElementById('accuracy').value);
-        const d = parseFloat(document.getElementById('distortion').value);
-        const raw = 0.2*a + 0.3*u + 0.4*c - 0.1*d;
-        const cis = Math.min(10, Math.max(0, raw * 10));
-        document.getElementById('cisResult').innerHTML = `CIS Score: ${cis.toFixed(2)} / 10`;
-    });
-
-    // 3. Transaction Fee Game
-    function updateRecord(newAmount) {
-        if (newAmount > lastRecord) {
-            lastRecord = newAmount;
-            persistState();
-            updateUI();
-            return true;
-        }
-        return false;
-    }
-
-    document.getElementById('sendTxBtn').addEventListener('click', () => {
-        const amount = parseFloat(document.getElementById('txAmount').value);
-        const recipient = document.getElementById('recipient').value.trim();
-        if (isNaN(amount) || amount <= 0) { alert('Invalid amount'); return; }
-        if (!recipient) { alert('Enter recipient'); return; }
-
-        const fee = amount * 0.5;
-        const total = amount + fee;
-        let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
-        if (userBalance < total) {
-            alert(`Insufficient balance: need ${total.toFixed(2)} RAD (you have ${userBalance.toFixed(2)})`);
-            return;
-        }
-        userBalance -= total;
-        localStorage.setItem('user_balance', userBalance);
-
-        let architectBalance = parseFloat(localStorage.getItem('architect_balance') || '0');
-        architectBalance += fee;
-        localStorage.setItem('architect_balance', architectBalance);
-
-        let recipientBalance = parseFloat(localStorage.getItem(`balance_${recipient}`) || '0');
-        recipientBalance += amount;
-        localStorage.setItem(`balance_${recipient}`, recipientBalance);
-
-        let bonus = 0;
-        const beatsRecord = amount > lastRecord;
-        if (beatsRecord) {
-            bonus = amount * 0.5;
-            let treasury = parseFloat(localStorage.getItem('treasury') || '1000');
-            if (treasury >= bonus) {
-                treasury -= bonus;
-                userBalance += bonus;
-                localStorage.setItem('treasury', treasury);
-                localStorage.setItem('user_balance', userBalance);
-            } else {
-                bonus = 0;
-                alert('Treasury insufficient for bonus.');
+    // ============================================================
+    // Radiant Protocol Demo – Simulated Economy
+    // ============================================================
+    (function() {
+        // ---------- Helper: deterministic hash (0‑100) ----------
+        function hashToScore(str) {
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                hash = hash & hash;
             }
-            updateRecord(amount);
+            return Math.abs(hash % 101);
         }
 
-        document.getElementById('txResult').innerHTML = `<div class="score-badge">✅ Sent ${amount.toFixed(2)} RAD to ${recipient}. Fee: ${fee.toFixed(2)} RAD to architect.${beatsRecord ? ` Bonus: +${bonus.toFixed(2)} RAD!` : ''}</div>`;
-        updateUI();
-        setTimeout(() => document.getElementById('txResult').innerHTML = '', 3000);
-    });
+        // ---------- Persistent state keys ----------
+        const STORAGE = {
+            presenceId: 'radiant_presence_id',
+            presenceScore: 'radiant_presence_score',
+            lastRecord: 'architect_last_record',
+            userStake: 'user_stake',
+            totalStaked: 'total_staked',
+            rewardPool: 'reward_pool',
+            userRewards: 'user_rewards',
+            userBalance: 'user_balance',
+            architectBalance: 'architect_balance',
+            treasury: 'treasury'
+        };
 
-    // 4. Staking & Rewards
-    document.getElementById('stakeBtn').addEventListener('click', () => {
-        let amount = parseFloat(document.getElementById('stakeAmount').value);
-        if (isNaN(amount) || amount <= 0) return;
-        let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
-        if (userBalance < amount) { alert('Insufficient balance'); return; }
-        userBalance -= amount;
-        userStake += amount;
-        totalStaked += amount;
-        localStorage.setItem('user_balance', userBalance);
-        persistState();
-        updateUI();
-    });
-    document.getElementById('unstakeBtn').addEventListener('click', () => {
-        let amount = parseFloat(document.getElementById('stakeAmount').value);
-        if (isNaN(amount) || amount <= 0 || amount > userStake) return;
-        userStake -= amount;
-        totalStaked -= amount;
-        let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
-        userBalance += amount;
-        localStorage.setItem('user_balance', userBalance);
-        persistState();
-        updateUI();
-    });
-    document.getElementById('claimRewardsBtn').addEventListener('click', () => {
-        if (userRewards <= 0) { alert('No rewards to claim'); return; }
-        let userBalance = parseFloat(localStorage.getItem('user_balance') || '1000');
-        userBalance += userRewards;
-        localStorage.setItem('user_balance', userBalance);
-        userRewards = 0;
-        persistState();
-        updateUI();
-    });
+        // ---------- Load initial state ----------
+        let presence = {
+            identifier: localStorage.getItem(STORAGE.presenceId) || '',
+            score: parseInt(localStorage.getItem(STORAGE.presenceScore) || '0')
+        };
+        let lastRecord = parseFloat(localStorage.getItem(STORAGE.lastRecord) || '0');
+        let userStake = parseFloat(localStorage.getItem(STORAGE.userStake) || '0');
+        let totalStaked = parseFloat(localStorage.getItem(STORAGE.totalStaked) || '0');
+        let rewardPool = parseFloat(localStorage.getItem(STORAGE.rewardPool) || '100');
+        let userRewards = parseFloat(localStorage.getItem(STORAGE.userRewards) || '0');
+        let userBalance = parseFloat(localStorage.getItem(STORAGE.userBalance) || '1000');
+        let architectBalance = parseFloat(localStorage.getItem(STORAGE.architectBalance) || '0');
+        let treasury = parseFloat(localStorage.getItem(STORAGE.treasury) || '500');
 
-    // Periodic reward distribution (every 10 seconds)
-    setInterval(() => {
-        if (totalStaked > 0 && rewardPool > 0) {
-            // Proportional reward based on user's stake relative to totalStaked
-            const share = rewardPool * (userStake / totalStaked);
-            userRewards += share;
-            rewardPool -= share;
-            persistState();
+        // ---------- Persistence helper ----------
+        function persistAll() {
+            localStorage.setItem(STORAGE.presenceId, presence.identifier);
+            localStorage.setItem(STORAGE.presenceScore, presence.score);
+            localStorage.setItem(STORAGE.lastRecord, lastRecord);
+            localStorage.setItem(STORAGE.userStake, userStake);
+            localStorage.setItem(STORAGE.totalStaked, totalStaked);
+            localStorage.setItem(STORAGE.rewardPool, rewardPool);
+            localStorage.setItem(STORAGE.userRewards, userRewards);
+            localStorage.setItem(STORAGE.userBalance, userBalance);
+            localStorage.setItem(STORAGE.architectBalance, architectBalance);
+            localStorage.setItem(STORAGE.treasury, treasury);
+        }
+
+        // ---------- UI update ----------
+        function updateUI() {
+            document.getElementById('recordDisplay').innerHTML = `Architect's last record: ${lastRecord.toFixed(2)} RAD`;
+            document.getElementById('stakingInfo').innerHTML = `Your stake: ${userStake.toFixed(2)} RAD | Total staked: ${totalStaked.toFixed(2)} RAD`;
+            document.getElementById('rewardInfo').innerHTML = `Reward pool: ${rewardPool.toFixed(2)} RAD | Your pending rewards: ${userRewards.toFixed(2)} RAD`;
+            document.getElementById('balanceDisplay').innerHTML = `💎 Your balance: ${userBalance.toFixed(2)} RAD | Architect balance: ${architectBalance.toFixed(2)} RAD`;
+            if (presence.identifier) {
+                document.getElementById('presenceResult').innerHTML = `<div class="score-badge">✅ Presence: ${presence.identifier.slice(0,10)}... Score: ${presence.score}</div>`;
+            } else {
+                document.getElementById('presenceResult').innerHTML = '';
+            }
+        }
+
+        // ---------- 1. Proof of Presence ----------
+        document.getElementById('registerPresenceBtn').addEventListener('click', () => {
+            const id = document.getElementById('presenceId').value.trim();
+            if (!id) { alert('Enter a name or address'); return; }
+            const score = hashToScore(id);
+            presence = { identifier: id, score };
+            persistAll();
             updateUI();
-        }
-    }, 10000);
+        });
 
-    // Reset demo: clear all data
-    document.getElementById('resetDemoBtn').addEventListener('click', () => {
-        if (confirm('Reset all demo data? This will erase presence, stake, rewards, and transaction records.')) {
-            localStorage.clear();
-            // Re-initialize defaults
-            localStorage.setItem('user_balance', '1000');
-            localStorage.setItem('architect_balance', '0');
-            localStorage.setItem('treasury', '500');
-            localStorage.setItem('reward_pool', '100');
-            localStorage.setItem('total_staked', '0');
-            location.reload();
-        }
-    });
+        // ---------- 2. CIS Scoring ----------
+        const sliders = ['alignment', 'understanding', 'accuracy', 'distortion'];
+        sliders.forEach(s => {
+            const elem = document.getElementById(s);
+            const span = document.getElementById(s + 'Val');
+            elem.addEventListener('input', () => {
+                span.innerText = parseFloat(elem.value).toFixed(2);
+            });
+        });
+        document.getElementById('computeCISBtn').addEventListener('click', () => {
+            const a = parseFloat(document.getElementById('alignment').value);
+            const u = parseFloat(document.getElementById('understanding').value);
+            const c = parseFloat(document.getElementById('accuracy').value);
+            const d = parseFloat(document.getElementById('distortion').value);
+            const raw = 0.2*a + 0.3*u + 0.4*c - 0.1*d;
+            const cis = Math.min(10, Math.max(0, raw * 10));
+            document.getElementById('cisResult').innerHTML = `CIS Score: ${cis.toFixed(2)} / 10`;
+        });
 
-    // Initialize demo with mock data if missing
-    if (!localStorage.getItem('user_balance')) localStorage.setItem('user_balance', '1000');
-    if (!localStorage.getItem('architect_balance')) localStorage.setItem('architect_balance', '0');
-    if (!localStorage.getItem('treasury')) localStorage.setItem('treasury', '500');
-    if (!localStorage.getItem('reward_pool')) localStorage.setItem('reward_pool', '100');
-    if (!localStorage.getItem('total_staked')) localStorage.setItem('total_staked', '0');
-    rewardPool = parseFloat(localStorage.getItem('reward_pool'));
-    userRewards = parseFloat(localStorage.getItem('user_rewards') || '0');
-    totalStaked = parseFloat(localStorage.getItem('total_staked') || '0');
-    updateUI();
+        // ---------- 3. Transaction Fee Game ----------
+        function updateRecord(newAmount) {
+            if (newAmount > lastRecord) {
+                lastRecord = newAmount;
+                persistAll();
+                updateUI();
+                return true;
+            }
+            return false;
+        }
+
+        document.getElementById('sendTxBtn').addEventListener('click', () => {
+            const amount = parseFloat(document.getElementById('txAmount').value);
+            const recipient = document.getElementById('recipient').value.trim();
+            if (isNaN(amount) || amount <= 0) { alert('Invalid amount'); return; }
+            if (!recipient) { alert('Enter recipient'); return; }
+
+            const fee = amount * 0.5;
+            const total = amount + fee;
+            if (userBalance < total) {
+                alert(`Insufficient balance: need ${total.toFixed(2)} RAD (you have ${userBalance.toFixed(2)})`);
+                return;
+            }
+
+            // Deduct from sender
+            userBalance -= total;
+            // Send fee to architect
+            architectBalance += fee;
+            // Send principal to recipient (simulated – store in a map)
+            let recipientBalance = parseFloat(localStorage.getItem(`balance_${recipient}`) || '0');
+            recipientBalance += amount;
+            localStorage.setItem(`balance_${recipient}`, recipientBalance);
+
+            let bonus = 0;
+            const beatsRecord = amount > lastRecord;
+            if (beatsRecord) {
+                bonus = fee; // bonus equals fee amount
+                if (treasury >= bonus) {
+                    treasury -= bonus;
+                    userBalance += bonus;
+                } else {
+                    bonus = 0;
+                    alert('Treasury insufficient for bonus.');
+                }
+                updateRecord(amount);
+            }
+
+            persistAll();
+            updateUI();
+            document.getElementById('txResult').innerHTML = `<div class="score-badge">✅ Sent ${amount.toFixed(2)} RAD to ${recipient}. Fee: ${fee.toFixed(2)} RAD to architect.${beatsRecord ? ` Bonus: +${bonus.toFixed(2)} RAD!` : ''}</div>`;
+            setTimeout(() => document.getElementById('txResult').innerHTML = '', 3000);
+        });
+
+        // ---------- 4. Staking & Rewards ----------
+        document.getElementById('stakeBtn').addEventListener('click', () => {
+            let amount = parseFloat(document.getElementById('stakeAmount').value);
+            if (isNaN(amount) || amount <= 0) return;
+            if (userBalance < amount) { alert('Insufficient balance'); return; }
+            userBalance -= amount;
+            userStake += amount;
+            totalStaked += amount;
+            persistAll();
+            updateUI();
+        });
+        document.getElementById('unstakeBtn').addEventListener('click', () => {
+            let amount = parseFloat(document.getElementById('stakeAmount').value);
+            if (isNaN(amount) || amount <= 0 || amount > userStake) return;
+            userStake -= amount;
+            totalStaked -= amount;
+            userBalance += amount;
+            persistAll();
+            updateUI();
+        });
+        document.getElementById('claimRewardsBtn').addEventListener('click', () => {
+            if (userRewards <= 0) { alert('No rewards to claim'); return; }
+            userBalance += userRewards;
+            userRewards = 0;
+            persistAll();
+            updateUI();
+        });
+
+        // ---------- Periodic reward distribution (every 10 seconds) ----------
+        setInterval(() => {
+            if (totalStaked > 0 && rewardPool > 0) {
+                const share = rewardPool * (userStake / totalStaked);
+                userRewards += share;
+                rewardPool -= share;
+                persistAll();
+                updateUI();
+            }
+        }, 10000);
+
+        // ---------- Reset demo: clear all data ----------
+        document.getElementById('resetDemoBtn').addEventListener('click', () => {
+            if (confirm('Reset all demo data? This will erase presence, stake, rewards, and transaction records.')) {
+                localStorage.clear();
+                // Re‑initialize defaults
+                localStorage.setItem(STORAGE.userBalance, '1000');
+                localStorage.setItem(STORAGE.architectBalance, '0');
+                localStorage.setItem(STORAGE.treasury, '500');
+                localStorage.setItem(STORAGE.rewardPool, '100');
+                localStorage.setItem(STORAGE.totalStaked, '0');
+                location.reload();
+            }
+        });
+
+        // ---------- Initialize defaults if missing ----------
+        if (!localStorage.getItem(STORAGE.userBalance)) localStorage.setItem(STORAGE.userBalance, '1000');
+        if (!localStorage.getItem(STORAGE.architectBalance)) localStorage.setItem(STORAGE.architectBalance, '0');
+        if (!localStorage.getItem(STORAGE.treasury)) localStorage.setItem(STORAGE.treasury, '500');
+        if (!localStorage.getItem(STORAGE.rewardPool)) localStorage.setItem(STORAGE.rewardPool, '100');
+        if (!localStorage.getItem(STORAGE.totalStaked)) localStorage.setItem(STORAGE.totalStaked, '0');
+        // Ensure userRewards is set
+        if (!localStorage.getItem(STORAGE.userRewards)) localStorage.setItem(STORAGE.userRewards, '0');
+
+        // Final UI update
+        updateUI();
+    })();
 </script>
 </body>
 </html>
