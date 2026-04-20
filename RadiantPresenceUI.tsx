@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,8 @@ function hashToScore(str: string): number {
 // Expected network configuration (adjust for your deployment)
 const EXPECTED_CHAIN_ID = 11155111; // Sepolia testnet
 const EXPECTED_CHAIN_NAME = "Sepolia";
+// Optional: set your contract address via environment variable
+const CONTRACT_ADDRESS = import.meta.env.VITE_RADIANT_CONTRACT_ADDRESS || "";
 
 export default function RadiantPresenceUI() {
   const [wallet, setWallet] = useState<string | null>(null);
@@ -29,19 +31,28 @@ export default function RadiantPresenceUI() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCorrectNetwork, setIsCorrectNetwork] = useState(true);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const isMounted = useRef(true);
 
   // Load from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem("radiant_presence");
     if (stored) {
-      const data = JSON.parse(stored);
-      setPresenceData(data);
-      if (data.identifier) setWallet(data.identifier);
+      try {
+        const data = JSON.parse(stored);
+        setPresenceData(data);
+        if (data.identifier) setWallet(data.identifier);
+      } catch (e) {
+        console.warn("Failed to parse stored presence data");
+      }
     }
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   // Helper to check network
-  const checkNetwork = async (provider: ethers.BrowserProvider) => {
+  const checkNetwork = useCallback(async (provider: ethers.BrowserProvider) => {
     const network = await provider.getNetwork();
     const chainId = Number(network.chainId);
     if (chainId !== EXPECTED_CHAIN_ID) {
@@ -52,16 +63,17 @@ export default function RadiantPresenceUI() {
     setIsCorrectNetwork(true);
     setError(null);
     return true;
-  };
+  }, []);
 
   // Connect wallet and register presence
-  const connectAndRegister = async () => {
+  const connectAndRegister = useCallback(async () => {
     if (typeof window.ethereum === "undefined") {
       setError("MetaMask not detected. Please install MetaMask.");
       return;
     }
     setLoading(true);
     setError(null);
+    setStatusMessage(null);
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
@@ -100,27 +112,36 @@ export default function RadiantPresenceUI() {
       console.error(err);
       setError(err.message || "Failed to connect wallet.");
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
-  };
+  }, [checkNetwork]);
 
   // Disconnect wallet (clear local state)
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     setWallet(null);
     setPresenceData(null);
     localStorage.removeItem("radiant_presence");
     setError(null);
-  };
+    setStatusMessage(null);
+  }, []);
 
-  // Simulate on‑chain anchoring (replace with actual contract call)
-  const anchorOnChain = async () => {
-    if (!presenceData || !wallet) return;
+  // On‑chain anchoring (simulated or real)
+  const anchorOnChain = useCallback(async () => {
+    if (!presenceData || !wallet) {
+      setError("No presence data to anchor.");
+      return;
+    }
     if (!window.ethereum) {
       setError("MetaMask not detected");
       return;
     }
+    if (!CONTRACT_ADDRESS) {
+      setError("Contract address not configured. Please set VITE_RADIANT_CONTRACT_ADDRESS.");
+      return;
+    }
     setLoading(true);
     setError(null);
+    setStatusMessage("Preparing anchoring...");
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const isNetOk = await checkNetwork(provider);
@@ -129,21 +150,32 @@ export default function RadiantPresenceUI() {
         return;
       }
       const signer = await provider.getSigner();
-      // In a real implementation, you would call your smart contract:
-      // const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-      // const tx = await contract.registerPresence(presenceData.identifier, presenceData.score, presenceData.firstSeen);
-      // await tx.wait();
-      alert("Simulated on‑chain anchoring. Replace with actual contract call.");
+      // Minimal ABI for registerPresence (adjust to your contract)
+      const abi = [
+        "function registerPresence(string memory identifier, uint256 score, uint256 timestamp) external",
+      ];
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, abi, signer);
+      setStatusMessage("Sending transaction...");
+      const tx = await contract.registerPresence(
+        presenceData.identifier,
+        presenceData.score,
+        presenceData.firstSeen
+      );
+      setStatusMessage("Waiting for confirmation...");
+      await tx.wait();
       const updated = { ...presenceData, anchored: true };
       localStorage.setItem("radiant_presence", JSON.stringify(updated));
       setPresenceData(updated);
+      setStatusMessage("✅ Successfully anchored on‑chain!");
+      setTimeout(() => setStatusMessage(null), 3000);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Anchoring failed.");
+      setStatusMessage(null);
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
-  };
+  }, [presenceData, wallet, checkNetwork]);
 
   const formatDate = (timestamp: number) => new Date(timestamp).toLocaleString();
 
@@ -157,11 +189,15 @@ export default function RadiantPresenceUI() {
           // Reload presence data for new account
           const stored = localStorage.getItem("radiant_presence");
           if (stored) {
-            const data = JSON.parse(stored);
-            if (data.identifier === accounts[0]) {
-              setPresenceData(data);
-              setWallet(accounts[0]);
-            } else {
+            try {
+              const data = JSON.parse(stored);
+              if (data.identifier === accounts[0]) {
+                setPresenceData(data);
+                setWallet(accounts[0]);
+              } else {
+                disconnect();
+              }
+            } catch (e) {
               disconnect();
             }
           } else {
@@ -179,7 +215,7 @@ export default function RadiantPresenceUI() {
         window.ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
-  }, [wallet]);
+  }, [wallet, disconnect]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white p-6">
@@ -201,10 +237,22 @@ export default function RadiantPresenceUI() {
               {error}
             </div>
           )}
+          {statusMessage && (
+            <div className="p-2 bg-blue-900/50 text-blue-300 rounded-xl text-sm">
+              {statusMessage}
+            </div>
+          )}
 
           {!presenceData ? (
             <Button onClick={connectAndRegister} disabled={loading} className="w-full">
-              {loading ? "Connecting..." : "Connect Wallet & Register Presence"}
+              {loading ? (
+                <>
+                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                  Connecting...
+                </>
+              ) : (
+                "Connect Wallet & Register Presence"
+              )}
             </Button>
           ) : (
             <div className="space-y-4">
@@ -218,16 +266,28 @@ export default function RadiantPresenceUI() {
               <div className="flex gap-2">
                 {!presenceData.anchored && (
                   <Button onClick={anchorOnChain} disabled={loading} variant="outline" className="flex-1">
-                    {loading ? "Processing..." : "Anchor on‑chain"}
+                    {loading ? (
+                      <>
+                        <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                        Anchoring...
+                      </>
+                    ) : (
+                      "Anchor on‑chain"
+                    )}
                   </Button>
                 )}
-                <Button onClick={disconnect} variant="ghost" className="flex-1">
+                <Button onClick={disconnect} variant="ghost" className="flex-1" disabled={loading}>
                   Disconnect
                 </Button>
               </div>
               {!isCorrectNetwork && (
                 <p className="text-xs text-yellow-400">
                   ⚠️ Wrong network. Please switch to {EXPECTED_CHAIN_NAME}.
+                </p>
+              )}
+              {!CONTRACT_ADDRESS && !presenceData.anchored && (
+                <p className="text-xs text-yellow-400">
+                  ℹ️ Contract address not set. Anchoring is simulated (no on‑chain record).
                 </p>
               )}
               <p className="text-xs text-gray-400">
@@ -239,4 +299,4 @@ export default function RadiantPresenceUI() {
       </Card>
     </div>
   );
-}
+    }
