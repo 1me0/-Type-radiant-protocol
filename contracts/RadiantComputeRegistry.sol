@@ -3,11 +3,16 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title RadiantComputeRegistry
  * @notice Tracks cumulative computing value and mints RAD tokens when thresholds are crossed.
  *         For each unit of 100 computing value, 50 RAD are minted to the architect and 50 RAD to the system vault.
+ *
+ * Roles:
+ * - DEFAULT_ADMIN_ROLE: can update architect/vault addresses and withdraw accidentally sent tokens.
+ * - RECORDER_ROLE: can record computing value (e.g., from an oracle or monitoring service).
  */
 contract RadiantComputeRegistry is ERC20, AccessControl {
     bytes32 public constant RECORDER_ROLE = keccak256("RECORDER_ROLE");
@@ -78,6 +83,7 @@ contract RadiantComputeRegistry is ERC20, AccessControl {
 
     /**
      * @notice Set a new architect address (only admin).
+     * @param newArchitect The new architect address.
      */
     function setArchitect(address newArchitect) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(newArchitect != address(0), "Invalid address");
@@ -88,6 +94,7 @@ contract RadiantComputeRegistry is ERC20, AccessControl {
 
     /**
      * @notice Set a new vault address (only admin).
+     * @param newVault The new vault address.
      */
     function setVault(address newVault) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(newVault != address(0), "Invalid address");
@@ -105,10 +112,14 @@ contract RadiantComputeRegistry is ERC20, AccessControl {
     }
 
     /**
-     * @notice Allow the admin to withdraw accidentally sent tokens (not RAD).
+     * @notice Allow the admin to withdraw accidentally sent tokens (not RAD) from this contract.
+     * @param tokenAddr The address of the token to withdraw (cannot be this contract's own token).
+     * @param amount The amount to withdraw.
      */
     function withdrawTokens(address tokenAddr, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(tokenAddr != address(this), "Cannot withdraw RAD");
-        IERC20(tokenAddr).transfer(msg.sender, amount);
+        require(amount > 0, "Amount must be positive");
+        IERC20 token = IERC20(tokenAddr);
+        require(token.transfer(msg.sender, amount), "Transfer failed");
     }
 }
