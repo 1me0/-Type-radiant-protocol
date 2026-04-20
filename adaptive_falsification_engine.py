@@ -14,15 +14,14 @@ License: MIT
 
 import numpy as np
 from scipy.optimize import linprog
-from typing import List, Tuple, Optional, Callable, Dict
+from typing import List, Tuple, Optional, Callable, Dict, Any
 import warnings
-
 
 # ============================================================
 # UTILITIES
 # ============================================================
 def normalize(v: np.ndarray) -> np.ndarray:
-    """Return unit vector in the same direction; zero vector remains unchanged."""
+    """Return unit vector in the same direction; zero vector unchanged."""
     norm = np.linalg.norm(v)
     if norm < 1e-12:
         return v
@@ -31,9 +30,8 @@ def normalize(v: np.ndarray) -> np.ndarray:
 
 def is_independent(d: np.ndarray, basis: List[np.ndarray], tol: float = 1e-6) -> bool:
     """
-    Check if direction d is linearly independent of the existing orthonormal basis.
-    For an orthonormal basis, independence is equivalent to d having negligible
-    projection onto each basis vector.
+    Check if direction d is linearly independent of the orthonormal basis.
+    For an orthonormal basis, independence ⇔ projection residual > tol.
     """
     for b in basis:
         if abs(np.dot(d, b)) > tol:
@@ -42,7 +40,7 @@ def is_independent(d: np.ndarray, basis: List[np.ndarray], tol: float = 1e-6) ->
 
 
 def orthogonalize(vectors: List[np.ndarray]) -> List[np.ndarray]:
-    """Gram–Schmidt orthogonalization, returning orthonormal basis (ignores zero vectors)."""
+    """Gram–Schmidt orthogonalisation, returning orthonormal basis (ignores zero vectors)."""
     basis = []
     for v in vectors:
         w = v.copy()
@@ -67,13 +65,23 @@ def find_failure_boundary_linear(
 ) -> Optional[np.ndarray]:
     """
     Binary search for failure boundary along a straight line from P in direction d.
-    Assumes failure_func is deterministic or we take majority vote over trials.
-    Returns boundary state or None if no failure within t_max.
+
+    Args:
+        failure_func: Returns True if state is a failure.
+        simulate_linear: Function (P, d, t) -> P(t) (linear extrapolation).
+        P: Starting safe state.
+        d: Unit direction vector.
+        t_max: Maximum search distance.
+        refine_iter: Number of binary refinement steps.
+        stochastic_trials: Number of trials for stochastic failure detection.
+
+    Returns:
+        Boundary state (first failure) or None if no failure within t_max.
     """
     if failure_func(P):
         return None
 
-    # Check if there is a failure at t_max (with optional stochastic checks)
+    # Check if there is a failure at t_max
     has_failure = False
     for _ in range(stochastic_trials):
         if failure_func(simulate_linear(P, d, t_max)):
@@ -109,18 +117,18 @@ def find_failure_boundary_local(
 ) -> Optional[np.ndarray]:
     """
     Find failure boundary by stepping in direction d using a local dynamics step,
-    with adaptive step size that shrinks when failure is approached or when direction is dangerous.
+    with adaptive step size that shrinks when failure is approached.
 
     Args:
-        failure_func: returns True if state is a failure.
-        local_step: function (P, delta) -> P_next (nonlinear step).
-        P: starting safe state.
-        d: unit direction vector.
-        weight: directional weight (higher → more dangerous, smaller initial step).
-        max_steps: maximum number of steps.
-        base_step_size: initial step size when weight=0.
-        min_step_size: smallest step allowed.
-        stochastic_trials: number of trials for stochastic failure detection.
+        failure_func: Returns True if state is a failure.
+        local_step: Function (P, delta) -> P_next (nonlinear step).
+        P: Starting safe state.
+        d: Unit direction vector.
+        weight: Directional weight (higher → more dangerous, smaller initial step).
+        max_steps: Maximum number of steps.
+        base_step_size: Initial step size when weight=0.
+        min_step_size: Smallest allowed step.
+        stochastic_trials: Number of trials for stochastic failure detection.
 
     Returns:
         Boundary state (first failure) or None if no failure found within max_steps.
@@ -128,7 +136,7 @@ def find_failure_boundary_local(
     if failure_func(P):
         return None
 
-    # Adaptive initial step size: inverse proportional to (1 + weight)
+    # Adaptive initial step size: inversely proportional to (1 + weight)
     step_size = base_step_size / (1.0 + weight)
     if step_size < min_step_size:
         step_size = min_step_size
@@ -144,9 +152,8 @@ def find_failure_boundary_local(
                 failed = True
                 break
         if failed:
-            # Failure detected – reduce step size and backtrack to last safe point
             if step_size <= min_step_size:
-                # Already at minimum, perform binary search between P_safe and P_current
+                # Binary search between last safe and current point
                 P_low, P_high = P_safe, P_current
                 for _ in range(15):
                     P_mid = (P_low + P_high) / 2.0
@@ -156,12 +163,10 @@ def find_failure_boundary_local(
                         P_low = P_mid
                 return P_high
             else:
-                # Halve step size and try again from last safe point
                 step_size = max(step_size / 2.0, min_step_size)
                 P_current = P_safe
                 continue
         else:
-            # Still safe – move forward
             P_safe = P_current
             P_current = P_next
 
@@ -182,9 +187,9 @@ class SurvivabilityKernel:
         self.dim = dim
         self.epsilon = epsilon
         self.weight_decay = weight_decay
-        self.constraints: List[Tuple[np.ndarray, float]] = []   # (normal, bound)
-        self._basis: List[np.ndarray] = []                     # orthonormal basis of normals
-        self._failure_weights: Dict[Tuple, float] = {}         # key: direction tuple, value: weight
+        self.constraints: List[Tuple[np.ndarray, float]] = []
+        self._basis: List[np.ndarray] = []
+        self._failure_weights: Dict[Tuple, float] = {}
         self._cached_center: Optional[np.ndarray] = None
         self._cache_valid: bool = False
 
@@ -197,31 +202,27 @@ class SurvivabilityKernel:
         key = tuple(np.round(normal, 6))
         self._failure_weights[key] = self._failure_weights.get(key, 0) + weight
 
-        # Update orthonormal basis
         self._basis = orthogonalize([normal] + self._basis)
-
-        # Invalidate cached Chebyshev center
         self._cache_valid = False
 
     def decay_weights(self) -> None:
-        """Apply exponential decay to all failure weights to prioritize recent directions."""
+        """Apply exponential decay to all failure weights."""
         for k in list(self._failure_weights.keys()):
             self._failure_weights[k] *= self.weight_decay
-        # Remove near-zero weights to keep dictionary small
         self._failure_weights = {k: v for k, v in self._failure_weights.items() if v > 1e-6}
 
     def get_weight(self, d: np.ndarray) -> float:
-        """Return the accumulated failure weight for direction d or its opposite."""
+        """Return accumulated failure weight for direction d or its opposite."""
         d = normalize(d)
         key = tuple(np.round(d, 6))
         key_neg = tuple(np.round(-d, 6))
         return max(self._failure_weights.get(key, 0), self._failure_weights.get(key_neg, 0))
 
     def is_safe(self, P: np.ndarray) -> bool:
-        """Check if point satisfies all constraints (with small numerical tolerance)."""
+        """Check if point satisfies all constraints."""
         return all(np.dot(n, P) <= b + 1e-9 for n, b in self.constraints)
 
-    def project(self, P: np.ndarray, max_iter: int = 50) -> np.ndarray:
+    def project(self, P: np.ndarray, max_iter: int = 50, tol: float = 1e-8) -> np.ndarray:
         """Project a point onto the feasible set using POCS (alternating projections)."""
         P_proj = P.copy()
         for _ in range(max_iter):
@@ -237,8 +238,7 @@ class SurvivabilityKernel:
 
     def chebyshev_center(self, force_recompute: bool = False) -> np.ndarray:
         """
-        Compute the Chebyshev center (center of largest inscribed ball)
-        by solving a linear program. Caches result.
+        Compute the Chebyshev center (center of largest inscribed ball) via linear programming.
         """
         if self._cache_valid and not force_recompute:
             return self._cached_center
@@ -248,18 +248,17 @@ class SurvivabilityKernel:
             self._cache_valid = True
             return self._cached_center
 
-        # Variables: [P, r] where r is the radius
+        # Variables: [P, r] where r is the radius (maximise r)
         c = np.zeros(self.dim + 1)
-        c[-1] = -1   # maximize r
+        c[-1] = -1   # maximise r
 
         A_ub = []
         b_ub = []
         for n, b in self.constraints:
-            # constraint: n·P + r·||n|| ≤ b
             row = np.append(n, np.linalg.norm(n))
             A_ub.append(row)
             b_ub.append(b)
-        # r ≥ 0
+        # r >= 0
         A_ub.append(np.append(np.zeros(self.dim), -1))
         b_ub.append(0)
 
@@ -271,7 +270,7 @@ class SurvivabilityKernel:
             self._cache_valid = True
             return self._cached_center
         else:
-            # Fallback: project zero (the geometric median of feasible set)
+            # Fallback: project zero (geometric median of feasible set)
             center = self.project(np.zeros(self.dim))
             self._cached_center = center
             self._cache_valid = True
@@ -296,22 +295,11 @@ class FalsificationExplorer:
         failure_func: Callable[[np.ndarray], bool],
         simulate_func: Callable,
         dim: int,
-        simulation_type: str = "linear",   # "linear" or "local"
+        simulation_type: str = "linear",
         stochastic_trials: int = 1,
         weight_decay: float = 0.95,
         seed: Optional[int] = None,
     ):
-        """
-        Args:
-            failure_func: function returning True if state is a failure.
-            simulate_func: for linear mode: simulate_linear(P, d, t) -> P(t).
-                           for local mode: local_step(P, delta) -> P_next.
-            dim: state dimension.
-            simulation_type: "linear" or "local".
-            stochastic_trials: number of trials for stochastic failure detection.
-            weight_decay: decay factor for directional weights (0 < weight_decay < 1).
-            seed: random seed for reproducibility.
-        """
         if simulation_type not in ("linear", "local"):
             raise ValueError("simulation_type must be 'linear' or 'local'")
         self.failure = failure_func
@@ -320,7 +308,7 @@ class FalsificationExplorer:
         self.stochastic_trials = stochastic_trials
         self.dim = dim
         self.kernel = SurvivabilityKernel(dim, weight_decay=weight_decay)
-        self._seed_state = None
+        self._seed_state: Optional[np.ndarray] = None
         self._rng = np.random.default_rng(seed)
 
     def _get_initial_safe_state(self, max_attempts: int = 100) -> np.ndarray:
@@ -372,8 +360,8 @@ class FalsificationExplorer:
         Main exploration loop.
 
         Args:
-            iterations: total number of random direction attempts.
-            reset_every: after this many direction probes, reset origin to Chebyshev center.
+            iterations: Total number of random direction attempts.
+            reset_every: After this many direction probes, reset origin to Chebyshev center.
         Returns:
             The final SurvivabilityKernel.
         """
@@ -383,42 +371,34 @@ class FalsificationExplorer:
         for i in range(iterations):
             d = normalize(self._rng.normal(0, 1, self.dim))
 
-            # Only explore if independent of existing normals
             if is_independent(d, self.kernel._basis):
                 self._probe_direction(d)
 
-            # Periodic origin reset to Chebyshev center
             if (i + 1) % reset_every == 0:
                 center = self.kernel.chebyshev_center()
                 if not self.kernel.is_safe(center):
                     center = self.kernel.project(center)
                 self._seed_state = center
                 print(f"[{i}] Reset → center norm: {np.linalg.norm(center):.4f}")
-                # Decay weights periodically to focus on recent directions
                 self.kernel.decay_weights()
 
         return self.kernel
 
 
 # ============================================================
-# EXAMPLE USAGE (Nonlinear 2D system)
+# EXAMPLE USAGE
 # ============================================================
 if __name__ == "__main__":
-    # Define a simple nonlinear system: failure if state leaves a circular region of radius 10
-    def failure_func(P):
+    # Define a simple nonlinear system: failure if norm > 10
+    def failure_func(P: np.ndarray) -> bool:
         return np.linalg.norm(P) > 10.0
 
-    # Local step function (Euler integration) for nonlinear dynamics
-    def local_step(P, delta):
-        # For demonstration, we simply add delta (i.e., control directly affects state)
-        # In a real system, this would be more complex.
+    def local_step(P: np.ndarray, delta: np.ndarray) -> np.ndarray:
         return P + delta
 
-    # Linear simulation for straight‑line extrapolation (for comparison)
-    def linear_sim(P, d, t):
+    def linear_sim(P: np.ndarray, d: np.ndarray, t: float) -> np.ndarray:
         return P + t * d
 
-    # Create explorer with local simulation (more accurate for nonlinear boundaries)
     explorer = FalsificationExplorer(
         failure_func=failure_func,
         simulate_func=local_step,
@@ -431,7 +411,7 @@ if __name__ == "__main__":
 
     kernel = explorer.run(iterations=200, reset_every=20)
 
-    # Test a few points
+    # Test points
     test_points = [np.array([5.0, 0.0]), np.array([9.0, 0.0]), np.array([11.0, 0.0])]
     for p in test_points:
         print(f"Point {p}: safe = {kernel.is_safe(p)}")
