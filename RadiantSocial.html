@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant Social – CIS‑gated Content Feed</title>
+    <title>Radiant Social – CIS‑gated Content Feed with Owner Rewards</title>
     <style>
         * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', sans-serif; }
         body { background: #f0f2f5; margin: 0; padding: 20px; }
@@ -17,11 +17,12 @@
         button:disabled { background: #b0c4de; cursor: not-allowed; }
         .score-input { width: 70px; margin-left: 8px; padding: 4px 8px; border-radius: 30px; border: 1px solid #cbd5e1; }
         .badge { font-size: 0.7rem; background: #e6f0ff; border-radius: 20px; padding: 2px 10px; display: inline-block; margin-left: 10px; }
-        .user-info { background: #eef2ff; padding: 12px 16px; border-radius: 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .user-info { background: #eef2ff; padding: 12px 16px; border-radius: 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         hr { margin: 20px 0; border-color: #e2e8f0; }
         textarea { width: 100%; padding: 10px; border-radius: 20px; border: 1px solid #cbd5e1; margin: 8px 0; font-family: inherit; }
         input, select { padding: 8px 12px; border-radius: 30px; border: 1px solid #cbd5e1; }
         .flex-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+        .balance { background: #e8f5e9; padding: 4px 12px; border-radius: 30px; font-weight: bold; color: #2e7d32; }
     </style>
 </head>
 <body>
@@ -43,13 +44,15 @@
     </div>
     <textarea id="description" rows="2" placeholder="Description (optional)"></textarea>
     <button id="createPostBtn">Post</button>
-    <div class="note" style="font-size:0.7rem; margin-top:12px;">🔒 Posts start as limited. Users with ≥1,000,000 CIS can rate (0‑10). After 1,000 ratings ≥7.5, post becomes public. Then everyone can like.</div>
+    <div class="note" style="font-size:0.7rem; margin-top:12px;">🔒 Posts start as limited. Users with ≥1,000,000 CIS can rate (0‑10). After 1,000 ratings ≥7.5, post becomes public. Then anyone can like, and each like sends 1 RAD to the post owner (you must have enough RAD).</div>
 </div>
 
 <script>
-    // ---------- IndexedDB setup ----------
+    // ============================================================
+    // IndexedDB Setup
+    // ============================================================
     const DB_NAME = "RadiantFeedDB";
-    const DB_VERSION = 2;
+    const DB_VERSION = 3; // increased version to add likes store
     let db = null;
 
     function openDB() {
@@ -71,6 +74,10 @@
                 if (!db.objectStoreNames.contains("ratings")) {
                     db.createObjectStore("ratings", { keyPath: "id", autoIncrement: true });
                 }
+                if (!db.objectStoreNames.contains("likes")) {
+                    // Store which user liked which post (unique constraint)
+                    const likeStore = db.createObjectStore("likes", { keyPath: ["postId", "userId"] });
+                }
             };
         });
     }
@@ -90,8 +97,32 @@
         const all = await (await getStore("ratings")).getAll();
         return all.filter(r => r.postId === postId);
     }
+    async function hasLiked(postId, userId) {
+        const store = await getStore("likes");
+        const key = [postId, userId];
+        const result = await store.get(key);
+        return result !== undefined;
+    }
+    async function recordLike(postId, userId) {
+        const store = await getStore("likes", "readwrite");
+        await store.put({ postId, userId, timestamp: Date.now() });
+    }
 
-    // ---------- Demo user with high CIS ----------
+    // ---------- User balances (simulated on‑chain) ----------
+    async function getUserBalance(userId) {
+        const user = await getUser(userId);
+        return user ? (user.balance || 1000) : 1000;
+    }
+    async function updateUserBalance(userId, delta) {
+        const user = await getUser(userId);
+        if (!user) return;
+        const newBalance = (user.balance || 1000) + delta;
+        user.balance = newBalance;
+        await saveUser(user);
+        return newBalance;
+    }
+
+    // ---------- Demo user with high CIS and initial balance ----------
     async function ensureDemoUser() {
         let user = await getUser("demo_user");
         if (!user) {
@@ -99,6 +130,7 @@
                 id: "demo_user",
                 name: "Elite Viewer",
                 totalCIS: 1_200_000,
+                balance: 1000,   // starting RAD
             };
             await saveUser(user);
         }
@@ -108,7 +140,7 @@
     // ---------- Post creation ----------
     async function createPost(userId, mediaUrl, mediaType, description) {
         const post = {
-            userId,
+            userId,                     // owner of the post
             mediaUrl,
             mediaType,
             description: description || "",
@@ -123,7 +155,7 @@
         return id;
     }
 
-    // ---------- Rate a post (CIS score) ----------
+    // ---------- Rate a post (CIS score) – no reward ----------
     async function ratePost(postId, userId, score) {
         const ratings = await getRatingsForPost(postId);
         if (ratings.some(r => r.userId === userId)) {
@@ -156,8 +188,8 @@
         return true;
     }
 
-    // ---------- Like a post (public only) ----------
-    async function likePost(postId) {
+    // ---------- Like a post (public only) – pays 1 RAD to owner ----------
+    async function likePost(postId, likerId) {
         const allPosts = await getAllPosts();
         const post = allPosts.find(p => p.id === postId);
         if (!post) return;
@@ -165,6 +197,24 @@
             alert("Only public posts can be liked.");
             return;
         }
+        // Check if already liked
+        const already = await hasLiked(postId, likerId);
+        if (already) {
+            alert("You already liked this post.");
+            return;
+        }
+        const liker = await getUser(likerId);
+        if (!liker) return;
+        const likerBalance = liker.balance || 1000;
+        if (likerBalance < 1) {
+            alert("Insufficient RAD balance to like (need 1 RAD).");
+            return;
+        }
+        // Transfer 1 RAD from liker to post owner
+        await updateUserBalance(likerId, -1);
+        await updateUserBalance(post.userId, +1);
+        // Record the like
+        await recordLike(postId, likerId);
         post.likeCount++;
         await updatePost(post);
         await renderFeed();
@@ -210,7 +260,7 @@
                         </div>
                     ` : ''}
                     ${post.isPublic ? `
-                        <button data-post="${post.id}" data-action="like">❤️ Like (${post.likeCount})</button>
+                        <button data-post="${post.id}" data-action="like">❤️ Like (${post.likeCount}) – 1 RAD to owner</button>
                     ` : ''}
                     <div>👁️ Views: ${post.viewCount} | ⭐ ≥7.5 ratings: ${post.highScoreViewCount}</div>
                 </div>
@@ -235,7 +285,7 @@
         document.querySelectorAll('[data-action="like"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const postId = parseInt(btn.getAttribute('data-post'));
-                await likePost(postId);
+                await likePost(postId, currentUser.id);
             });
         });
     }
@@ -265,12 +315,14 @@
         document.getElementById('description').value = '';
     });
 
-    // ---------- Display user info ----------
+    // ---------- Display user info with balance ----------
     async function displayUserInfo() {
         const user = await ensureDemoUser();
+        const balance = user.balance || 1000;
         document.getElementById('userInfo').innerHTML = `
             <span>👤 ${escapeHtml(user.name)}</span>
             <span>🏆 Total CIS: ${user.totalCIS.toLocaleString()}</span>
+            <span class="balance">💰 Radiant Balance: ${balance.toFixed(2)} RAD</span>
         `;
     }
 
