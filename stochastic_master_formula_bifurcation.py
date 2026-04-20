@@ -1,6 +1,15 @@
 """
 🌌 MASTER FORMULA — FINAL STABILIZED PUBLICATION VERSION
 State-dependent stochastic projection + Lyapunov bifurcation
+
+This module implements the Master Formula:
+    P_{t+1} = P_t + α μF( (1+β)Π̃(P_t) − β P_t )
+with state‑dependent noise and a convex projection operator.
+It includes Monte Carlo simulation, Lyapunov exponent estimation,
+and a bifurcation scan over the noise‑error coupling γ.
+
+Author: Radiant Protocol
+License: MIT
 """
 
 import numpy as np
