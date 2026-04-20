@@ -7,10 +7,22 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
- * @title ArchitectFeeV2
+ * @title RadiantValueToken
  * @notice Competitive fee game with 50% fee, record‑breaking bonus, and treasury management.
+ *
+ * Roles:
+ * - DEFAULT_ADMIN_ROLE: can manage withdrawal limits, propose/execute architect changes, pause/unpause.
+ * - TREASURY_ADMIN: can fund the treasury.
+ *
+ * Features:
+ * - Users pay a 50% fee on each transfer (principal + fee).
+ * - If the transferred amount beats the last recorded amount, the sender receives a bonus equal to the fee from the treasury.
+ * - Treasury can be funded by treasury admins.
+ * - Withdrawals from the treasury are limited per transaction and can only be performed by the admin.
+ * - Architect address changes require a 2‑day timelock.
+ * - Pausable for emergencies.
  */
-contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
+contract RadiantValueToken is AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant TREASURY_ADMIN = keccak256("TREASURY_ADMIN");
 
     IERC20 public token;
@@ -27,8 +39,9 @@ contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
 
     // Treasury withdrawal limit
     uint256 public maxWithdrawalPerTx;
-    uint256 public constant DEFAULT_MAX_WITHDRAWAL = 10_000 * 10**18; // 10k tokens
+    uint256 public constant DEFAULT_MAX_WITHDRAWAL = 10_000 * 10**18; // 10k tokens (assuming 18 decimals)
 
+    // Events
     event TransferWithBonus(
         address indexed sender,
         address indexed recipient,
@@ -67,12 +80,21 @@ contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
         emit TreasuryAdminAdded(admin);
     }
 
+    /**
+     * @notice Fund the treasury with tokens. Caller must approve this contract first.
+     * @param amount Amount of tokens to transfer.
+     */
     function fundTreasury(uint256 amount) external onlyTreasuryAdmin whenNotPaused {
         require(amount > 0, "Amount zero");
         require(token.transferFrom(msg.sender, address(this), amount), "Transfer failed");
         emit TreasuryFunded(msg.sender, amount);
     }
 
+    /**
+     * @notice Withdraw tokens from the treasury (only admin).
+     * @param amount Amount to withdraw (cannot exceed maxWithdrawalPerTx).
+     * @param to Recipient address.
+     */
     function withdrawTreasury(uint256 amount, address to) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
         require(to != address(0), "Invalid address");
         require(amount > 0 && amount <= maxWithdrawalPerTx, "Amount exceeds limit");
@@ -81,12 +103,22 @@ contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
         emit TreasuryWithdrawn(to, amount);
     }
 
+    /**
+     * @notice Update the maximum withdrawal amount per transaction (admin only).
+     * @param newLimit New limit (in token decimals).
+     */
     function setMaxWithdrawal(uint256 newLimit) external onlyRole(DEFAULT_ADMIN_ROLE) {
         maxWithdrawalPerTx = newLimit;
         emit MaxWithdrawalUpdated(newLimit);
     }
 
     // ==================== Core Transfer Logic ====================
+    /**
+     * @notice Transfer tokens with a 50% fee. If the transferred amount beats the record,
+     *         the sender receives a bonus equal to the fee from the treasury.
+     * @param recipient Address receiving the principal amount.
+     * @param amount Principal amount to send (fee is calculated as 50% of this amount).
+     */
     function transferWithBonus(address recipient, uint256 amount) external nonReentrant whenNotPaused {
         require(recipient != address(0), "Invalid recipient");
         require(amount > 0, "Amount must be positive");
@@ -94,20 +126,25 @@ contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
         uint256 fee = amount / 2;          // 50% fee
         uint256 totalRequired = amount + fee;
 
+        // Transfer total (principal + fee) from sender to this contract
         require(token.transferFrom(msg.sender, address(this), totalRequired), "TransferFrom failed");
 
-        token.transfer(recipient, amount);
-        token.transfer(architect, fee);
+        // Send principal to recipient
+        require(token.transfer(recipient, amount), "Transfer to recipient failed");
 
+        // Send fee to architect
+        require(token.transfer(architect, fee), "Transfer to architect failed");
+
+        // Determine bonus
         uint256 reward = 0;
         if (amount > lastArchitectTransactionAmount) {
-            reward = amount / 2;
+            reward = fee;                    // reward equals the fee amount
             lastArchitectTransactionAmount = amount;
         }
 
         if (reward > 0) {
             require(token.balanceOf(address(this)) >= reward, "Insufficient treasury balance");
-            token.transfer(msg.sender, reward);
+            require(token.transfer(msg.sender, reward), "Bonus transfer failed");
         }
 
         emit TransferWithBonus(msg.sender, recipient, amount, fee, reward);
@@ -140,6 +177,9 @@ contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
     }
 
     // ==================== View Functions ====================
+    /**
+     * @dev Returns the current treasury balance (tokens held by this contract).
+     */
     function getTreasuryBalance() external view returns (uint256) {
         return token.balanceOf(address(this));
     }
