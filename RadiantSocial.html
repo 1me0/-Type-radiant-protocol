@@ -3,335 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant Social – CIS‑gated Content Feed with Owner Rewards</title>
+    <title>Radiant Social – CIS Feed & Rewards</title>
     <style>
-        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', sans-serif; }
-        body { background: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: auto; background: white; border-radius: 28px; padding: 24px; box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
-        h1 { margin-top: 0; }
-        .post { border: 1px solid #e2e8f0; border-radius: 20px; padding: 16px; margin-bottom: 20px; transition: 0.2s; }
-        .post:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+        body { background: var(--bg); margin: 0; padding: 20px; --bg: #f0f2f5; --card: white; --text: #1a2a3a; --border: #e2e8f0; transition: 0.2s; }
+        .dark { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --border: #334155; }
+        body.dark { background: var(--bg); }
+        .container { max-width: 800px; margin: auto; background: var(--card); border-radius: 28px; padding: 20px; color: var(--text); border: 1px solid var(--border); }
+        h1 { display: flex; justify-content: space-between; align-items: center; margin-top: 0; }
+        .user-info { background: #eef2ff; padding: 10px 16px; border-radius: 24px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .dark .user-info { background: #2d3a4a; }
+        .balance { background: #e8f5e9; padding: 2px 12px; border-radius: 30px; font-weight: bold; color: #2e7d32; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { background: #1a2a3a; color: white; border: none; padding: 6px 14px; border-radius: 30px; cursor: pointer; }
+        .post { border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 20px; }
         .post img, .post video { max-width: 100%; border-radius: 16px; margin: 8px 0; }
-        .actions { margin-top: 12px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-        button { background: #1a2a3a; color: white; border: none; padding: 6px 14px; border-radius: 30px; cursor: pointer; font-weight: 500; }
-        button:disabled { background: #b0c4de; cursor: not-allowed; }
-        .score-input { width: 70px; margin-left: 8px; padding: 4px 8px; border-radius: 30px; border: 1px solid #cbd5e1; }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+        .score-input { width: 70px; padding: 4px 8px; border-radius: 30px; border: 1px solid var(--border); background: var(--card); }
         .badge { font-size: 0.7rem; background: #e6f0ff; border-radius: 20px; padding: 2px 10px; display: inline-block; margin-left: 10px; }
-        .user-info { background: #eef2ff; padding: 12px 16px; border-radius: 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        hr { margin: 20px 0; border-color: #e2e8f0; }
-        textarea { width: 100%; padding: 10px; border-radius: 20px; border: 1px solid #cbd5e1; margin: 8px 0; font-family: inherit; }
-        input, select { padding: 8px 12px; border-radius: 30px; border: 1px solid #cbd5e1; }
+        .progress-bar { background: #e2e8f0; border-radius: 20px; height: 6px; width: 100%; margin: 8px 0; overflow: hidden; }
+        .progress-fill { background: #2c7a4d; width: 0%; height: 100%; }
         .flex-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-        .balance { background: #e8f5e9; padding: 4px 12px; border-radius: 30px; font-weight: bold; color: #2e7d32; }
+        textarea, input, select { padding: 8px 12px; border-radius: 30px; border: 1px solid var(--border); background: var(--card); color: var(--text); width: 100%; }
+        textarea { width: 100%; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>📸 Radiant Social Feed</h1>
-    <div id="userInfo" class="user-info"></div>
-    <hr>
-
-    <div id="feed"></div>
-
-    <hr>
-    <h3>➕ Create Post (public after 1000 high‑ratings)</h3>
-    <div class="flex-row">
-        <input type="text" id="mediaUrl" placeholder="Image or video URL" style="flex:3;">
-        <select id="mediaType">
-            <option value="image">Image</option>
-            <option value="video">Video</option>
-        </select>
+    <h1>📸 Radiant Social <button id="darkToggle">🌙 Dark</button></h1>
+    <div id="userInfo" class="user-info">Loading...</div>
+    <div class="filter-bar">
+        <button id="showAll">All Posts</button>
+        <button id="showMine">My Posts</button>
+        <button id="simulateAllBtn" style="background:#8a6a2a;">⚡ Simulate Ratings (first post)</button>
     </div>
-    <textarea id="description" rows="2" placeholder="Description (optional)"></textarea>
-    <button id="createPostBtn">Post</button>
-    <div class="note" style="font-size:0.7rem; margin-top:12px;">🔒 Posts start as limited. Users with ≥1,000,000 CIS can rate (0‑10). After 1,000 ratings ≥7.5, post becomes public. Then anyone can like, and each like sends 1 RAD to the post owner (you must have enough RAD).</div>
+    <div id="feed"></div>
+    <hr>
+    <div class="flex-row">
+        <input type="text" id="mediaUrl" placeholder="Image URL" value="https://picsum.photos/400/200?random=1" style="flex:3">
+        <select id="mediaType"><option value="image">Image</option><option value="video">Video</option></select>
+        <button id="addSample">📷 Sample Post</button>
+    </div>
+    <textarea id="description" rows="2" placeholder="Description"></textarea>
+    <button id="createPost">Post</button>
+    <div class="note" style="font-size:0.7rem; margin-top:12px;">🔓 Demo: 5 high ratings (≥7.5) unlocks post. Each like sends 1 RAD to owner.</div>
 </div>
 
 <script>
-    // ============================================================
-    // IndexedDB Setup
-    // ============================================================
-    const DB_NAME = "RadiantFeedDB";
-    const DB_VERSION = 3; // increased version to add likes store
-    let db = null;
+    const DB_NAME = "RadiantFeedDB", VERSION = 4;
+    let db, currentFilter = "all", PUBLIC_THRESHOLD = 5;
 
-    function openDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                db = request.result;
-                resolve(db);
-            };
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains("users")) {
-                    db.createObjectStore("users", { keyPath: "id" });
-                }
-                if (!db.objectStoreNames.contains("posts")) {
-                    db.createObjectStore("posts", { keyPath: "id", autoIncrement: true });
-                }
-                if (!db.objectStoreNames.contains("ratings")) {
-                    db.createObjectStore("ratings", { keyPath: "id", autoIncrement: true });
-                }
-                if (!db.objectStoreNames.contains("likes")) {
-                    // Store which user liked which post (unique constraint)
-                    const likeStore = db.createObjectStore("likes", { keyPath: ["postId", "userId"] });
-                }
+    // helpers
+    const getStore = (name, mode = "readonly") => db.transaction(name, mode).objectStore(name);
+    const getAll = async (store) => { const s = getStore(store); return new Promise(r => { const req = s.getAll(); req.onsuccess = () => r(req.result); }); };
+    const put = (store, obj) => { getStore(store, "readwrite").put(obj); };
+    const del = (store, key) => { getStore(store, "readwrite").delete(key); };
+
+    async function openDB() {
+        return new Promise((res, rej) => {
+            const req = indexedDB.open(DB_NAME, VERSION);
+            req.onerror = () => rej(req.error);
+            req.onsuccess = () => { db = req.result; res(db); };
+            req.onupgradeneeded = (e) => {
+                const d = e.target.result;
+                if (!d.objectStoreNames.contains("users")) d.createObjectStore("users", { keyPath: "id" });
+                if (!d.objectStoreNames.contains("posts")) d.createObjectStore("posts", { keyPath: "id", autoIncrement: true });
+                if (!d.objectStoreNames.contains("ratings")) d.createObjectStore("ratings", { keyPath: "id", autoIncrement: true });
+                if (!d.objectStoreNames.contains("likes")) d.createObjectStore("likes", { keyPath: ["postId", "userId"] });
             };
         });
     }
 
-    async function getStore(storeName, mode = "readonly") {
-        if (!db) await openDB();
-        return db.transaction(storeName, mode).objectStore(storeName);
+    // users
+    async function ensureUsers() {
+        const users = [
+            { id: "demo_user", name: "Elite Viewer", totalCIS: 1_200_000, balance: 1000 },
+            { id: "alice", name: "Alice", totalCIS: 1_500_000, balance: 1000 },
+            { id: "bob", name: "Bob", totalCIS: 1_300_000, balance: 1000 },
+        ];
+        for (const u of users) if (!(await (getStore("users")).get(u.id))) put("users", u);
     }
 
-    async function saveUser(user) { return (await getStore("users", "readwrite")).put(user); }
-    async function getUser(userId) { return (await getStore("users")).get(userId); }
-    async function savePost(post) { return (await getStore("posts", "readwrite")).add(post); }
-    async function getAllPosts() { return (await getStore("posts")).getAll(); }
-    async function updatePost(post) { return (await getStore("posts", "readwrite")).put(post); }
-    async function saveRating(rating) { return (await getStore("ratings", "readwrite")).add(rating); }
-    async function getRatingsForPost(postId) { 
-        const all = await (await getStore("ratings")).getAll();
-        return all.filter(r => r.postId === postId);
-    }
-    async function hasLiked(postId, userId) {
-        const store = await getStore("likes");
-        const key = [postId, userId];
-        const result = await store.get(key);
-        return result !== undefined;
-    }
-    async function recordLike(postId, userId) {
-        const store = await getStore("likes", "readwrite");
-        await store.put({ postId, userId, timestamp: Date.now() });
+    async function getUser(id) { return (await getStore("users")).get(id); }
+    async function updateBalance(id, delta) { const u = await getUser(id); if (u) { u.balance = (u.balance || 1000) + delta; put("users", u); } }
+
+    // posts
+    async function createPost(userId, url, type, desc) {
+        const post = { userId, mediaUrl: url, mediaType: type, description: desc || "", createdAt: Date.now(), isPublic: false, ratingCount: 0, highScoreCount: 0, likeCount: 0 };
+        const store = getStore("posts", "readwrite");
+        await new Promise(r => { const req = store.add(post); req.onsuccess = r; });
+        renderFeed();
     }
 
-    // ---------- User balances (simulated on‑chain) ----------
-    async function getUserBalance(userId) {
+    async function getPosts() { return await getAll("posts"); }
+    async function updatePost(post) { put("posts", post); }
+
+    // ratings
+    async function addRating(postId, userId, score) {
+        const ratings = await getAll("ratings");
+        if (ratings.some(r => r.postId === postId && r.userId === userId)) return false;
+        const posts = await getPosts();
+        const post = posts.find(p => p.id === postId);
+        if (!post || post.isPublic) return false;
         const user = await getUser(userId);
-        return user ? (user.balance || 1000) : 1000;
-    }
-    async function updateUserBalance(userId, delta) {
-        const user = await getUser(userId);
-        if (!user) return;
-        const newBalance = (user.balance || 1000) + delta;
-        user.balance = newBalance;
-        await saveUser(user);
-        return newBalance;
-    }
-
-    // ---------- Demo user with high CIS and initial balance ----------
-    async function ensureDemoUser() {
-        let user = await getUser("demo_user");
-        if (!user) {
-            user = {
-                id: "demo_user",
-                name: "Elite Viewer",
-                totalCIS: 1_200_000,
-                balance: 1000,   // starting RAD
-            };
-            await saveUser(user);
-        }
-        return user;
-    }
-
-    // ---------- Post creation ----------
-    async function createPost(userId, mediaUrl, mediaType, description) {
-        const post = {
-            userId,                     // owner of the post
-            mediaUrl,
-            mediaType,
-            description: description || "",
-            createdAt: Date.now(),
-            isPublic: false,
-            viewCount: 0,
-            highScoreViewCount: 0,
-            likeCount: 0,
-        };
-        const id = await savePost(post);
-        await renderFeed();
-        return id;
-    }
-
-    // ---------- Rate a post (CIS score) – no reward ----------
-    async function ratePost(postId, userId, score) {
-        const ratings = await getRatingsForPost(postId);
-        if (ratings.some(r => r.userId === userId)) {
-            alert("You have already rated this post.");
-            return false;
-        }
-        const allPosts = await getAllPosts();
-        const post = allPosts.find(p => p.id === postId);
-        if (!post) return false;
-
-        const user = await getUser(userId);
-        if (!user || user.totalCIS < 1_000_000) {
-            alert("You need a total CIS score of 1,000,000 to rate this post.");
-            return false;
-        }
-        if (post.isPublic) {
-            alert("This post is already public; only likes are allowed.");
-            return false;
-        }
-
-        await saveRating({ postId, userId, cisScore: score, timestamp: Date.now() });
-        post.viewCount++;
-        if (score >= 7.5) post.highScoreViewCount++;
-
-        if (post.highScoreViewCount >= 1000 && !post.isPublic) {
-            post.isPublic = true;
-        }
+        if (!user || user.totalCIS < 1_000_000) return false;
+        await put("ratings", { postId, userId, cisScore: score, timestamp: Date.now() });
+        post.ratingCount++;
+        if (score >= 7.5) post.highScoreCount++;
+        if (post.highScoreCount >= PUBLIC_THRESHOLD) post.isPublic = true;
         await updatePost(post);
         await renderFeed();
         return true;
     }
 
-    // ---------- Like a post (public only) – pays 1 RAD to owner ----------
-    async function likePost(postId, likerId) {
-        const allPosts = await getAllPosts();
-        const post = allPosts.find(p => p.id === postId);
-        if (!post) return;
-        if (!post.isPublic) {
-            alert("Only public posts can be liked.");
-            return;
+    async function simulateRatings(postId) {
+        const posts = await getPosts();
+        const post = posts.find(p => p.id === postId);
+        if (!post || post.isPublic) return;
+        let needed = PUBLIC_THRESHOLD - post.highScoreCount;
+        if (needed <= 0) return;
+        const users = await getAll("users");
+        let added = 0;
+        const existing = await getAll("ratings");
+        for (const u of users) {
+            if (added >= needed) break;
+            if (existing.some(r => r.postId === postId && r.userId === u.id)) continue;
+            await put("ratings", { postId, userId: u.id, cisScore: 9.0, timestamp: Date.now() });
+            post.ratingCount++;
+            post.highScoreCount++;
+            added++;
         }
-        // Check if already liked
-        const already = await hasLiked(postId, likerId);
-        if (already) {
-            alert("You already liked this post.");
-            return;
-        }
-        const liker = await getUser(likerId);
-        if (!liker) return;
-        const likerBalance = liker.balance || 1000;
-        if (likerBalance < 1) {
-            alert("Insufficient RAD balance to like (need 1 RAD).");
-            return;
-        }
-        // Transfer 1 RAD from liker to post owner
-        await updateUserBalance(likerId, -1);
-        await updateUserBalance(post.userId, +1);
-        // Record the like
-        await recordLike(postId, likerId);
+        if (post.highScoreCount >= PUBLIC_THRESHOLD) post.isPublic = true;
+        await updatePost(post);
+        await renderFeed();
+        alert(`Added ${added} high ratings. Post public: ${post.isPublic}`);
+    }
+
+    // likes
+    async function likePost(postId, userId) {
+        const posts = await getPosts();
+        const post = posts.find(p => p.id === postId);
+        if (!post || !post.isPublic) return alert("Only public posts can be liked.");
+        const likes = await getAll("likes");
+        if (likes.some(l => l.postId === postId && l.userId === userId)) return alert("Already liked.");
+        const liker = await getUser(userId);
+        if ((liker.balance || 1000) < 1) return alert("Insufficient RAD (need 1)");
+        await updateBalance(userId, -1);
+        await updateBalance(post.userId, +1);
+        await put("likes", { postId, userId, timestamp: Date.now() });
         post.likeCount++;
         await updatePost(post);
         await renderFeed();
+        await displayUserInfo();
     }
 
-    // ---------- Render feed ----------
+    // rendering
     async function renderFeed() {
-        const currentUser = await ensureDemoUser();
-        const allPosts = await getAllPosts();
-        allPosts.sort((a,b) => b.createdAt - a.createdAt);
+        const currentUser = await getUser("demo_user");
+        let posts = await getPosts();
+        posts.sort((a,b) => b.createdAt - a.createdAt);
+        if (currentFilter === "my") posts = posts.filter(p => p.userId === currentUser.id);
 
         const feedDiv = document.getElementById('feed');
         feedDiv.innerHTML = '';
-
-        for (const post of allPosts) {
-            // Visibility logic
-            let visible = false;
-            if (post.userId === currentUser.id) visible = true;
-            else if (post.isPublic) visible = true;
-            else if (currentUser.totalCIS >= 1_000_000) visible = true;
+        for (const post of posts) {
+            let visible = post.userId === currentUser.id || post.isPublic || currentUser.totalCIS >= 1_000_000;
             if (!visible) continue;
-
-            const postDiv = document.createElement('div');
-            postDiv.className = 'post';
-
-            let mediaHtml = '';
-            if (post.mediaType === 'image') {
-                mediaHtml = `<img src="${escapeHtml(post.mediaUrl)}" alt="post" loading="lazy">`;
-            } else if (post.mediaType === 'video') {
-                mediaHtml = `<video controls src="${escapeHtml(post.mediaUrl)}"></video>`;
-            }
-
-            postDiv.innerHTML = `
-                <div><strong>${escapeHtml(post.userId)}</strong> <span class="badge">${post.isPublic ? '🔓 Public' : '🔒 Limited'}</span></div>
-                <div>${escapeHtml(post.description || '')}</div>
-                ${mediaHtml}
-                <div class="actions">
-                    ${!post.isPublic && currentUser.totalCIS >= 1_000_000 ? `
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            Rate CIS:
-                            <input type="number" step="0.1" min="0" max="10" value="7.5" id="score-${post.id}" class="score-input">
-                            <button data-post="${post.id}" data-action="rate">Submit Rating</button>
-                        </div>
-                    ` : ''}
-                    ${post.isPublic ? `
-                        <button data-post="${post.id}" data-action="like">❤️ Like (${post.likeCount}) – 1 RAD to owner</button>
-                    ` : ''}
-                    <div>👁️ Views: ${post.viewCount} | ⭐ ≥7.5 ratings: ${post.highScoreViewCount}</div>
-                </div>
-            `;
-            feedDiv.appendChild(postDiv);
+            const prog = (post.highScoreCount / PUBLIC_THRESHOLD) * 100;
+            const media = post.mediaType === 'image' ? `<img src="${escape(post.mediaUrl)}">` : `<video controls src="${escape(post.mediaUrl)}"></video>`;
+            feedDiv.innerHTML += `
+                <div class="post">
+                    <div><strong>${escape(post.userId)}</strong> <span class="badge">${post.isPublic ? '🔓 Public' : '🔒 Limited'}</span></div>
+                    <div>${escape(post.description)}</div>
+                    ${media}
+                    <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
+                    <div class="actions">
+                        ${!post.isPublic && currentUser.totalCIS >= 1_000_000 ? `
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <input type="number" step="0.1" min="0" max="10" value="7.5" id="score-${post.id}" class="score-input">
+                                <button data-id="${post.id}" data-action="rate">Rate</button>
+                            </div>
+                        ` : ''}
+                        ${!post.isPublic ? `<button data-id="${post.id}" data-action="simulate">⚡ Simulate Ratings</button>` : ''}
+                        ${post.isPublic ? `<button data-id="${post.id}" data-action="like">❤️ Like (${post.likeCount}) – 1 RAD to owner</button>` : ''}
+                        <div>📊 ${post.ratingCount} ratings | ⭐≥7.5: ${post.highScoreCount}/${PUBLIC_THRESHOLD}</div>
+                    </div>
+                </div>`;
         }
-
-        // Attach event listeners
         document.querySelectorAll('[data-action="rate"]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const postId = parseInt(btn.getAttribute('data-post'));
-                const input = document.getElementById(`score-${postId}`);
-                const score = parseFloat(input.value);
-                if (isNaN(score) || score < 0 || score > 10) {
-                    alert("Enter a score between 0 and 10.");
-                    return;
-                }
-                await ratePost(postId, currentUser.id, score);
-            });
+            btn.onclick = async () => {
+                const id = parseInt(btn.dataset.id);
+                const inp = document.getElementById(`score-${id}`);
+                const score = parseFloat(inp.value);
+                if (isNaN(score) || score < 0 || score > 10) alert("Score 0-10");
+                else await addRating(id, currentUser.id, score);
+            };
         });
-
         document.querySelectorAll('[data-action="like"]').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const postId = parseInt(btn.getAttribute('data-post'));
-                await likePost(postId, currentUser.id);
-            });
+            btn.onclick = async () => await likePost(parseInt(btn.dataset.id), currentUser.id);
+        });
+        document.querySelectorAll('[data-action="simulate"]').forEach(btn => {
+            btn.onclick = async () => await simulateRatings(parseInt(btn.dataset.id));
         });
     }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-
-    // ---------- Create post UI ----------
-    document.getElementById('createPostBtn').addEventListener('click', async () => {
-        const mediaUrl = document.getElementById('mediaUrl').value.trim();
-        const mediaType = document.getElementById('mediaType').value;
-        const description = document.getElementById('description').value.trim();
-        if (!mediaUrl) {
-            alert("Please enter a media URL.");
-            return;
-        }
-        const user = await ensureDemoUser();
-        await createPost(user.id, mediaUrl, mediaType, description);
-        document.getElementById('mediaUrl').value = '';
-        document.getElementById('description').value = '';
-    });
-
-    // ---------- Display user info with balance ----------
     async function displayUserInfo() {
-        const user = await ensureDemoUser();
-        const balance = user.balance || 1000;
+        const u = await getUser("demo_user");
+        const bal = u?.balance || 1000;
         document.getElementById('userInfo').innerHTML = `
-            <span>👤 ${escapeHtml(user.name)}</span>
-            <span>🏆 Total CIS: ${user.totalCIS.toLocaleString()}</span>
-            <span class="balance">💰 Radiant Balance: ${balance.toFixed(2)} RAD</span>
+            <span>👤 ${u?.name}</span>
+            <span>🏆 CIS: ${u?.totalCIS?.toLocaleString()}</span>
+            <span class="balance">💰 Balance: ${bal.toFixed(2)} RAD</span>
         `;
     }
 
-    // ---------- Initialization ----------
-    openDB().then(async () => {
-        await ensureDemoUser();
+    const escape = s => s?.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])) || '';
+
+    // init
+    window.onload = async () => {
+        await openDB();
+        await ensureUsers();
+        // sample posts if empty
+        const posts = await getPosts();
+        if (posts.length === 0) {
+            const demo = await getUser("demo_user");
+            await createPost(demo.id, "https://picsum.photos/400/200?random=2", "image", "Sunset");
+            await createPost(demo.id, "https://picsum.photos/400/200?random=3", "image", "Mountains");
+        }
         await displayUserInfo();
         await renderFeed();
-    }).catch(console.error);
+
+        document.getElementById('darkToggle').onclick = () => document.body.classList.toggle('dark');
+        document.getElementById('showAll').onclick = () => { currentFilter = "all"; renderFeed(); };
+        document.getElementById('showMine').onclick = () => { currentFilter = "my"; renderFeed(); };
+        document.getElementById('simulateAllBtn').onclick = async () => {
+            const posts = await getPosts();
+            if (posts.length) await simulateRatings(posts[0].id);
+            else alert("No posts");
+        };
+        document.getElementById('addSample').onclick = async () => {
+            const user = await getUser("demo_user");
+            await createPost(user.id, "https://picsum.photos/400/200?random="+Date.now(), "image", "Sample post");
+        };
+        document.getElementById('createPost').onclick = async () => {
+            const url = document.getElementById('mediaUrl').value.trim();
+            if (!url) return alert("Enter URL");
+            const type = document.getElementById('mediaType').value;
+            const desc = document.getElementById('description').value;
+            const user = await getUser("demo_user");
+            await createPost(user.id, url, type, desc);
+            document.getElementById('mediaUrl').value = '';
+            document.getElementById('description').value = '';
+        };
+    };
 </script>
 </body>
 </html>
