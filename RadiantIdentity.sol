@@ -10,6 +10,13 @@ pragma solidity ^0.8.19;
  * @dev This library provides pure functions that mirror the mathematical
  *      axioms and theorems of the Radiant Protocol’s metaphysical foundation.
  *      All functions are deterministic and gas‑efficient.
+ *
+ *      ⚠️ **Overflow safety**: The `power` and `democracyIntegral` functions use
+ *      multiplication with `SCALE = 1e18`. For extremely large refusal capacities
+ *      (e.g., > 2^256 / 1e18), they may revert due to overflow. In typical
+ *      applications (refusal capacities in token amounts or reputation scores),
+ *      this is safe. If larger values are expected, consider using a smaller
+ *      scaling factor or a checked math library.
  */
 library RadiantIdentity {
     /// @dev The one substance, represented as a constant hash.
@@ -73,7 +80,7 @@ library RadiantIdentity {
         uint256 sum = refusalX + refusalY;
         if (sum == 0) return 0;
         int256 diff = int256(refusalX) - int256(refusalY);
-        // Return diff / sum scaled by SCALE (fixed‑point)
+        // Returns (diff * SCALE) / sum, using integer division (rounded toward zero).
         return (diff * int256(SCALE)) / int256(sum);
     }
 
@@ -105,6 +112,14 @@ library RadiantIdentity {
      * @return The keccak256 hash of "RADIANT_IDENTITY".
      */
     function whole() external pure returns (bytes32) {
+        return I;
+    }
+
+    /**
+     * @dev Convenience getter for the 𝕀 constant.
+     * @return The same as `whole()`.
+     */
+    function getI() external pure returns (bytes32) {
         return I;
     }
 }
