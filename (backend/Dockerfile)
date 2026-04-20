@@ -1,3 +1,4 @@
+# backend/Dockerfile
 FROM python:3.11-slim
 
 # Set environment variables
@@ -10,9 +11,10 @@ RUN addgroup --system radiant && \
 
 WORKDIR /app
 
-# Install system dependencies (if any)
+# Install system dependencies (including curl for healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies first (better caching)
