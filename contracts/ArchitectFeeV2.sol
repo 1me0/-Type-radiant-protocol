@@ -9,9 +9,12 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 /**
  * @title ArchitectFeeV2
  * @notice Competitive fee game contract:
- *         - 50% fee on token transfers (configurable, with timelock).
- *         - If transfer amount > lastRecord, sender receives a bonus equal to the fee (from treasury).
- *         - Governance roles with timelock on sensitive parameters.
+ *         - Configurable fee on token transfers (default 50%, max 50%).
+ *         - If transfer amount > last recorded amount, sender receives a bonus equal to the fee (paid from treasury).
+ *         - Governance roles with timelock on sensitive parameters (fee, architect address).
+ *         - Treasury can be funded by fee managers.
+ *         - Architect can withdraw treasury funds.
+ *         - Pausable for emergencies.
  */
 contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
@@ -124,6 +127,13 @@ contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
      * @notice Transfer tokens with competitive fee game.
      * @param recipient Address receiving the tokens.
      * @param amount Amount of tokens to transfer (principal).
+     *
+     * Game rules:
+     * - Sender pays principal + fee (fee = amount * feeBasisPoints / 10000).
+     * - Fee is immediately sent to the architect.
+     * - Principal is sent to the recipient.
+     * - If amount > lastRecordAmount, the sender receives a bonus equal to the fee from the treasury,
+     *   and the record is updated to the new amount.
      */
     function transferWithFee(address recipient, uint256 amount) external nonReentrant whenNotPaused {
         require(recipient != address(0), "Invalid recipient");
@@ -194,12 +204,10 @@ contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
     // ==================== Pausable ====================
     function pause() external onlyGovernor {
         _pause();
-        emit Paused(msg.sender);
     }
 
     function unpause() external onlyGovernor {
         _unpause();
-        emit Unpaused(msg.sender);
     }
 
     // ==================== View Functions ====================
