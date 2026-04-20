@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 /**
  * @title PrivateOptOut
- * @notice Private voting for protocol consent. All votes must be revealed and all must be YES.
+ * @notice Private voting for protocol consent. All votes must be revealed and all must be YES for the protocol to be allowed.
+ * 
+ * Features:
+ * - Commit‑reveal scheme for private voting.
+ * - All participants must vote YES for the protocol to be approved.
+ * - Deadline can be extended only by the owner.
+ * - After deadline and full revelation, the result is final.
  */
-contract PrivateOptOut {
+contract PrivateOptOut is Ownable {
     struct Vote {
         bytes32 commitment;
         bool revealed;
@@ -34,10 +42,14 @@ contract PrivateOptOut {
         _;
     }
 
-    constructor(uint256 _durationSeconds) {
+    constructor(uint256 _durationSeconds) Ownable(msg.sender) {
         deadline = block.timestamp + _durationSeconds;
     }
 
+    /**
+     * @dev Commit a vote using a hash of (choice, salt).
+     * @param commitment keccak256(abi.encodePacked(choice, salt))
+     */
     function commitVote(bytes32 commitment) external onlyBeforeDeadline {
         require(!finalized, "Already finalized");
         require(votes[msg.sender].commitment == 0, "Already voted");
@@ -46,6 +58,11 @@ contract PrivateOptOut {
         emit VoteCommitted(msg.sender);
     }
 
+    /**
+     * @dev Reveal a previously committed vote.
+     * @param choice true = YES, false = NO
+     * @param salt The salt used in the commitment.
+     */
     function revealVote(bool choice, uint256 salt) external onlyBeforeDeadline {
         require(!finalized, "Already finalized");
         Vote storage v = votes[msg.sender];
@@ -62,6 +79,10 @@ contract PrivateOptOut {
         emit VoteRevealed(msg.sender, choice);
     }
 
+    /**
+     * @dev Finalize the vote after the deadline. All votes must be revealed.
+     * The protocol is allowed only if every participant voted YES.
+     */
     function finalize() external onlyAfterDeadline {
         require(!finalized, "Already finalized");
         require(revealedCount == totalParticipants, "Not all votes revealed");
@@ -71,14 +92,19 @@ contract PrivateOptOut {
         emit ResultPublished(yesCount, noCount, allowed);
     }
 
+    /**
+     * @dev Returns whether the protocol is allowed (must be finalized and unanimous YES).
+     */
     function protocolAllowed() external view returns (bool) {
-        return finalized && yesCount == totalParticipants;
+        return finalized && yesCount == totalParticipants && totalParticipants > 0;
     }
 
-    function extendDeadline(uint256 additionalSeconds) external {
-        // Only the contract deployer or a governance role could extend; for simplicity, we allow anyone? Better to add owner.
-        // We'll add a simple owner for safety.
-        require(msg.sender == tx.origin, "Only EOA"); // placeholder; in production use AccessControl.
+    /**
+     * @dev Extend the voting deadline (only owner).
+     * @param additionalSeconds Seconds to add to the deadline.
+     */
+    function extendDeadline(uint256 additionalSeconds) external onlyOwner {
+        require(additionalSeconds > 0, "Must add positive seconds");
         deadline += additionalSeconds;
         emit DeadlineExtended(deadline);
     }
