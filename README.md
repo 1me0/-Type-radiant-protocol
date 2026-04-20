@@ -1,4 +1,27 @@
-# Radiant Protocol: Proof of Presence via Recursive Zero‑Knowledge Arguments
+# Radiant Protocol
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![ZK](https://img.shields.io/badge/ZK-Recursive-blue)](https://github.com/1me0/Type-radiant-protocol)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.19-black)](https://soliditylang.org/)
+
+**Proof of Presence via Recursive Zero‑Knowledge Arguments**
+
+Radiant Protocol is a cryptographic system for proving that an entity was actively responsive within a specific time window – **presence** – without revealing sensitive information. Built on recursive ZK‑SNARKs, it turns presence into a verifiable, composable, and valuable resource.
+
+---
+
+## 📄 Table of Contents
+
+- [Abstract](#abstract)
+- [System Model](#system-model)
+- [Protocol Definition](#protocol-definition)
+- [Security Model](#security-model)
+- [Adversarial Analysis](#adversarial-analysis)
+- [Implementation Considerations](#implementation-considerations)
+- [Getting Started](#getting-started)
+- [License](#license)
+
+---
 
 ## Abstract
 
@@ -143,18 +166,17 @@ For any valid sequence, the proof distribution is computationally indistinguisha
 - **ZK circuit:** Use Nova folding scheme [Kothapalli2022] with SNARK‑friendly primitives.
 - **On‑chain verification:** The contract receives $\Pi_n$ and verifies it using a pre‑compiled verifier (e.g., via `SnarkVerifier`).
 
-## 9. Conclusion
+## 9. Getting Started
 
-Radiant introduces a new primitive: **verifiable presence**. It enables trustless systems grounded in real‑time activity rather than static identity. The protocol is scalable, private, and economically secure.
+```bash
+# Clone the repository
+git clone https://github.com/1me0/Type-radiant-protocol.git
+cd Type-radiant-protocol
 
-## References
+# Install dependencies
+npm install
 
-[Kothapalli2022] Kothapalli, A., Setty, S., & Tzialla, I. (2022). Nova: Recursive Zero-Knowledge Arguments from Folding Schemes. *Cryptology ePrint Archive*, Report 2022/1252.  
+# Run the demo locally
+npm run demo
 
-[BLS2004] Boneh, D., Lynn, B., & Shacham, H. (2004). Short signatures from the Weil pairing. *Journal of Cryptology*, 17(4), 297–319.  
-
-[ETHMerkle] Ethereum Foundation. (2020). “Sparse Merkle Trees”. Ethereum Wiki.
-
----
-
-**© 2025 Radiant Protocol Contributors**
+# For full documentation, see TUTORIAL.md
