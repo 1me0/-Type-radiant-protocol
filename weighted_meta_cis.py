@@ -6,10 +6,17 @@ where each interaction can be assigned a different weight (e.g., by importance, 
 
 Author: Radiant Protocol
 License: MIT
+Version: 1.0.0
 """
 
-from typing import List, Optional, Union, Callable, Tuple
+from typing import List, Optional, Union, Callable
 import math
+
+__all__ = [
+    "normalize_cis",
+    "weighted_meta_cis",
+    "MetaCISAccumulator",
+]
 
 
 def normalize_cis(score: float, source_scale: str = "auto") -> float:
@@ -22,6 +29,14 @@ def normalize_cis(score: float, source_scale: str = "auto") -> float:
 
     Returns:
         float: Score clamped to [0,1].
+
+    Examples:
+        >>> normalize_cis(8.5, "0-10")
+        0.85
+        >>> normalize_cis(0.85, "0-1")
+        0.85
+        >>> normalize_cis(8.5)  # auto detects 0-10
+        0.85
     """
     if source_scale == "auto":
         if score > 1.0:
@@ -31,7 +46,7 @@ def normalize_cis(score: float, source_scale: str = "auto") -> float:
 
     if source_scale == "0-10":
         return max(0.0, min(1.0, score / 10.0))
-    else:
+    else:  # "0-1"
         return max(0.0, min(1.0, score))
 
 
@@ -57,17 +72,24 @@ def weighted_meta_cis(
         weight_strategy:
             - "uniform": w_i = 1.
             - "linear": w_i = i + 1 (later interactions get higher weight).
-            - "exponential": w_i = exp(decay_rate * i).
-            - "inverse": w_i = 1/(i + 1) (earlier interactions get higher weight).
+            - "exponential": w_i = exp(decay_rate * i) (later interactions get exponentially more weight).
+            - "inverse": w_i = 1/(i + 1) (earlier interactions get more weight).
             - Callable: function mapping index (0‑based) → weight.
         normalize: If True, input scores are normalized to [0,1] before averaging.
-        exponential_decay_rate: Decay rate for exponential strategy (default 0.5).
+        exponential_decay_rate: Decay rate for exponential strategy (must be > 0). Default 0.5.
 
     Returns:
         float: Weighted Meta‑CIS in [0,1]. Returns 0.0 if no scores.
 
     Raises:
-        ValueError: If weights length does not match cis_values length.
+        ValueError: If weights length does not match cis_values length,
+                    or if exponential_decay_rate is not positive.
+
+    Examples:
+        >>> weighted_meta_cis([0.9, 0.7, 0.8], weights=[3,1,2], normalize=False)
+        0.83333...
+        >>> weighted_meta_cis([0.5, 0.6, 0.7, 0.9], weight_strategy="exponential")
+        > simple average 0.675
     """
     n = len(cis_values)
     if n == 0:
@@ -84,6 +106,8 @@ def weighted_meta_cis(
         elif weight_strategy == "linear":
             weight_list = [float(i + 1) for i in range(n)]
         elif weight_strategy == "exponential":
+            if exponential_decay_rate <= 0:
+                raise ValueError("exponential_decay_rate must be > 0")
             weight_list = [math.exp(exponential_decay_rate * i) for i in range(n)]
         elif weight_strategy == "inverse":
             weight_list = [1.0 / (i + 1) for i in range(n)]
@@ -162,8 +186,6 @@ class MetaCISAccumulator:
             return
 
         # weights: most recent gets weight 1, older get δ^(distance)
-        # i = 0 oldest, i = n-1 newest
-        # weight(i) = decay_factor^{n-1-i}
         total = 0.0
         weighted = 0.0
         for i, s in enumerate(self._scores):
@@ -197,17 +219,17 @@ if __name__ == "__main__":
     cis_vals = [0.9, 0.7, 0.8]   # already normalized
     weights = [3, 1, 2]
     result = weighted_meta_cis(cis_vals, weights=weights, normalize=False)
-    print(f"Weighted Meta‑CIS (explicit): {result:.3f}")   # (3*0.9 + 1*0.7 + 2*0.8)/(6) = (2.7+0.7+1.6)/6 = 5.0/6 ≈ 0.833
+    print(f"Weighted Meta‑CIS (explicit): {result:.3f}")
 
     # Example 2: exponential decay (more weight to recent)
     cis_vals = [0.5, 0.6, 0.7, 0.9]   # increasing quality
     result_exp = weighted_meta_cis(cis_vals, weight_strategy="exponential", exponential_decay_rate=0.5)
-    print(f"Exponential decay: {result_exp:.3f}")   # should be > simple average (0.675)
+    print(f"Exponential decay: {result_exp:.3f}")
 
     # Example 3: stateful accumulator
     acc = MetaCISAccumulator(decay_factor=0.8)
     acc.add(0.7)
     acc.add(0.8)
     acc.add(0.9)
-    print(f"Incremental Meta‑CIS: {acc.value():.3f}")   # ≈ (0.9 + 0.8*0.8 + 0.7*0.8²) / (1+0.8+0.64) = (0.9+0.64+0.448)/2.44 ≈ 1.988/2.44 ≈ 0.815
+    print(f"Incremental Meta‑CIS: {acc.value():.3f}")
     print(acc)
