@@ -61,6 +61,8 @@ contract RadiantSharesUltimate is ERC20, AccessControl, ReentrancyGuard, Pausabl
     event MintProposed(bytes32 indexed id, address indexed treasuryRecipient, address indexed architectRecipient, uint256 amount, uint256 timestamp);
     event MintExecuted(bytes32 indexed id, uint256 architectShare, uint256 treasuryShare);
     event MintTimelockCancelled(bytes32 indexed id);
+    event MintWithReceiver(address indexed minter, address indexed receiver, uint256 amount);
+    event EmergencyMint(address indexed governor, address indexed recipient, uint256 amount);
     event Paused(address indexed account);
     event Unpaused(address indexed account);
 
@@ -153,6 +155,7 @@ contract RadiantSharesUltimate is ERC20, AccessControl, ReentrancyGuard, Pausabl
         require(receiver != address(0), "Invalid receiver");
         require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
         _mint(receiver, amount);
+        emit MintWithReceiver(msg.sender, receiver, amount);
     }
 
     // ==================== Timelocked Minting (for large or scheduled mints) ====================
@@ -202,6 +205,7 @@ contract RadiantSharesUltimate is ERC20, AccessControl, ReentrancyGuard, Pausabl
         require(recipient != address(0), "Invalid recipient");
         require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
         _mint(recipient, amount);
+        emit EmergencyMint(msg.sender, recipient, amount);
     }
 
     // ==================== Timelock for Address Changes ====================
