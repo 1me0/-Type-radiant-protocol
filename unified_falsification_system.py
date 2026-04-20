@@ -20,6 +20,7 @@ from typing import List, Tuple, Optional, Callable, Dict
 # UTILITIES
 # ============================================================
 def normalize(v: np.ndarray) -> np.ndarray:
+    """Return unit vector in the same direction; zero vector unchanged."""
     norm = np.linalg.norm(v)
     if norm < 1e-12:
         return v
@@ -27,6 +28,10 @@ def normalize(v: np.ndarray) -> np.ndarray:
 
 
 def is_independent(d: np.ndarray, basis: List[np.ndarray], tol: float = 1e-6) -> bool:
+    """
+    Check if direction d is linearly independent of the orthonormal basis.
+    For an orthonormal basis, independence ⇔ projection residual > tol.
+    """
     for b in basis:
         if abs(np.dot(d, b)) > tol:
             return False
@@ -34,6 +39,7 @@ def is_independent(d: np.ndarray, basis: List[np.ndarray], tol: float = 1e-6) ->
 
 
 def orthogonalize(vectors: List[np.ndarray]) -> List[np.ndarray]:
+    """Gram–Schmidt orthogonalisation, returning orthonormal basis (ignores zero vectors)."""
     basis = []
     for v in vectors:
         w = v.copy()
@@ -55,6 +61,12 @@ class SurvivabilityKernel:
     """
 
     def __init__(self, dim: int, epsilon: float = 1e-6, weight_decay: float = 0.95):
+        """
+        Args:
+            dim: dimension of the state space.
+            epsilon: safety margin added to each constraint.
+            weight_decay: exponential decay factor for failure weights (recent directions have higher weight).
+        """
         self.dim = dim
         self.epsilon = epsilon
         self.weight_decay = weight_decay
@@ -65,6 +77,7 @@ class SurvivabilityKernel:
         self._cache_valid: bool = False
 
     def add_constraint(self, normal: np.ndarray, boundary_point: np.ndarray, weight: float = 1.0) -> None:
+        """Add a half-space constraint derived from a failure boundary."""
         normal = normalize(normal)
         bound = np.dot(normal, boundary_point) - self.epsilon
         self.constraints.append((normal, bound))
@@ -76,15 +89,18 @@ class SurvivabilityKernel:
         self._cache_valid = False
 
     def get_weight(self, d: np.ndarray) -> float:
+        """Return accumulated failure weight for direction d or its opposite."""
         d = normalize(d)
         key = tuple(np.round(d, 6))
         key_neg = tuple(np.round(-d, 6))
         return max(self._failure_weights.get(key, 0), self._failure_weights.get(key_neg, 0))
 
     def is_safe(self, P: np.ndarray) -> bool:
+        """Check if point satisfies all constraints (with numerical tolerance)."""
         return all(np.dot(n, P) <= b + 1e-9 for n, b in self.constraints)
 
     def project(self, P: np.ndarray, max_iter: int = 50) -> np.ndarray:
+        """Project a point onto the feasible set using POCS (alternating projections)."""
         P_proj = P.copy()
         for _ in range(max_iter):
             changed = False
@@ -98,6 +114,10 @@ class SurvivabilityKernel:
         return P_proj
 
     def chebyshev_center(self, force_recompute: bool = False) -> np.ndarray:
+        """
+        Compute the Chebyshev center (center of largest inscribed ball) by solving a linear program.
+        Caches result for performance.
+        """
         if self._cache_valid and not force_recompute:
             return self._cached_center
 
@@ -106,9 +126,9 @@ class SurvivabilityKernel:
             self._cache_valid = True
             return self._cached_center
 
-        # Variables: [P, r] where r is the radius
+        # Variables: [P, r] where r is the radius (maximise r)
         c = np.zeros(self.dim + 1)
-        c[-1] = -1   # maximize r
+        c[-1] = -1   # maximise r
 
         A_ub = []
         b_ub = []
@@ -129,6 +149,7 @@ class SurvivabilityKernel:
             self._cache_valid = True
             return self._cached_center
         else:
+            # Fallback: project zero (geometric median of feasible set)
             center = self.project(np.zeros(self.dim))
             self._cached_center = center
             self._cache_valid = True
@@ -139,13 +160,24 @@ class SurvivabilityKernel:
 # INTERPRETATION MODEL
 # ============================================================
 class Interpretation:
-    def __init__(self, dim: int):
-        self.W = np.random.randn(dim, dim) * 0.1
+    """Simple learnable mapping from input to latent state (tanh(linear layer))."""
+
+    def __init__(self, dim: int, rng: np.random.Generator = None):
+        """
+        Args:
+            dim: dimension of input and output.
+            rng: random number generator for initialisation.
+        """
+        if rng is None:
+            rng = np.random.default_rng()
+        self.W = rng.normal(0, 0.1, size=(dim, dim))
 
     def forward(self, x: np.ndarray) -> np.ndarray:
+        """Forward pass: tanh(W @ x)."""
         return np.tanh(self.W @ x)
 
     def update(self, grad: np.ndarray, lr: float = 0.01) -> None:
+        """Update weights using gradient descent."""
         self.W -= lr * grad
 
 
@@ -153,12 +185,20 @@ class Interpretation:
 # LEARNER
 # ============================================================
 class Learner:
+    """Simple MSE learner with gradient computation."""
+
     @staticmethod
     def loss(pred: np.ndarray, target: np.ndarray) -> float:
+        """Mean squared error loss."""
         return float(np.mean((pred - target) ** 2))
 
     @staticmethod
     def grad(pred: np.ndarray, target: np.ndarray, x: np.ndarray) -> np.ndarray:
+        """
+        Gradient of MSE loss w.r.t. the weight matrix of a linear layer:
+        dL/dW = 2 * (pred - target) * x^T   (but with a factor 2 omitted for simplicity).
+        Here we return the outer product of error and input.
+        """
         error = pred - target
         return np.outer(error, x)
 
@@ -167,11 +207,17 @@ class Learner:
 # EXPLORATION POLICY
 # ============================================================
 class ExplorationPolicy:
+    """Decides whether to ACT (use current interpretation), PROBE (explore), or SILENCE."""
+
     def __init__(self, threshold: float = 1.0, probe_prob: float = 0.2):
         self.threshold = threshold
         self.probe_prob = probe_prob
 
     def decide(self, uncertainty: float, kernel: SurvivabilityKernel, dim: int) -> Tuple[str, Optional[np.ndarray]]:
+        """
+        Returns (decision, info). Decision is one of 'ACT', 'PROBE', 'SILENCE'.
+        If PROBE, info is the direction to probe.
+        """
         if uncertainty > self.threshold:
             # structured exploration: try existing basis directions first
             for d in kernel._basis:
@@ -202,53 +248,82 @@ class SimpleSystem:
 # UNIFIED FALSIFICATION SYSTEM
 # ============================================================
 class UnifiedFalsificationSystem:
-    def __init__(self, system, kernel: SurvivabilityKernel, dim: int):
+    """
+    Main engine integrating interpretation, kernel learning, and falsification.
+    """
+
+    def __init__(self, system, kernel: SurvivabilityKernel, dim: int, seed: Optional[int] = None):
+        """
+        Args:
+            system: object with method `failure(state)`.
+            kernel: SurvivabilityKernel instance.
+            dim: dimension of state space.
+            seed: random seed for reproducibility.
+        """
         self.system = system
         self.kernel = kernel
         self.dim = dim
+        self.rng = np.random.default_rng(seed)
 
-        self.model = Interpretation(dim)
+        self.model = Interpretation(dim, rng=self.rng)
         self.learner = Learner()
         self.policy = ExplorationPolicy()
 
-        self.seed = self._find_safe_seed()
+        self.seed_state = self._find_safe_seed()
 
     def _find_safe_seed(self) -> np.ndarray:
+        """Find a safe initial state (not in failure)."""
         for _ in range(100):
-            p = np.random.randn(self.dim) * 5.0
+            p = self.rng.normal(0, 5.0, size=self.dim)
             if not self.system.failure(p):
                 return p
         return np.zeros(self.dim)
 
     def uncertainty(self, P: np.ndarray) -> float:
+        """Compute uncertainty as distance to kernel plus a small bias."""
         if not self.kernel.constraints:
             return np.linalg.norm(P)
         proj = self.kernel.project(P)
-        # refined uncertainty: distance to kernel + small bias
         return np.linalg.norm(P - proj) + 0.1 * np.linalg.norm(P)
 
     def probe(self, direction: np.ndarray) -> Optional[np.ndarray]:
+        """
+        Probe a direction from the current seed state, find failure boundary,
+        add constraint, and return boundary point.
+        """
         weight = self.kernel.get_weight(direction)
         t_max = 10.0 * (1 + weight)
         steps = 25 + int(10 * weight)
 
         t_low, t_high = 0.0, t_max
-        if not self.system.failure(self.seed + t_high * direction):
+        # Check if failure occurs at t_max
+        if not self.system.failure(self.seed_state + t_high * direction):
             return None
 
         for _ in range(steps):
             t_mid = (t_low + t_high) / 2.0
-            P_mid = self.seed + t_mid * direction
+            P_mid = self.seed_state + t_mid * direction
             if self.system.failure(P_mid):
                 t_high = t_mid
             else:
                 t_low = t_mid
 
-        boundary = self.seed + t_high * direction
+        boundary = self.seed_state + t_high * direction
         self.kernel.add_constraint(direction, boundary)
         return boundary
 
     def step(self, x: np.ndarray, target: Optional[np.ndarray] = None) -> Dict:
+        """
+        One step of the system: interpret input, decide action, update state.
+
+        Args:
+            x: input vector (e.g., raw observation).
+            target: optional target for supervised learning (used in ACT mode).
+
+        Returns:
+            Dictionary containing interpreted state, reflected state, uncertainty,
+            decision, output, loss, and current seed state.
+        """
         # 1. Interpretation
         interpreted = self.model.forward(x)
 
@@ -269,7 +344,7 @@ class UnifiedFalsificationSystem:
             if target is not None:
                 loss_val = self.learner.loss(output, target)
                 grad = self.learner.grad(output, target, x)
-                # consistency gradient: pull interpretation toward its projection
+                # Consistency gradient: pull interpretation toward its projection
                 proj = self.kernel.project(interpreted)
                 consistency_grad = np.outer(interpreted - proj, x)
                 total_grad = grad + 0.1 * consistency_grad
@@ -279,14 +354,14 @@ class UnifiedFalsificationSystem:
         elif decision == "PROBE":
             boundary = self.probe(info)
             if boundary is not None:
-                # reset origin to Chebyshev center
+                # Reset origin to Chebyshev center
                 center = self.kernel.chebyshev_center()
                 if not self.kernel.is_safe(center):
                     center = self.kernel.project(center)
                 if self.system.failure(center):
                     center = self._find_safe_seed()
-                self.seed = center
-                # learn from boundary
+                self.seed_state = center
+                # Learn from boundary: treat projected boundary as pseudo-target
                 proj_boundary = self.kernel.project(boundary)
                 grad = self.learner.grad(interpreted, proj_boundary, x)
                 self.model.update(0.5 * grad)
@@ -300,7 +375,7 @@ class UnifiedFalsificationSystem:
             "decision": decision,
             "output": output,
             "loss": loss,
-            "seed": self.seed.copy()
+            "seed": self.seed_state.copy()
         }
 
 
@@ -312,7 +387,7 @@ if __name__ == "__main__":
     system = SimpleSystem()
     dim = 5
     kernel = SurvivabilityKernel(dim)
-    ufs = UnifiedFalsificationSystem(system, kernel, dim)
+    ufs = UnifiedFalsificationSystem(system, kernel, dim, seed=42)
 
     # Simulate some random inputs and targets
     for t in range(20):
