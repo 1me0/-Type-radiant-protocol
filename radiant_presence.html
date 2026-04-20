@@ -64,10 +64,8 @@
             border-radius: 60px;
             font-size: 1rem;
             font-weight: 600;
-            width: 100%;
             cursor: pointer;
             transition: background 0.2s;
-            margin-bottom: 16px;
         }
         button:hover:not(:disabled) {
             background: #2c4a6a;
@@ -173,26 +171,29 @@
 
     <div class="status" id="statusMsg">Ready. Enter your identifier.</div>
     <footer>
-        🔒 Local storage + on‑chain anchor (Sepolia/Goerli).<br>
-        Contract: <span id="contractDisplay">0x...</span>
+        🔒 Local storage + on‑chain anchor (Sepolia recommended).<br>
+        Contract: <span id="contractDisplay">Not set</span>
     </footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 <script>
     // ==================== CONFIGURATION ====================
-    // Replace with your deployed contract address and ABI
+    // Replace with your deployed contract address on Sepolia or any EVM network
     const CONTRACT_ADDRESS = "0xYourContractAddressHere"; 
+    // Minimal ABI for registration and query
     const CONTRACT_ABI = [
         "function registerPresence(bytes32 commitment) external",
         "function getCommitment(address user) external view returns (bytes32)",
         "event PresenceRegistered(address indexed user, bytes32 commitment, uint256 timestamp)"
     ];
-    document.getElementById('contractDisplay').innerText = CONTRACT_ADDRESS !== "0xYourContractAddressHere" ? 
-        CONTRACT_ADDRESS.slice(0,10)+'...' : "Not set";
+    // Expected chain ID (11155111 = Sepolia). Change if deploying elsewhere.
+    const EXPECTED_CHAIN_ID = 11155111;
+    const EXPECTED_CHAIN_NAME = "Sepolia";
 
-    // Helper: compute commitment (keccak256 of identifier + score + timestamp)
+    // Helper: compute commitment (keccak256 of identifier + score + timestamp) – Solidity compatible
     function computeCommitment(identifier, score, timestamp) {
+        // Using ethers v6 AbiCoder with default (non‑packed) encoding matches solidity abi.encode
         const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
             ['string', 'uint256', 'uint256'],
             [identifier, score, timestamp]
@@ -205,7 +206,7 @@
         const hash = ethers.keccak256(ethers.toUtf8Bytes(identifier));
         const bytes = hash.slice(2, 10); // first 4 bytes (8 hex chars)
         const num = parseInt(bytes, 16);
-        return num % 101;
+        return num % 101; // 0‑100
     }
 
     // DOM elements
@@ -218,11 +219,19 @@
     const timestampDisplayDiv = document.getElementById('timestampDisplay');
     const onchainStatusSpan = document.getElementById('onchainStatus');
     const statusMsgDiv = document.getElementById('statusMsg');
+    const contractDisplaySpan = document.getElementById('contractDisplay');
 
     let provider, signer, contract;
     let currentUser = null;
     let currentScore = null;
     let currentTimestamp = null;
+
+    // Update contract display (shortened)
+    if (CONTRACT_ADDRESS && CONTRACT_ADDRESS !== "0xYourContractAddressHere") {
+        contractDisplaySpan.innerText = CONTRACT_ADDRESS.slice(0, 10) + '...' + CONTRACT_ADDRESS.slice(-6);
+    } else {
+        contractDisplaySpan.innerText = "Not configured";
+    }
 
     // Load from localStorage
     function loadLocalPresence() {
@@ -280,6 +289,17 @@
         onchainStatusSpan.innerHTML = '';
     }
 
+    // Network validation helper
+    async function checkNetwork() {
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+        if (chainId !== EXPECTED_CHAIN_ID) {
+            statusMsgDiv.innerHTML = `❌ Please switch to ${EXPECTED_CHAIN_NAME} (chain ID ${EXPECTED_CHAIN_ID}). Current: ${chainId}`;
+            return false;
+        }
+        return true;
+    }
+
     // On-chain anchoring
     async function registerOnChain() {
         if (!currentUser) {
@@ -301,6 +321,10 @@
                 signer = await provider.getSigner();
                 contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
             }
+            // Network check
+            const isCorrectNetwork = await checkNetwork();
+            if (!isCorrectNetwork) return;
+            
             const userAddress = await signer.getAddress();
             statusMsgDiv.innerHTML = `⏳ Anchoring presence for ${userAddress.slice(0,6)}...${userAddress.slice(-4)}...`;
             registerOnchainBtn.disabled = true;
@@ -334,6 +358,8 @@
                 signer = await provider.getSigner();
                 contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
             }
+            const isCorrectNetwork = await checkNetwork();
+            if (!isCorrectNetwork) return;
             const address = await signer.getAddress();
             const storedCommitment = await contract.getCommitment(address);
             if (storedCommitment !== ethers.ZeroHash) {
@@ -364,4 +390,4 @@
     }
 </script>
 </body>
-</html>
+    </html>
