@@ -2,9 +2,14 @@
 name = "radiant-worker"
 version = "0.1.0"
 edition = "2021"
+authors = ["Radiant Protocol Contributors"]
+description = "Nova folding worker for the Radiant Protocol – recursively aggregates ZK proofs via Kafka"
+license = "MIT"
+repository = "https://github.com/1me0/Type-radiant-protocol"
+readme = "README.md"
 
 [dependencies]
-# Kafka messaging
+# Kafka messaging (async)
 rdkafka = { version = "0.36", features = ["tokio"] }
 
 # Async runtime
@@ -15,10 +20,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 bincode = "1"
 
-# Nova ZK proofs (pinned commit for reproducibility)
+# Nova ZK proofs – pinned for reproducibility
 nova = { git = "https://github.com/microsoft/Nova", rev = "4c1a3f2", features = ["parallel"] }
 
-# Randomness
+# Randomness (required by Nova)
 rand = "0.8"
 
 # HTTP client for WebSocket heartbeat
@@ -33,7 +38,9 @@ thiserror = "1"
 # Lazy static for optional global state
 lazy_static = "1.4"
 
-# The following are transitively included by `nova`, but kept explicitly for clarity
-# (they are not needed to be listed here, but harmless if present)
-# ff = "0.13"
-# bellperson = "0.24"
+# Note: `ff` and `bellperson` are transitively included by `nova` – no need to list them here.
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
