@@ -1,3 +1,7 @@
+// worker/src/main.rs
+// Nova folding worker for the Radiant Protocol.
+// Receives proof packages from Kafka, pairs them by index, folds them, and forwards to the next level.
+
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::ClientConfig;
@@ -5,6 +9,8 @@ use rdkafka::message::Message;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::env;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use std::time::Duration;
 use tracing::{info, warn, error};
 use tracing_subscriber;
@@ -22,7 +28,7 @@ struct ProofPackage {
 }
 
 // ----------------------------------------------------------------------
-// Worker state: buffer for pending proofs
+// Worker state: buffer for pending proofs (thread‑safe)
 // ----------------------------------------------------------------------
 struct WorkerState {
     pending: HashMap<u32, ProofPackage>,
@@ -46,6 +52,14 @@ impl WorkerState {
             self.pending.insert(pair_id, incoming);
             None
         }
+    }
+
+    fn pending_count(&self) -> usize {
+        self.pending.len()
+    }
+
+    fn folded_count(&self) -> usize {
+        self.folded_count
     }
 }
 
@@ -92,18 +106,24 @@ async fn main() -> Result<()> {
         .set("bootstrap.servers", "kafka:9092")
         .create()?;
 
-    let mut state = WorkerState::new();
+    // Shared state
+    let state = Arc::new(Mutex::new(WorkerState::new()));
+    let state_clone = state.clone();
 
     info!(
         "Worker level {} listening on '{}' -> producing to '{}'",
         level, consume_topic, produce_topic
     );
 
-    // Heartbeat task
+    // Heartbeat task (sends stats every 5 seconds)
     let heartbeat_handle = tokio::spawn(async move {
         loop {
             tokio::time::sleep(Duration::from_secs(5)).await;
-            send_ws_event(level, state.pending.len(), state.folded_count).await;
+            let (pending, folded) = {
+                let guard = state_clone.lock().await;
+                (guard.pending_count(), guard.folded_count())
+            };
+            send_ws_event(level, pending, folded).await;
         }
     });
 
@@ -117,7 +137,8 @@ async fn main() -> Result<()> {
                     match bincode::deserialize::<ProofPackage>(payload) {
                         Ok(incoming) => {
                             info!("Received proof index {} at level {}", incoming.index, level);
-                            if let Some((p1, p2)) = state.process(incoming) {
+                            let mut guard = state.lock().await;
+                            if let Some((p1, p2)) = guard.process(incoming) {
                                 // --- Folding step (placeholder for real Nova proof folding) ---
                                 // In production, you would:
                                 // 1. Deserialize Nova proofs from p1.data and p2.data.
@@ -134,7 +155,7 @@ async fn main() -> Result<()> {
                                     .payload(&serialized)
                                     .key(&folded_proof.index.to_string());
                                 producer.send(record, Duration::from_secs(0)).await?;
-                                state.folded_count += 1;
+                                guard.folded_count += 1;
                                 info!("Folded and produced proof to level {}", level + 1);
                             }
                         }
@@ -147,4 +168,4 @@ async fn main() -> Result<()> {
 
     heartbeat_handle.abort();
     Ok(())
-      }
+}
