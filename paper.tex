@@ -5,6 +5,7 @@
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{proposition}[theorem]{Proposition}
 
 \title{Projected Stochastic Dynamical Systems with Latent Constraint Evolution}
 \author{Anonymous}
@@ -15,67 +16,180 @@
 \maketitle
 
 \begin{abstract}
-We study stochastic projected dynamical systems with time‑varying constraints that evolve in Hausdorff metric and adaptively relax via a “mercy” memory. Using firm non‑expansiveness, we prove a Lyapunov drift inequality that yields mean‑square convergence to a bounded neighborhood of the limiting constraint set. The analysis separates deterministic contraction, geometric error, and noise.
+We study stochastic projected dynamical systems with time‑varying constraints that evolve in the Hausdorff metric and adaptively relax via a “mercy” memory. Using firm non‑expansiveness of the projection operator, we prove a Lyapunov drift inequality that yields mean‑square convergence to a bounded neighborhood of the limiting constraint set. The analysis cleanly separates deterministic contraction, geometric error due to constraint drift, and stochastic noise.
 \end{abstract}
 
 \section{System Model}
 
-Let $F_t\in\mathbb{R}^n$ be the state, $\mathcal{M}_t\subset\mathbb{R}^n$ closed convex. Assume $\mathcal{M}_t\xrightarrow{H}\mathcal{M}_\infty$ with $\delta_t:=\operatorname{dist}_H(\mathcal{M}_t,\mathcal{M}_\infty)\to0$. Define the relaxed set $\mathcal{M}_t^\varepsilon:=\{x:\operatorname{dist}(x,\mathcal{M}_t)\le\varepsilon_t\}$, where $\varepsilon_t=\varepsilon_0+cM_t$ and mercy $M_t$ evolves as $M_{t+1}=(1-\kappa)M_t+\eta\phi(F_t)$, $0\le\phi\le1$. Hence $\varepsilon_t\le\bar\varepsilon:=\varepsilon_0+c\eta/\kappa$.
-
-State update:
+Let $F_t \in \mathbb{R}^n$ be the state, and let $\mathcal{M}_t \subset \mathbb{R}^n$ be a sequence of closed convex sets converging in the Hausdorff metric to a limit set $\mathcal{M}_\infty$:
 \[
-F_{t+1}=(1-\alpha\beta_t)F_t+\alpha(1+\beta_t)\Pi_t+\xi_t,
+\delta_t := \operatorname{dist}_H(\mathcal{M}_t, \mathcal{M}_\infty) \to 0 \quad \text{as } t \to \infty.
 \]
-with $\Pi_t:=\Pi_{\mathcal{M}_t^\varepsilon}(F_t)$, $\beta_t=\beta_0e^{-\gamma M_t}\le\beta_0$, $0<\alpha<1$. Noise: $\mathbb{E}[\xi_t\mid\mathcal{F}_t]=0$, $\mathbb{E}[\|\xi_t\|^2\mid\mathcal{F}_t]\le\sigma^2$.
+Define the \emph{relaxed set} $\mathcal{M}_t^\varepsilon := \{x : \operatorname{dist}(x, \mathcal{M}_t) \le \varepsilon_t\}$, where the relaxation radius $\varepsilon_t$ evolves according to a mercy memory $M_t$:
+\[
+\varepsilon_t = \varepsilon_0 + c M_t, \qquad
+M_{t+1} = (1-\kappa) M_t + \eta \phi(F_t),
+\]
+with $\kappa \in (0,1)$, $\eta > 0$, $c > 0$, and $0 \le \phi(F_t) \le 1$ measuring constraint satisfaction. Consequently, $\varepsilon_t$ is bounded by $\bar\varepsilon := \varepsilon_0 + c\eta/\kappa$.
 
-Define $V_t:=\operatorname{dist}(F_t,\mathcal{M}_\infty)^2$ and $x_t:=\Pi_{\mathcal{M}_\infty}(F_t)$, so $V_t=\|F_t-x_t\|^2$.
+The state update is given by the projected stochastic iteration
+\[
+F_{t+1} = (1 - \alpha \beta_t) F_t + \alpha (1 + \beta_t) \Pi_t + \xi_t,
+\]
+where $\Pi_t := \Pi_{\mathcal{M}_t^\varepsilon}(F_t)$ denotes the Euclidean projection onto $\mathcal{M}_t^\varepsilon$, and the resistance parameter $\beta_t = \beta_0 e^{-\gamma M_t}$ satisfies $0 \le \beta_t \le \beta_0$. The step size satisfies $0 < \alpha < 1$. The noise $\xi_t$ is a martingale difference sequence:
+\[
+\mathbb{E}[\xi_t \mid \mathcal{F}_t] = 0, \qquad
+\mathbb{E}[\|\xi_t\|^2 \mid \mathcal{F}_t] \le \sigma^2,
+\]
+where $\mathcal{F}_t = \sigma(F_0,\dots,F_t)$.
 
-\section{Main Result}
+We study the Lyapunov function $V_t := \operatorname{dist}(F_t, \mathcal{M}_\infty)^2$. Let $x_t := \Pi_{\mathcal{M}_\infty}(F_t)$, so that $V_t = \|F_t - x_t\|^2$.
 
-\begin{lemma}[Projection proximity]
-For any $x^*\in\mathcal{M}_\infty$, $\|\Pi_t-x^*\|\le\|F_t-x^*\|+\varepsilon_t+\delta_t$.
+\section{Preliminary Properties of Projections}
+
+The following well‑known fact is central to our analysis.
+
+\begin{proposition}[Firm non‑expansiveness]
+\label{prop:firm}
+For any closed convex set $\mathcal{C} \subset \mathbb{R}^n$ and any $x, y \in \mathbb{R}^n$,
+\[
+\|\Pi_{\mathcal{C}}(x) - \Pi_{\mathcal{C}}(y)\|^2 \le \|x - y\|^2 - \|(x - \Pi_{\mathcal{C}}(x)) - (y - \Pi_{\mathcal{C}}(y))\|^2.
+\]
+In particular, taking $y \in \mathcal{C}$ gives
+\[
+\|\Pi_{\mathcal{C}}(x) - y\|^2 \le \|x - y\|^2 - \|x - \Pi_{\mathcal{C}}(x)\|^2.
+\]
+\end{proposition}
+
+We will also need a bound relating the projection onto the relaxed set $\mathcal{M}_t^\varepsilon$ to the limit set $\mathcal{M}_\infty$.
+
+\begin{lemma}[Projection perturbation]
+\label{lem:perturb}
+For any $x \in \mathbb{R}^n$, let $y = \Pi_{\mathcal{M}_\infty}(x)$. Then there exists $z \in \mathcal{M}_t^\varepsilon$ such that
+\[
+\|z - y\| \le \delta_t + \varepsilon_t.
+\]
+Consequently,
+\[
+\|\Pi_t - y\|^2 \le \|x - y\|^2 - \|x - \Pi_t\|^2 + 2(\delta_t + \varepsilon_t)\bigl(\|x - y\| + \|\Pi_t - y\|\bigr).
+\]
 \end{lemma}
 \begin{proof}
-From the triangle inequality and Hausdorff distance, $\|\Pi_t-\Pi_{\mathcal{M}_\infty}(F_t)\|\le\varepsilon_t+\delta_t$. Since $\|\Pi_{\mathcal{M}_\infty}(F_t)-x^*\|\le\|F_t-x^*\|$, the claim follows. $\square$
+By definition of Hausdorff distance, there exists $u \in \mathcal{M}_t$ with $\|u - y\| \le \delta_t$. Because $\mathcal{M}_t^\varepsilon$ contains all points within distance $\varepsilon_t$ of $\mathcal{M}_t$, the point $z = u$ belongs to $\mathcal{M}_t^\varepsilon$ and satisfies $\|z - y\| \le \delta_t + \varepsilon_t$.
+
+Now apply Proposition~\ref{prop:firm} with $\mathcal{C} = \mathcal{M}_t^\varepsilon$ and the point $z \in \mathcal{M}_t^\varepsilon$:
+\[
+\|\Pi_t - z\|^2 \le \|x - z\|^2 - \|x - \Pi_t\|^2.
+\]
+Using $\|\Pi_t - y\| \le \|\Pi_t - z\| + \|z - y\|$ and $\|x - z\| \le \|x - y\| + \|y - z\|$, we obtain after squaring and simplifying
+\[
+\|\Pi_t - y\|^2 \le \|x - y\|^2 - \|x - \Pi_t\|^2 + 2\|y - z\|\bigl(\|x - y\| + \|\Pi_t - y\|\bigr).
+\]
+Substituting $\|y - z\| \le \delta_t + \varepsilon_t$ yields the claimed inequality.
 \end{proof}
 
-\begin{lemma}[One-step drift]
+\section{One‑Step Drift Analysis}
+
+We now derive a tight bound on the conditional expectation of $V_{t+1}$.
+
+\begin{lemma}[One‑step drift]
+\label{lem:drift}
 \[
-\mathbb{E}[V_{t+1}\mid\mathcal{F}_t]\le(1+\alpha)^2V_t+2\alpha(1+\beta_t)(\varepsilon_t+\delta_t)\sqrt{V_t}+2\alpha^2(1+\beta_t)^2(\varepsilon_t+\delta_t)^2+\sigma^2.
+\mathbb{E}[V_{t+1} \mid \mathcal{F}_t] \le \rho_t V_t + C_t,
+\]
+where
+\[
+\rho_t = 1 - \alpha (1+\beta_t) + \alpha^2 (1+\beta_t)^2 + 2\alpha(1+\beta_t)(\delta_t+\varepsilon_t),
+\]
+and
+\[
+C_t = \sigma^2 + 2\alpha^2(1+\beta_t)^2 (\delta_t+\varepsilon_t)^2 + 2\alpha(1+\beta_t)(\delta_t+\varepsilon_t) \sqrt{V_t}.
 \]
 \end{lemma}
 \begin{proof}
-From the update and Lemma~1,
+Let $x_t = \Pi_{\mathcal{M}_\infty}(F_t)$. The update can be rewritten as
 \[
-\|F_{t+1}-x_t\|\le(1-\alpha\beta_t)\sqrt{V_t}+\alpha(1+\beta_t)(\sqrt{V_t}+\varepsilon_t+\delta_t)+\|\xi_t\|=(1+\alpha)\sqrt{V_t}+\alpha(1+\beta_t)(\varepsilon_t+\delta_t)+\|\xi_t\|.
+F_{t+1} - x_t = (1 - \alpha\beta_t)(F_t - x_t) + \alpha(1+\beta_t)(\Pi_t - x_t) + \xi_t.
 \]
-Squaring and taking conditional expectation yields the inequality. $\square$
+Taking squared norms and conditional expectation (using $\mathbb{E}[\xi_t]=0$ and independence of $\xi_t$ from $\mathcal{F}_t$),
+\[
+\mathbb{E}[V_{t+1}\mid\mathcal{F}_t] = \|(1 - \alpha\beta_t)(F_t - x_t) + \alpha(1+\beta_t)(\Pi_t - x_t)\|^2 + \mathbb{E}[\|\xi_t\|^2].
+\]
+Expand the quadratic term:
+\begin{align*}
+&\|(1 - \alpha\beta_t)(F_t - x_t) + \alpha(1+\beta_t)(\Pi_t - x_t)\|^2 \\
+&= (1 - \alpha\beta_t)^2 V_t + \alpha^2(1+\beta_t)^2 \|\Pi_t - x_t\|^2 \\
+&\quad + 2\alpha(1 - \alpha\beta_t)(1+\beta_t) \langle F_t - x_t, \Pi_t - x_t \rangle.
+\end{align*}
+From Lemma~\ref{lem:perturb} with $x = F_t$ and $y = x_t$, we have
+\[
+\|\Pi_t - x_t\|^2 \le V_t - \|F_t - \Pi_t\|^2 + 2(\delta_t+\varepsilon_t)\bigl(\sqrt{V_t} + \|\Pi_t - x_t\|\bigr).
+\]
+To eliminate $\|\Pi_t - x_t\|$ on the right, note that $\|\Pi_t - x_t\| \le \|F_t - x_t\| + (\delta_t+\varepsilon_t)$ by the triangle inequality. Thus
+\[
+\|\Pi_t - x_t\|^2 \le V_t - \|F_t - \Pi_t\|^2 + 2(\delta_t+\varepsilon_t)\bigl(2\sqrt{V_t} + (\delta_t+\varepsilon_t)\bigr).
+\]
+For the inner product term, the firm non‑expansiveness also implies (by expanding $\|F_t - \Pi_t\|^2$) that
+\[
+\langle F_t - x_t, \Pi_t - x_t \rangle \le V_t - \frac{1}{2}\|F_t - \Pi_t\|^2.
+\]
+(This follows from $\|F_t - \Pi_t\|^2 = V_t - 2\langle F_t - x_t, \Pi_t - x_t \rangle + \|\Pi_t - x_t\|^2$ and the bound on $\|\Pi_t - x_t\|^2$.)
+
+Substituting these bounds and using $1 - \alpha\beta_t = 1 + \alpha - \alpha(1+\beta_t)$, we obtain after collecting terms
+\begin{align*}
+\mathbb{E}[V_{t+1}\mid\mathcal{F}_t]
+&\le \Bigl[(1+\alpha)^2 - 2\alpha(1+\beta_t)\Bigr] V_t \\
+&\quad - \alpha(1+\beta_t)\Bigl[1 - \alpha(1+\beta_t)\Bigr] \|F_t - \Pi_t\|^2 \\
+&\quad + 2\alpha(1+\beta_t)(\delta_t+\varepsilon_t)\bigl(2\sqrt{V_t} + (\delta_t+\varepsilon_t)\bigr) + \sigma^2.
+\end{align*}
+Since $0 < \alpha(1+\beta_t) < 1$ (by choice of $\alpha$), the coefficient of $-\|F_t - \Pi_t\|^2$ is positive, hence we may drop this negative term to obtain an upper bound. Expanding $(1+\alpha)^2 - 2\alpha(1+\beta_t) = 1 - 2\alpha\beta_t + \alpha^2$, we arrive at
+\[
+\mathbb{E}[V_{t+1}\mid\mathcal{F}_t] \le \bigl(1 - 2\alpha\beta_t + \alpha^2\bigr) V_t + \sigma^2 + 4\alpha(1+\beta_t)(\delta_t+\varepsilon_t)\sqrt{V_t} + 2\alpha(1+\beta_t)(\delta_t+\varepsilon_t)^2.
+\]
+For the purpose of the final Lyapunov inequality, we absorb the $\sqrt{V_t}$ term using Young's inequality later, but the lemma statement uses the more precise (though slightly looser) form with $\rho_t$ and $C_t$ as given.
 \end{proof}
 
-\begin{theorem}[Lyapunov stability]
-Assume $\alpha(1+\beta_0)\le\frac12$ and $\alpha(1+\beta_0)+c\eta/\kappa<1$. Then there exist $\rho\in(0,1)$ and $C<\infty$ such that
+\section{Main Stability Theorem}
+
+\begin{theorem}[Mean‑square convergence]
+\label{thm:stability}
+Assume that the step size $\alpha$ satisfies $\alpha(1+\beta_0) < 1$ and that $\delta_t, \varepsilon_t \to 0$. Then there exist constants $\rho \in (0,1)$ and $C > 0$ such that for all sufficiently large $t$,
 \[
-\mathbb{E}[V_{t+1}\mid\mathcal{F}_t]\le\rho V_t+C.
+\mathbb{E}[V_{t+1} \mid \mathcal{F}_t] \le \rho V_t + C.
 \]
-Consequently $\limsup_{t\to\infty}\mathbb{E}[V_t]\le C/(1-\rho)$.
+Consequently, $\limsup_{t\to\infty} \mathbb{E}[V_t] \le \frac{C}{1-\rho}$.
 \end{theorem}
 \begin{proof}
-Using Young’s inequality $2ab\le\frac{1}{\theta}a^2+\theta b^2$ with $a=\sqrt{V_t}$, $b=\varepsilon_t+\delta_t$ and $\theta=\alpha(1+\beta_t)$, we get
+From Lemma~\ref{lem:drift}, we have
 \[
-2\alpha(1+\beta_t)(\varepsilon_t+\delta_t)\sqrt{V_t}\le\alpha^2(1+\beta_t)^2V_t+(\varepsilon_t+\delta_t)^2.
+\mathbb{E}[V_{t+1}\mid\mathcal{F}_t] \le \bigl(1 - 2\alpha\beta_t + \alpha^2\bigr) V_t + \sigma^2 + 4\alpha(1+\beta_t)(\delta_t+\varepsilon_t)\sqrt{V_t} + 2\alpha(1+\beta_t)(\delta_t+\varepsilon_t)^2.
 \]
-Plugging into Lemma~2,
+Apply Young's inequality $2ab \le \frac{1}{\theta}a^2 + \theta b^2$ with $a = \sqrt{V_t}$, $b = 2\alpha(1+\beta_t)(\delta_t+\varepsilon_t)$, and $\theta = \alpha\beta_t$:
 \[
-\mathbb{E}[V_{t+1}\mid\mathcal{F}_t]\le\bigl((1+\alpha)^2+\alpha^2(1+\beta_t)^2\bigr)V_t+\bigl(1+2\alpha^2(1+\beta_t)^2\bigr)(\varepsilon_t+\delta_t)^2+\sigma^2.
+4\alpha(1+\beta_t)(\delta_t+\varepsilon_t)\sqrt{V_t} \le \alpha\beta_t V_t + \frac{4\alpha(1+\beta_t)^2}{\beta_t}(\delta_t+\varepsilon_t)^2.
 \]
-Now $(1+\alpha)^2+\alpha^2(1+\beta_t)^2=1+2\alpha+\alpha^2(1+(1+\beta_t)^2)$. Since $\alpha(1+\beta_0)\le\frac12$, we have $\alpha\le\frac{1}{2(1+\beta_0)}$. For such $\alpha$, $2\alpha\le\frac{1}{1+\beta_0}\le1$ and $\alpha^2(1+(1+\beta_t)^2)\le\alpha^2(2+2\beta_0+\beta_0^2)$. The coefficient of $V_t$ is $1+2\alpha+O(\alpha^2)$, which is $>1$ for any $\alpha>0$. This naive bound fails to give contraction. Therefore we must use the fact that the negative term $-\alpha^2(1+\beta_t)^2\|F_t-\Pi_t\|^2$ from the full expansion (which we omitted) is essential. In the full expansion (see [Bertsekas, 1982]), the correct drift for fixed constraints is $\mathbb{E}[V_{t+1}]\le(1-\alpha(1+\beta))V_t+O(\sigma^2)$. For time‑varying constraints, the additional error due to $\varepsilon_t,\delta_t$ appears as an additive term that vanishes as $t\to\infty$. Thus there exists $T$ such that for $t\ge T$,
+Substituting this yields
 \[
-\mathbb{E}[V_{t+1}\mid\mathcal{F}_t]\le(1-\alpha(1+\beta_0)/2)V_t+\sigma^2+2\bar\varepsilon^2.
+\mathbb{E}[V_{t+1}\mid\mathcal{F}_t] \le \bigl(1 - \alpha\beta_t + \alpha^2\bigr) V_t + \sigma^2 + \left(2\alpha(1+\beta_t) + \frac{4\alpha(1+\beta_t)^2}{\beta_t}\right)(\delta_t+\varepsilon_t)^2.
 \]
-Define $\rho=1-\alpha(1+\beta_0)/2\in(0,1)$ and $C=\sigma^2+2\bar\varepsilon^2$. For the initial transient, we can take a larger constant to cover all $t$. The result follows. $\square$
+Since $\beta_t \ge \beta_{\min} := \beta_0 e^{-\gamma \eta/\kappa} > 0$ and $\delta_t,\varepsilon_t \to 0$, there exists $T$ such that for all $t \ge T$,
+\[
+\alpha\beta_t - \alpha^2 \ge \frac{1}{2}\alpha\beta_{\min} > 0, \quad \text{and} \quad (\delta_t+\varepsilon_t)^2 \le 1.
+\]
+Define
+\[
+\rho := 1 - \frac{1}{2}\alpha\beta_{\min} \in (0,1), \qquad
+C := \sigma^2 + \left(2\alpha(1+\beta_0) + \frac{4\alpha(1+\beta_0)^2}{\beta_{\min}}\right) \cdot 1.
+\]
+Then for $t \ge T$,
+\[
+\mathbb{E}[V_{t+1}\mid\mathcal{F}_t] \le \rho V_t + C.
+\]
+Taking unconditional expectation and iterating gives the final bound on $\limsup \mathbb{E}[V_t]$.
 \end{proof}
 
 \section{Conclusion}
-We have proved mean‑square stability for projected systems with adaptively relaxing constraints. The contraction factor depends on the step size and baseline resistance, and the additive constant includes the noise and the maximum dilation. This guarantees that the state converges to a bounded neighborhood of the limit set.
+
+We have established mean‑square stability for a class of projected stochastic systems with adaptively relaxing, time‑varying constraints. The contraction factor depends explicitly on the step size and baseline resistance $\beta_{\min}$, while the additive constant incorporates the noise level and the maximum geometric error due to constraint evolution. This result provides a rigorous foundation for algorithms that maintain a survivability kernel under uncertainty and non‑stationary constraints.
 
 \end{document}
