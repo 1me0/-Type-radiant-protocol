@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RadiantOS | CIS Protocol</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
     <style>
         body { background: #050505; color: #fff; font-family: sans-serif; }
         .radiant-glow { box-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        .status-badge { transition: all 0.2s ease; }
     </style>
 </head>
-<body class="flex items-center justify-center h-screen overflow-hidden">
-    <div id="root" class="w-full max-w-md p-6 border border-zinc-800 rounded-2xl radiant-glow">
+<body class="flex items-center justify-center h-screen overflow-hidden p-4">
+    <div id="root" class="w-full max-w-md p-6 border border-zinc-800 rounded-2xl radiant-glow bg-black/40 backdrop-blur-sm">
         <header class="mb-8 text-center">
             <h1 class="text-2xl font-bold tracking-tighter">RADIANT<span class="text-zinc-500">OS</span></h1>
             <p class="text-xs text-zinc-500 uppercase tracking-widest mt-2">Sovereign Field v1.0</p>
@@ -20,10 +22,14 @@
         <div id="status" class="space-y-4">
             <div class="p-4 bg-zinc-900/50 rounded-lg border border-zinc-800">
                 <p class="text-xs text-zinc-400">Current Presence</p>
-                <p class="text-xl font-mono" id="presence-score">0.0000</p>
+                <p class="text-2xl font-mono" id="presence-score">0.0000</p>
             </div>
+            <div id="network-status" class="text-xs text-center text-zinc-500"></div>
             <button id="connect-wallet" class="w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-zinc-200 transition-all">
                 CONNECT IDENTITY
+            </button>
+            <button id="disconnect-wallet" class="w-full py-2 bg-transparent border border-zinc-700 text-zinc-400 font-medium rounded-lg hover:bg-zinc-900 transition-all hidden">
+                DISCONNECT
             </button>
         </div>
 
@@ -31,6 +37,149 @@
             1me0 // Master Formula Integrated
         </footer>
     </div>
+
+    <script>
+        // frontend/app.js (embedded)
+        let userAddress = null;
+        let presenceInterval = null;
+        let currentPresence = 0;
+
+        const EXPECTED_CHAIN_ID = 11155111; // Sepolia
+        const EXPECTED_CHAIN_NAME = "Sepolia";
+
+        const connectBtn = document.getElementById('connect-wallet');
+        const disconnectBtn = document.getElementById('disconnect-wallet');
+        const scoreElement = document.getElementById('presence-score');
+        const networkStatusSpan = document.getElementById('network-status');
+
+        function updatePresenceDisplay(value) {
+            if (scoreElement) scoreElement.innerText = value.toFixed(4);
+        }
+
+        async function checkNetwork() {
+            if (!window.ethereum) return false;
+            try {
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const network = await provider.getNetwork();
+                const chainId = Number(network.chainId);
+                if (chainId !== EXPECTED_CHAIN_ID) {
+                    if (networkStatusSpan) {
+                        networkStatusSpan.innerHTML = `⚠️ Please switch to ${EXPECTED_CHAIN_NAME} (Chain ID ${EXPECTED_CHAIN_ID})`;
+                        networkStatusSpan.style.color = "#facc15";
+                    }
+                    return false;
+                } else {
+                    if (networkStatusSpan) {
+                        networkStatusSpan.innerHTML = `✅ Connected to ${EXPECTED_CHAIN_NAME}`;
+                        networkStatusSpan.style.color = "#4ade80";
+                    }
+                    return true;
+                }
+            } catch (err) {
+                console.warn("Network check failed", err);
+                return false;
+            }
+        }
+
+        async function switchNetwork() {
+            if (!window.ethereum) return;
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: ethers.toBeHex(EXPECTED_CHAIN_ID) }],
+                });
+            } catch (switchError) {
+                console.error("Network switch failed", switchError);
+                alert(`Please switch to ${EXPECTED_CHAIN_NAME} manually in your wallet.`);
+            }
+        }
+
+        function startPresencePulse() {
+            if (presenceInterval) clearInterval(presenceInterval);
+            presenceInterval = setInterval(() => {
+                currentPresence += 0.0001;
+                updatePresenceDisplay(currentPresence);
+            }, 1000);
+        }
+
+        function stopPresencePulse() {
+            if (presenceInterval) {
+                clearInterval(presenceInterval);
+                presenceInterval = null;
+            }
+        }
+
+        async function connectIdentity() {
+            if (!window.ethereum) {
+                alert("Please use a Radiant-compatible browser (MetaMask/Trust).");
+                return;
+            }
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                userAddress = accounts[0];
+                connectBtn.innerText = `ID: ${userAddress.slice(0,6)}...`;
+                connectBtn.disabled = true;
+                disconnectBtn.classList.remove('hidden');
+                console.log("Identity Linked:", userAddress);
+
+                const isCorrectNetwork = await checkNetwork();
+                if (!isCorrectNetwork) {
+                    await switchNetwork();
+                    // re-check after switch (page will reload on chain change, but we try anyway)
+                    await checkNetwork();
+                }
+                startPresencePulse();
+            } catch (error) {
+                console.error("Link Failed", error);
+                alert("Connection failed. See console for details.");
+            }
+        }
+
+        function disconnect() {
+            userAddress = null;
+            stopPresencePulse();
+            currentPresence = 0;
+            updatePresenceDisplay(0);
+            connectBtn.innerText = "CONNECT IDENTITY";
+            connectBtn.disabled = false;
+            disconnectBtn.classList.add('hidden');
+            if (networkStatusSpan) networkStatusSpan.innerHTML = "";
+        }
+
+        if (connectBtn) connectBtn.addEventListener('click', connectIdentity);
+        if (disconnectBtn) disconnectBtn.addEventListener('click', disconnect);
+
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                if (accounts.length === 0) {
+                    disconnect();
+                } else if (accounts[0] !== userAddress) {
+                    disconnect();
+                    connectIdentity();
+                }
+            });
+            window.ethereum.on('chainChanged', () => {
+                window.location.reload();
+            });
+        }
+
+        (async () => {
+            if (window.ethereum) {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        userAddress = accounts[0];
+                        connectBtn.innerText = `ID: ${userAddress.slice(0,6)}...`;
+                        connectBtn.disabled = true;
+                        disconnectBtn.classList.remove('hidden');
+                        await checkNetwork();
+                        startPresencePulse();
+                    }
+                } catch (e) {
+                    console.warn("Auto-connect failed", e);
+                }
+            }
+        })();
+    </script>
 </body>
 </html>
-
