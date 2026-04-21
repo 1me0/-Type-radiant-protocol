@@ -1,8 +1,7 @@
 // frontend/src/components/SilenceExplanation.jsx
-// Radiant Protocol – Silence Explanation Component
-// Displays why the system is silent during high uncertainty, with expandable testing details and logs.
+// Radiant Protocol – Silence Explanation Component with Audio Feedback and Live WebSocket Logs
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 
 /**
@@ -12,13 +11,11 @@ import PropTypes from 'prop-types';
  * @returns {number} normalized uncertainty (0–1)
  */
 const normalizeUncertainty = (distance, steepness = 1.0) => {
-    // 1 - exp(-steepness * distance) maps 0 → 0, ∞ → 1.
     return 1 - Math.exp(-steepness * distance);
 };
 
 /**
  * Helper to cap distance at a max and then normalize linearly.
- * Alternative: use if you know maximum possible distance.
  */
 const normalizeUncertaintyByMax = (distance, maxDistance = 10.0) => {
     return Math.min(1.0, Math.max(0.0, distance / maxDistance));
@@ -33,7 +30,7 @@ const normalizeUncertaintyByMax = (distance, maxDistance = 10.0) => {
  *   maxDistance: number – used with 'max' method (default 10.0).
  *   reason: string – explanation for silence.
  *   testing: object – details of what is being tested (direction, progress, weight).
- *   log: array of structured log entries – each entry: { timestamp, message, type, icon? }.
+ *   wsUrl: string – WebSocket URL for real‑time logs (optional).
  */
 const SilenceExplanation = ({
     uncertaintyRaw = 0.5,
@@ -41,9 +38,14 @@ const SilenceExplanation = ({
     maxDistance = 10.0,
     reason = '',
     testing = null,
-    log = [],
+    wsUrl = null,
 }) => {
     const [expanded, setExpanded] = useState(false);
+    const [log, setLog] = useState([]); // internal state for real‑time logs
+    const audioContextRef = useRef(null);
+    const oscillatorRef = useRef(null);
+    const gainNodeRef = useRef(null);
+    const wsRef = useRef(null);
 
     // Normalize uncertainty
     let uncertainty = 0.5;
@@ -52,13 +54,12 @@ const SilenceExplanation = ({
     } else {
         uncertainty = normalizeUncertaintyByMax(uncertaintyRaw, maxDistance);
     }
-    // Clamp to [0,1] just in case
     uncertainty = Math.min(1.0, Math.max(0.0, uncertainty));
 
     const getUncertaintyColor = (unc) => {
-        if (unc < 0.3) return '#2e7d32'; // green
-        if (unc < 0.6) return '#f9a825'; // yellow
-        return '#c62828'; // red
+        if (unc < 0.3) return '#2e7d32';
+        if (unc < 0.6) return '#f9a825';
+        return '#c62828';
     };
 
     const uncertaintyPercent = (uncertainty * 100).toFixed(1);
@@ -73,16 +74,116 @@ const SilenceExplanation = ({
     // Helper to get icon for log type
     const getLogIcon = (type) => {
         switch (type) {
-            case 'success':
-                return '✅';
-            case 'warning':
-                return '⚠️';
-            case 'error':
-                return '❌';
-            default:
-                return 'ℹ️';
+            case 'success': return '✅';
+            case 'warning': return '⚠️';
+            case 'error': return '❌';
+            default: return 'ℹ️';
         }
     };
+
+    // Audio feedback (low humming pulse) when expanded
+    useEffect(() => {
+        if (!expanded) {
+            // Stop any ongoing sound
+            if (oscillatorRef.current) {
+                oscillatorRef.current.stop();
+                oscillatorRef.current.disconnect();
+                oscillatorRef.current = null;
+            }
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
+            return;
+        }
+
+        // Initialize Web Audio API
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            audioContextRef.current = ctx;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 70; // low hum
+            gain.gain.value = 0.05; // very quiet
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            // Create a pulse effect: gain goes up and down slowly
+            let time = 0;
+            const pulseInterval = setInterval(() => {
+                if (!audioContextRef.current) return;
+                const now = audioContextRef.current.currentTime;
+                // create a short envelope
+                const envelope = (t) => Math.sin(t * Math.PI * 2) * 0.5 + 0.5;
+                // we'll just modulate gain slightly
+                gain.gain.linearRampToValueAtTime(0.1 + envelope(time) * 0.05, now + 0.05);
+                time += 0.5;
+            }, 500);
+            oscillatorRef.current = osc;
+            gainNodeRef.current = gain;
+            // Cleanup on unmount or collapse
+            return () => {
+                clearInterval(pulseInterval);
+                if (oscillatorRef.current) {
+                    oscillatorRef.current.stop();
+                    oscillatorRef.current.disconnect();
+                }
+                if (audioContextRef.current) {
+                    audioContextRef.current.close();
+                }
+            };
+        } catch (e) {
+            console.warn("Web Audio API not supported or user interaction required");
+        }
+    }, [expanded]);
+
+    // WebSocket connection for real‑time logs
+    useEffect(() => {
+        if (!wsUrl) return;
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+            console.log('SilenceExplanation WebSocket connected');
+        };
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                // Expect data to have fields: timestamp, type, message
+                const newEntry = {
+                    timestamp: data.timestamp || new Date().toLocaleTimeString(),
+                    type: data.type || 'info',
+                    message: data.message || 'Test update',
+                };
+                setLog((prev) => [...prev.slice(-49), newEntry]); // keep last 50 entries
+            } catch (err) {
+                console.warn('Failed to parse WebSocket message', err);
+            }
+        };
+        ws.onerror = (err) => {
+            console.error('WebSocket error', err);
+        };
+        ws.onclose = () => {
+            console.log('WebSocket disconnected');
+        };
+        return () => {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.close();
+            }
+        };
+    }, [wsUrl]);
+
+    // Helper to add log entries manually (if needed via props)
+    useEffect(() => {
+        // If external log prop is provided, merge it (initial log)
+        if (log.length === 0 && window.initialLog) {
+            setLog(window.initialLog);
+        }
+    }, []);
 
     return (
         <div
@@ -142,7 +243,7 @@ const SilenceExplanation = ({
                         </div>
                     )}
                 </div>
-                {/* Optional: visual uncertainty bar */}
+                {/* visual uncertainty bar */}
                 <div
                     style={{
                         marginTop: '6px',
@@ -186,7 +287,7 @@ const SilenceExplanation = ({
                         </div>
                     )}
 
-                    {log.length > 0 && (
+                    {(log.length > 0 || (wsUrl && log.length > 0)) && (
                         <div>
                             <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>📋 Recent tests</div>
                             <div
@@ -227,13 +328,7 @@ SilenceExplanation.propTypes = {
         progress: PropTypes.string,
         weight: PropTypes.number,
     }),
-    log: PropTypes.arrayOf(
-        PropTypes.shape({
-            timestamp: PropTypes.string,
-            type: PropTypes.oneOf(['success', 'warning', 'error', 'info']),
-            message: PropTypes.string,
-        })
-    ),
+    wsUrl: PropTypes.string,
 };
 
 SilenceExplanation.defaultProps = {
@@ -242,7 +337,7 @@ SilenceExplanation.defaultProps = {
     maxDistance: 10.0,
     reason: '',
     testing: null,
-    log: [],
+    wsUrl: null,
 };
 
 export default SilenceExplanation;
