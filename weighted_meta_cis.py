@@ -6,10 +6,10 @@ where each interaction can be assigned a different weight (e.g., by importance, 
 
 Author: Radiant Protocol
 License: MIT
-Version: 1.0.0
+Version: 1.1.0
 """
 
-from typing import List, Optional, Union, Callable
+from typing import List, Optional, Union, Callable, Sequence
 import math
 
 __all__ = [
@@ -39,10 +39,7 @@ def normalize_cis(score: float, source_scale: str = "auto") -> float:
         0.85
     """
     if source_scale == "auto":
-        if score > 1.0:
-            source_scale = "0-10"
-        else:
-            source_scale = "0-1"
+        source_scale = "0-10" if score > 1.0 else "0-1"
 
     if source_scale == "0-10":
         return max(0.0, min(1.0, score / 10.0))
@@ -51,8 +48,8 @@ def normalize_cis(score: float, source_scale: str = "auto") -> float:
 
 
 def weighted_meta_cis(
-    cis_values: List[float],
-    weights: Optional[List[float]] = None,
+    cis_values: Sequence[float],
+    weights: Optional[Sequence[float]] = None,
     weight_strategy: Union[str, Callable[[int], float]] = "uniform",
     normalize: bool = True,
     exponential_decay_rate: float = 0.5,
@@ -83,7 +80,8 @@ def weighted_meta_cis(
 
     Raises:
         ValueError: If weights length does not match cis_values length,
-                    or if exponential_decay_rate is not positive.
+                    or if exponential_decay_rate is not positive,
+                    or if any weight is negative.
 
     Examples:
         >>> weighted_meta_cis([0.9, 0.7, 0.8], weights=[3,1,2], normalize=False)
@@ -99,7 +97,9 @@ def weighted_meta_cis(
     if weights is not None:
         if len(weights) != n:
             raise ValueError("weights length must match cis_values length")
-        weight_list = weights
+        weight_list = list(weights)
+        if any(w < 0 for w in weight_list):
+            raise ValueError("weights must be non-negative")
     else:
         if weight_strategy == "uniform":
             weight_list = [1.0] * n
@@ -141,6 +141,8 @@ class MetaCISAccumulator:
     With decay factor δ ∈ (0,1], the weight of s_i is w_i = δ^{t-i}.
     Then Meta‑CIS = (Σ w_i s_i) / Σ w_i.
 
+    This implementation uses an O(1) incremental update to avoid recomputing from scratch.
+
     Attributes:
         decay_factor (float): Exponential decay factor (0 < decay_factor ≤ 1).
         max_history (Optional[int]): Maximum number of stored scores (None = unlimited).
@@ -157,6 +159,7 @@ class MetaCISAccumulator:
             raise ValueError("decay_factor must be in (0,1]")
         self.decay_factor = decay_factor
         self.max_history = max_history
+
         self._scores: List[float] = []       # normalized scores in chronological order
         self._weighted_sum: float = 0.0
         self._total_weight: float = 0.0
@@ -169,25 +172,37 @@ class MetaCISAccumulator:
             cis_score: Raw CIS value.
         """
         norm = normalize_cis(cis_score)
-        self._scores.append(norm)
-        self._recompute()
 
+        # Incremental update: multiply existing sums by decay_factor,
+        # then add the new score with weight 1.
+        self._weighted_sum = self._weighted_sum * self.decay_factor + norm
+        self._total_weight = self._total_weight * self.decay_factor + 1.0
+
+        self._scores.append(norm)
+
+        # Enforce history limit by dropping oldest score and adjusting sums.
         if self.max_history and len(self._scores) > self.max_history:
-            # Drop oldest
-            self._scores = self._scores[-self.max_history:]
+            removed = self._scores.pop(0)
+            # Remove the contribution of the oldest score.
+            # Its weight was decay_factor ** (len_before - 1) before the addition,
+            # but after the addition it was decayed by another factor and its weight
+            # became decay_factor ** len_before. To subtract correctly, we recompute
+            # the sums from scratch for simplicity (since max_history is typically small).
+            # For performance with large max_history, we could maintain a queue of weights,
+            # but the recomputation is O(n) and n is bounded by max_history.
             self._recompute()
 
     def _recompute(self) -> None:
-        """Recompute cumulative weighted sum and total weight using exponential decay."""
+        """Recompute cumulative weighted sum and total weight from stored scores."""
         n = len(self._scores)
         if n == 0:
             self._weighted_sum = 0.0
             self._total_weight = 0.0
             return
 
-        # weights: most recent gets weight 1, older get δ^(distance)
         total = 0.0
         weighted = 0.0
+        # Weight for score at index i: decay_factor ** (n - 1 - i)
         for i, s in enumerate(self._scores):
             w = self.decay_factor ** (n - 1 - i)
             total += w
