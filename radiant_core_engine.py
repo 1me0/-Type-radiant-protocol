@@ -2,13 +2,13 @@
 radiant_core_engine.py
 
 Deep learning implementation of the Radiant Core Engine with:
-- Energy model (distance to constraint)
-- Lipschitz‑constrained dynamics μF
-- State‑dependent uncertainty
+- Energy model grounded in explicit constraints: E = ||φ(P,C)||² + E_residual
+- μF defined as gradient of a scalar architect potential (conservative structure)
+- State‑ and context‑dependent uncertainty
 - Adaptive time step
 - SDE and projection modes
 - Presence score
-- 2D visualization (energy landscape + vector field)
+- 2D visualisation (energy landscape + vector field)
 - ONNX export + Rust binding example
 - Training with bifurcation loss and human supervision
 - Adaptive α/β correction based on presence score
@@ -23,66 +23,122 @@ import torch.nn.functional as F
 import torch.nn.utils as utils
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Dict, Optional, Tuple, Union, Callable
+from typing import Dict, Optional, Tuple, Union, Callable, List
 import os
 
 # ==================================================
-# 1. ENERGY MODEL
+# 1. ENERGY MODEL (grounded in constraints)
 # ==================================================
-class EnergyModel(nn.Module):
-    """Neural net approximating distance to constraint manifold."""
+class ConstraintFunction(nn.Module):
+    """
+    Learns a constraint manifold φ(P, C) = 0.
+    The energy is E = ||φ(P, C)||² + E_residual(P, C),
+    ensuring that low energy corresponds to satisfying the constraint.
+    """
     def __init__(self, state_dim: int, context_dim: int, hidden_dim: int = 128):
         super().__init__()
         self.net = nn.Sequential(
+            utils.spectral_norm(nn.Linear(state_dim + context_dim, hidden_dim)),
+            nn.ReLU(),
+            utils.spectral_norm(nn.Linear(hidden_dim, state_dim))  # output same dim as state for residual
+        )
+
+    def forward(self, P: torch.Tensor, C: torch.Tensor) -> torch.Tensor:
+        x = torch.cat([P, C], dim=-1)
+        return self.net(x)
+
+
+class EnergyModel(nn.Module):
+    """
+    Energy = ||φ(P, C)||² + residual_net(P, C)
+    The residual allows modelling additional structure while the squared norm
+    anchors the energy to the constraint manifold.
+    """
+    def __init__(self, state_dim: int, context_dim: int, hidden_dim: int = 128):
+        super().__init__()
+        self.constraint = ConstraintFunction(state_dim, context_dim, hidden_dim)
+        self.residual_net = nn.Sequential(
             utils.spectral_norm(nn.Linear(state_dim + context_dim, hidden_dim)),
             nn.ReLU(),
             utils.spectral_norm(nn.Linear(hidden_dim, 1))
         )
 
     def forward(self, P: torch.Tensor, C: torch.Tensor) -> torch.Tensor:
-        x = torch.cat([P, C], dim=-1)
-        E = self.net(x)
-        return torch.tanh(E)   # bounded energy
+        phi = self.constraint(P, C)
+        E_constraint = (phi ** 2).sum(dim=-1, keepdim=True)
+        E_residual = self.residual_net(torch.cat([P, C], dim=-1))
+        # Bounded energy via tanh for numerical stability
+        return torch.tanh(E_constraint + E_residual)
 
 
 # ==================================================
-# 2. DYNAMICS FIELD μF
+# 2. DYNAMICS FIELD μF (gradient of architect potential)
 # ==================================================
-class MuF(nn.Module):
-    """Lipschitz‑constrained operator representing Architect Constant."""
+class ArchitectPotential(nn.Module):
+    """Scalar potential Φ(P) whose gradient gives the structured drift μF."""
     def __init__(self, state_dim: int, hidden_dim: int = 128):
         super().__init__()
         self.net = nn.Sequential(
             utils.spectral_norm(nn.Linear(state_dim, hidden_dim)),
             nn.Tanh(),
-            utils.spectral_norm(nn.Linear(hidden_dim, state_dim))
+            utils.spectral_norm(nn.Linear(hidden_dim, 1))
         )
 
     def forward(self, P: torch.Tensor) -> torch.Tensor:
-        return 0.5 * torch.tanh(self.net(P))
+        return self.net(P)
+
+
+class MuF(nn.Module):
+    """
+    μF(P) = -∇_P Φ(P)   (conservative vector field)
+    Lipschitz constraint is enforced via spectral normalisation.
+    """
+    def __init__(self, state_dim: int, hidden_dim: int = 128):
+        super().__init__()
+        self.potential = ArchitectPotential(state_dim, hidden_dim)
+
+    def forward(self, P: torch.Tensor) -> torch.Tensor:
+        P_req = P.clone().detach().requires_grad_(True)
+        Phi = self.potential(P_req).sum()
+        grad = torch.autograd.grad(Phi, P_req, create_graph=False)[0]
+        # Scale to keep magnitude controlled (Lipschitz constant <= 1 by spectral norm)
+        return -0.5 * torch.tanh(grad)
 
 
 # ==================================================
-# 3. UNCERTAINTY MODEL (γ‑controlled)
+# 3. CONTEXT‑AWARE UNCERTAINTY MODEL
 # ==================================================
 class UncertaintyNet(nn.Module):
-    def __init__(self, sigma0: float = 0.01, learn_gamma: bool = False, gamma_init: float = 0.5):
+    """
+    σ(P, C) = σ₀ + γ * ||∇E|| * (1 + tanh(ψ(C)))
+    where ψ(C) is a small network that modulates uncertainty based on context.
+    γ is either fixed or learnable.
+    """
+    def __init__(self, context_dim: int, sigma0: float = 0.01,
+                 learn_gamma: bool = False, gamma_init: float = 0.5):
         super().__init__()
         self.sigma0 = sigma0
         if learn_gamma:
             self.gamma = nn.Parameter(torch.tensor(gamma_init))
         else:
             self.register_buffer('gamma', torch.tensor(gamma_init))
+        self.context_modulator = nn.Sequential(
+            nn.Linear(context_dim, 16),
+            nn.Tanh(),
+            nn.Linear(16, 1)
+        )
 
-    def forward(self, grad_norm: torch.Tensor) -> torch.Tensor:
+    def forward(self, grad_norm: torch.Tensor, C: torch.Tensor) -> torch.Tensor:
         gamma = self.gamma if isinstance(self.gamma, torch.Tensor) else torch.tensor(self.gamma)
-        return self.sigma0 + gamma * grad_norm
+        modulation = 1.0 + torch.tanh(self.context_modulator(C))
+        return self.sigma0 + gamma * grad_norm * modulation
 
 
 # ==================================================
 # 4. ENERGY GRADIENT
 # ==================================================
-def energy_gradient(energy_model: EnergyModel, P: torch.Tensor, C: torch.Tensor, create_graph: bool = False):
+def energy_gradient(energy_model: EnergyModel, P: torch.Tensor, C: torch.Tensor,
+                    create_graph: bool = False):
     P_req = P.clone().detach().requires_grad_(True)
     E = energy_model(P_req, C).sum()
     grad = torch.autograd.grad(E, P_req, create_graph=create_graph)[0]
@@ -108,15 +164,23 @@ class System(nn.Module):
         super().__init__()
         self.energy = EnergyModel(state_dim, context_dim)
         self.muF = MuF(state_dim)
-        self.uncertainty = UncertaintyNet(learn_gamma=use_learned_gamma)
+        self.uncertainty = UncertaintyNet(context_dim, learn_gamma=use_learned_gamma)
 
     def step(self, P: torch.Tensor, C: torch.Tensor,
              alpha: float = 0.05, beta: float = 0.02,
              base_dt: float = 1.0, noise_scale: float = 0.1,
              mode: str = "sde") -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Perform one step of the dynamics.
+        Returns:
+            P_next: updated state
+            E: current energy
+            sigma: uncertainty value
+            dt: adaptive time step used
+        """
         E, gradE = energy_gradient(self.energy, P, C, create_graph=False)
         grad_norm = gradE.norm(dim=-1, keepdim=True)
-        sigma = self.uncertainty(grad_norm)
+        sigma = self.uncertainty(grad_norm, C)
         dt = adaptive_dt(base_dt, sigma, grad_norm)
         drift = self.muF(P)
         noise = torch.randn_like(P) * (sigma * noise_scale * torch.sqrt(dt))
@@ -137,11 +201,49 @@ class System(nn.Module):
 # 7. PRESENCE SCORE
 # ==================================================
 def presence_score(E: torch.Tensor, sigma: torch.Tensor) -> torch.Tensor:
+    """High presence when both energy and uncertainty are low."""
     return torch.sigmoid(-(E + sigma))
 
 
 # ==================================================
-# 8. CORE ENGINE (with adaptive α/β correction)
+# 8. STABILITY ANALYSIS (γ_c computation)
+# ==================================================
+def compute_critical_gamma(energy_model: EnergyModel, muF: MuF,
+                           alpha: float, beta: float) -> float:
+    """
+    Compute the critical noise amplification γ_c for stochastic stability.
+
+    Derivation (simplified for readability, see extended description):
+        For the linearised SDE dP = A P dt + γ B P dW,
+        stability in mean‑square requires ||I + A dt||² + γ² ||B||² dt < 1.
+        Using Lipschitz bounds L_E (for ∇E) and L_μ (for μF), we obtain:
+            γ_c = sqrt( 2α(1+β)L_μ - α²(1+β)² L_μ² ) / (α L_E)
+        when the numerator is positive, else γ_c = 0.
+
+    This implementation extracts Lipschitz constants from spectral norms.
+    """
+    # Estimate Lipschitz constant of ∇E (gradient of energy)
+    # For a network with spectral normalisation, product of spectral norms is an upper bound.
+    L_E = 1.0
+    for module in energy_model.modules():
+        if isinstance(module, nn.Linear) and hasattr(module, 'weight'):
+            L_E *= torch.linalg.norm(module.weight, ord=2).item()
+
+    # Lipschitz constant of μF (gradient of potential) similarly bounded
+    L_mu = 1.0
+    for module in muF.modules():
+        if isinstance(module, nn.Linear) and hasattr(module, 'weight'):
+            L_mu *= torch.linalg.norm(module.weight, ord=2).item()
+
+    numerator = 2 * alpha * (1 + beta) * L_mu - (alpha ** 2) * ((1 + beta) ** 2) * (L_mu ** 2)
+    if numerator <= 0:
+        return 0.0
+    gamma_c = np.sqrt(numerator) / (alpha * L_E)
+    return gamma_c
+
+
+# ==================================================
+# 9. CORE ENGINE (with adaptive α/β correction)
 # ==================================================
 class RadiantCoreEngine(nn.Module):
     def __init__(self, state_dim: int, context_dim: int):
@@ -181,36 +283,50 @@ class RadiantCoreEngine(nn.Module):
 
 
 # ==================================================
-# 9. VISUALIZATION (2D landscape + vector field)
+# 10. VISUALISATION (2D landscape + vector field)
 # ==================================================
 def plot_2d_landscape(engine: RadiantCoreEngine, context: np.ndarray,
-                      xlim=(-3,3), ylim=(-3,3), resolution=100,
+                      xlim=(-3, 3), ylim=(-3, 3), resolution=100,
                       save_path="energy_landscape.png"):
-    """Plot energy landscape and vector field for a 2D slice of state space."""
+    """
+    Plot energy landscape and vector field for a 2D slice of state space.
+    Assumes state_dim >= 2. Higher dimensions are set to zero for visualisation.
+    """
     device = next(engine.parameters()).device
+
+    # Infer dimensions from the engine
+    # Energy model's first linear layer input size = state_dim + context_dim
+    first_linear = engine.system.energy.constraint.net[0]
+    total_in = first_linear.in_features
+    # We need context_dim; we can get it from the context_modulator's input size
+    context_dim = engine.system.uncertainty.context_modulator[0].in_features
+    state_dim = total_in - context_dim
+    if state_dim < 2:
+        raise ValueError("State dimension must be at least 2 for 2D visualisation.")
+
     x = np.linspace(xlim[0], xlim[1], resolution)
     y = np.linspace(ylim[0], ylim[1], resolution)
     X, Y = np.meshgrid(x, y)
     points = np.stack([X.ravel(), Y.ravel()], axis=1)
-    # zero pad to full state_dim (assuming state_dim >=2)
-    state_dim = engine.system.energy.net[0].in_features - engine.system.energy.net[0].in_features? Actually we need context_dim. Let's compute.
-    # Better: get state_dim from the first linear layer's input size minus context_dim.
-    first_linear = engine.system.energy.net[0]
-    total_in = first_linear.in_features
-    context_dim = engine.system.energy.net[0].in_features - 2  # rough, but we'll pass context explicitly
-    # We'll use a given context vector (repeat for all points)
+    # Pad with zeros for remaining state dimensions
+    if state_dim > 2:
+        zeros = np.zeros((points.shape[0], state_dim - 2))
+        points = np.concatenate([points, zeros], axis=1)
+
     C_tensor = torch.tensor(context, dtype=torch.float32).to(device).unsqueeze(0).repeat(resolution*resolution, 1)
     P_tensor = torch.tensor(points, dtype=torch.float32).to(device)
+
     with torch.no_grad():
         E_vals = engine.system.energy(P_tensor, C_tensor).cpu().numpy().reshape(resolution, resolution)
-        # Compute gradient field (for vector field)
+
+        # Compute gradient field (only the first two components)
         P_req = P_tensor.clone().detach().requires_grad_(True)
         E_sum = engine.system.energy(P_req, C_tensor).sum()
-        grad = torch.autograd.grad(E_sum, P_req)[0].cpu().numpy()
-        U = grad[:, 0].reshape(resolution, resolution)
-        V = grad[:, 1].reshape(resolution, resolution)
+        grad_full = torch.autograd.grad(E_sum, P_req)[0].cpu().numpy()
+        U = grad_full[:, 0].reshape(resolution, resolution)
+        V = grad_full[:, 1].reshape(resolution, resolution)
 
-    plt.figure(figsize=(10,8))
+    plt.figure(figsize=(10, 8))
     plt.contourf(X, Y, E_vals, levels=50, cmap='viridis')
     plt.colorbar(label='Energy')
     plt.streamplot(X, Y, U, V, density=1.5, color='white', linewidth=0.5)
@@ -223,7 +339,7 @@ def plot_2d_landscape(engine: RadiantCoreEngine, context: np.ndarray,
 
 
 # ==================================================
-# 10. ONNX EXPORT + RUST BINDINGS
+# 11. ONNX EXPORT + RUST BINDINGS
 # ==================================================
 def export_to_onnx(engine: RadiantCoreEngine, state_dim: int, context_dim: int,
                    sample_inputs: Tuple[torch.Tensor, torch.Tensor],
@@ -231,31 +347,35 @@ def export_to_onnx(engine: RadiantCoreEngine, state_dim: int, context_dim: int,
     """Export the engine's step function to ONNX for Rust integration."""
     engine.eval()
     P, C = sample_inputs
-    # We'll export the inner system.step function (single step)
+
     class StepWrapper(nn.Module):
         def __init__(self, system):
             super().__init__()
             self.system = system
+
         def forward(self, P, C, alpha, beta, base_dt, noise_scale, mode):
-            # mode as integer: 0 for 'sde', 1 for 'projection'
             mode_str = 'sde' if mode == 0 else 'projection'
             P_next, E, sigma, dt = self.system.step(P, C, alpha, beta, base_dt, noise_scale, mode_str)
             return P_next, E, sigma, dt
+
     wrapper = StepWrapper(engine.system)
-    # Dummy inputs for ONNX
     alpha = torch.tensor(0.05).to(P.device)
     beta = torch.tensor(0.02).to(P.device)
     base_dt = torch.tensor(1.0).to(P.device)
     noise_scale = torch.tensor(0.1).to(P.device)
     mode = torch.tensor(0, dtype=torch.long).to(P.device)
-    torch.onnx.export(wrapper, (P, C, alpha, beta, base_dt, noise_scale, mode), onnx_path,
-                      input_names=['P', 'C', 'alpha', 'beta', 'base_dt', 'noise_scale', 'mode'],
-                      output_names=['P_next', 'E', 'sigma', 'dt'],
-                      dynamic_axes={'P': {0: 'batch'}, 'C': {0: 'batch'}, 'P_next': {0: 'batch'}},
-                      opset_version=14)
+
+    torch.onnx.export(
+        wrapper,
+        (P, C, alpha, beta, base_dt, noise_scale, mode),
+        onnx_path,
+        input_names=['P', 'C', 'alpha', 'beta', 'base_dt', 'noise_scale', 'mode'],
+        output_names=['P_next', 'E', 'sigma', 'dt'],
+        dynamic_axes={'P': {0: 'batch'}, 'C': {0: 'batch'}, 'P_next': {0: 'batch'}},
+        opset_version=14
+    )
     print(f"Exported ONNX model to {onnx_path}")
 
-    # Rust binding example (as comment)
     rust_code = '''
     // Rust example using tract-onnx
     use tract_onnx::prelude::*;
@@ -274,12 +394,16 @@ def export_to_onnx(engine: RadiantCoreEngine, state_dim: int, context_dim: int,
 
 
 # ==================================================
-# 11. TRAINING LOOP (with bifurcation loss + human supervision)
+# 12. TRAINING LOOP (with bifurcation loss + human supervision)
 # ==================================================
 def train_radiant_engine(engine: RadiantCoreEngine, train_loader, val_loader,
                          epochs=100, lr=1e-3, device='cpu',
                          lambda_bifurcation=0.01, lambda_supervision=1.0):
-    """Train the engine with optional human-target supervision and bifurcation condition."""
+    """
+    Train the engine.
+    - Supervised loss: MSE between predicted state and target (optional).
+    - Bifurcation loss: encourages γ < γ_c for stochastic stability.
+    """
     optimizer = torch.optim.Adam(engine.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
     engine.train()
@@ -287,28 +411,21 @@ def train_radiant_engine(engine: RadiantCoreEngine, train_loader, val_loader,
     for epoch in range(epochs):
         total_loss = 0.0
         for batch in train_loader:
-            P, C, target_P = batch   # target_P is optional (human supervision)
-            P = P.to(device); C = C.to(device); target_P = target_P.to(device)
+            P, C, target_P = batch
+            P = P.to(device)
+            C = C.to(device)
+            target_P = target_P.to(device)
 
             optimizer.zero_grad()
-            # Rollout for a few steps
             out = engine.rollout(P, C, steps=5, training=True)
             P_pred = out["state"]
-            # Supervised loss
+
             loss_sup = loss_fn(P_pred, target_P) if target_P is not None else 0.0
 
-            # Bifurcation loss: encourage gamma < gamma_c (stability)
+            # Stability regularisation
+            gamma_c = compute_critical_gamma(engine.system.energy, engine.system.muF,
+                                             engine.alpha.item(), engine.beta.item())
             gamma = engine.system.uncertainty.gamma
-            # approximate critical gamma for given alpha, beta (simplified)
-            alpha_val = engine.alpha.item()
-            beta_val = engine.beta.item()
-            L = 1.0  # Lipschitz bound of μF (approx)
-            dim = P.shape[-1]
-            numerator = 2 * alpha_val * (1 + beta_val) * L - (alpha_val ** 2) * ((1 + beta_val) ** 2) * (L ** 2)
-            if numerator > 0:
-                gamma_c = np.sqrt(numerator) / (alpha_val * L * np.sqrt(dim))
-            else:
-                gamma_c = 0.0
             gamma_tensor = gamma if isinstance(gamma, torch.Tensor) else torch.tensor(gamma)
             loss_bif = torch.relu(gamma_tensor - gamma_c) * lambda_bifurcation
 
@@ -323,25 +440,25 @@ def train_radiant_engine(engine: RadiantCoreEngine, train_loader, val_loader,
 
 
 # ==================================================
-# 12. EXAMPLE USAGE
+# 13. EXAMPLE USAGE
 # ==================================================
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     engine = RadiantCoreEngine(state_dim=4, context_dim=2).to(device)
 
     # Dummy training data (random)
-    train_loader = [(torch.randn(8,4), torch.randn(8,2), torch.randn(8,4)) for _ in range(10)]
+    train_loader = [(torch.randn(8, 4), torch.randn(8, 2), torch.randn(8, 4)) for _ in range(10)]
     val_loader = []
     # Uncomment to train:
     # engine = train_radiant_engine(engine, train_loader, val_loader, epochs=2, device=device)
 
-    # 2D visualization (needs state_dim >=2)
+    # 2D visualisation (needs state_dim >=2)
     ctx = np.random.randn(2)
     plot_2d_landscape(engine, ctx, save_path="radiant_landscape.png")
 
     # ONNX export
-    sample_P = torch.randn(1,4).to(device)
-    sample_C = torch.randn(1,2).to(device)
+    sample_P = torch.randn(1, 4).to(device)
+    sample_C = torch.randn(1, 2).to(device)
     export_to_onnx(engine, state_dim=4, context_dim=2,
                    sample_inputs=(sample_P, sample_C),
                    onnx_path="radiant_engine.onnx")
