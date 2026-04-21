@@ -1,6 +1,6 @@
 """
 🌌 MASTER FORMULA — FINAL STABILIZED PUBLICATION VERSION
-State-dependent stochastic projection + Lyapunov bifurcation
+State‑dependent stochastic projection + Lyapunov bifurcation
 
 This module implements the Master Formula:
     P_{t+1} = P_t + α μF( (1+β)Π̃(P_t) − β P_t )
@@ -13,11 +13,11 @@ License: MIT
 """
 
 import numpy as np
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple, Union, Optional
 
 
 # ============================================================
-# 1. PROJECTION OPERATOR (bounded + non-expansive assumption)
+# 1. PROJECTION OPERATOR (bounded + non‑expansive assumption)
 # ============================================================
 class ProjectionOperator:
     """
@@ -26,7 +26,7 @@ class ProjectionOperator:
     Optional radius enforces boundedness (Assumption A4).
     """
 
-    def __init__(self, project_fn: Callable[[np.ndarray], np.ndarray], radius: float = None):
+    def __init__(self, project_fn: Callable[[np.ndarray], np.ndarray], radius: Optional[float] = None):
         """
         Args:
             project_fn: Function that projects a point onto the constraint set.
@@ -45,10 +45,10 @@ class ProjectionOperator:
 
 
 # ============================================================
-# 2. STATE-DEPENDENT NOISE MODEL
+# 2. STATE‑DEPENDENT NOISE MODEL
 # ============================================================
 def sigma(P: np.ndarray, Pi: np.ndarray, sigma0: float, gamma: float) -> float:
-    """Standard deviation of state-dependent noise."""
+    """Standard deviation of state‑dependent noise."""
     return sigma0 + gamma * np.linalg.norm(P - Pi)
 
 
@@ -84,7 +84,7 @@ def step(
 ) -> np.ndarray:
     """
     One step of the Master Formula:
-        P_{t+1} = P_t + α μF( (1+β)Π̃(P_t) - β P_t )
+        P_{t+1} = P_t + α μF( (1+β)Π̃(P_t) − β P_t )
     """
     Pi_tilde = noisy_projection(P, proj, sigma0, gamma, rng)
     u = (1.0 + beta) * Pi_tilde - beta * P
@@ -107,11 +107,14 @@ def lyapunov_exponent(history: np.ndarray, burn_in: int = 0) -> float:
     """
     Estimate the Lyapunov exponent from a history of Lyapunov values.
     λ < 0 → stable, λ > 0 → unstable.
+
+    Fits log(V_t) = λ t + const via linear regression.
     """
     h = history[burn_in:]
     if len(h) < 2:
         return 0.0
-    log_h = np.log(h + 1e-12)
+    # Avoid log(0) by clipping to a small positive value
+    log_h = np.log(np.maximum(h, 1e-12))
     t = np.arange(len(h))
     slope = np.polyfit(t, log_h, 1)[0]
     return float(slope)
@@ -167,10 +170,15 @@ def monte_carlo(
     exponents = []
     final_vals = []
 
+    # Use at most the last 50 steps, but not more than available after burn‑in
+    tail_len = min(50, steps - burn_in)
+    if tail_len <= 0:
+        tail_len = max(1, steps // 10)
+
     for i in range(runs):
         hist = simulate(P0, proj, muF, alpha, beta, sigma0, gamma, steps, seed=i)
         exponents.append(lyapunov_exponent(hist, burn_in))
-        final_vals.append(np.mean(hist[-50:]))
+        final_vals.append(np.mean(hist[-tail_len:]))
 
     return {
         "E_lambda": float(np.mean(exponents)),
@@ -181,7 +189,7 @@ def monte_carlo(
 
 
 # ============================================================
-# 8. BIFURCATION SCAN (zero-crossing of Lyapunov exponent)
+# 8. BIFURCATION SCAN (zero‑crossing of Lyapunov exponent)
 # ============================================================
 def bifurcation_scan(
     gammas: List[float],
@@ -216,13 +224,13 @@ def bifurcation_scan(
 
 
 # ============================================================
-# 9. EXAMPLE SYSTEM
+# 9. EXAMPLE SYSTEM & DEMONSTRATION
 # ============================================================
 if __name__ == "__main__":
-    # Define projection onto line y = x
+    # Define projection onto the line y = x
     def project_line(P: np.ndarray) -> np.ndarray:
         x, y = P
-        m = (x + y) / 2
+        m = (x + y) / 2.0
         return np.array([m, m])
 
     # Identity transformation (no additional drift)
@@ -242,6 +250,7 @@ if __name__ == "__main__":
     # Gamma scan
     gammas = np.linspace(0.0, 1.0, 11)
 
+    print("Running bifurcation scan...")
     results = bifurcation_scan(
         gammas, runs=40,
         P0=P0, proj=proj, muF=muF_identity,
@@ -249,8 +258,8 @@ if __name__ == "__main__":
         steps=250, burn_in=30
     )
 
-    print("\nγ | Lyapunov exponent λ | E[V∞]")
+    print("\nγ     | Lyapunov exponent λ | E[V∞]")
     print("----------------------------------------")
     for r in results:
-        mark = " <-- bifurcation region" if abs(r["lyapunov_exponent"]) < 0.02 else ""
-        print(f"{r['gamma']:.3f} | {r['lyapunov_exponent']:+.5f} | {r['asymptotic_mean']:.5f}{mark}")
+        mark = "  <-- bifurcation region" if abs(r["lyapunov_exponent"]) < 0.02 else ""
+        print(f"{r['gamma']:.3f} | {r['lyapunov_exponent']:+.5f}           | {r['asymptotic_mean']:.5f}{mark}")
