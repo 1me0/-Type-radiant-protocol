@@ -1,4 +1,9 @@
+// frontend/src/components/SilenceExplanation.jsx
+// Radiant Protocol – Silence Explanation Component
+// Displays why the system is silent during high uncertainty, with expandable testing details and logs.
+
 import React, { useState, useCallback } from 'react';
+import PropTypes from 'prop-types';
 
 /**
  * Normalize raw distance to 0–1 using a sigmoid function.
@@ -7,9 +12,7 @@ import React, { useState, useCallback } from 'react';
  * @returns {number} normalized uncertainty (0–1)
  */
 const normalizeUncertainty = (distance, steepness = 1.0) => {
-    // sigmoid: 1 / (1 + exp(-steepness * (distance - threshold)))
-    // We assume distance 0 → 0, large distance → 1.
-    // Simple logistic: 1 - exp(-distance) works for distance >=0, giving 0 at 0, 1 at ∞.
+    // 1 - exp(-steepness * distance) maps 0 → 0, ∞ → 1.
     return 1 - Math.exp(-steepness * distance);
 };
 
@@ -23,7 +26,7 @@ const normalizeUncertaintyByMax = (distance, maxDistance = 10.0) => {
 
 /**
  * SilenceExplanation component – shows why the system is silent.
- * 
+ *
  * Props:
  *   uncertaintyRaw: number – raw distance (≥0) from the falsification system.
  *   normalizeMethod: 'sigmoid' or 'max' – method to convert to 0–1 (default 'sigmoid').
@@ -32,13 +35,13 @@ const normalizeUncertaintyByMax = (distance, maxDistance = 10.0) => {
  *   testing: object – details of what is being tested (direction, progress, weight).
  *   log: array of structured log entries – each entry: { timestamp, message, type, icon? }.
  */
-const SilenceExplanation = ({ 
-    uncertaintyRaw = 0.5, 
-    normalizeMethod = 'sigmoid', 
+const SilenceExplanation = ({
+    uncertaintyRaw = 0.5,
+    normalizeMethod = 'sigmoid',
     maxDistance = 10.0,
-    reason = "", 
-    testing = null, 
-    log = [] 
+    reason = '',
+    testing = null,
+    log = [],
 }) => {
     const [expanded, setExpanded] = useState(false);
 
@@ -64,32 +67,44 @@ const SilenceExplanation = ({
     const handleToggle = useCallback((e) => {
         if (e.type === 'keydown' && !(e.key === 'Enter' || e.key === ' ')) return;
         e.preventDefault();
-        setExpanded(prev => !prev);
+        setExpanded((prev) => !prev);
     }, []);
 
     // Helper to get icon for log type
     const getLogIcon = (type) => {
         switch (type) {
-            case 'success': return '✅';
-            case 'warning': return '⚠️';
-            case 'error': return '❌';
-            default: return 'ℹ️';
+            case 'success':
+                return '✅';
+            case 'warning':
+                return '⚠️';
+            case 'error':
+                return '❌';
+            default:
+                return 'ℹ️';
         }
     };
 
     return (
-        <div className="silence-explanation" style={{
-            background: '#1e2a3a',
-            borderRadius: '12px',
-            padding: '12px 16px',
-            margin: '10px 0',
-            color: '#e2e8f0',
-            fontFamily: 'system-ui, sans-serif',
-            fontSize: '0.9rem',
-            borderLeft: `4px solid ${getUncertaintyColor(uncertainty)}`
-        }}>
-            <div 
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+        <div
+            className="silence-explanation"
+            style={{
+                background: '#1e2a3a',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                margin: '10px 0',
+                color: '#e2e8f0',
+                fontFamily: 'system-ui, sans-serif',
+                fontSize: '0.9rem',
+                borderLeft: `4px solid ${getUncertaintyColor(uncertainty)}`,
+            }}
+        >
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                }}
                 onClick={handleToggle}
                 onKeyDown={handleToggle}
                 role="button"
@@ -99,7 +114,9 @@ const SilenceExplanation = ({
             >
                 <div>
                     <span style={{ fontWeight: 'bold' }}>🔇 Silence mode</span>
-                    <span style={{ marginLeft: '12px', fontSize: '0.8rem', opacity: 0.7 }}>Why no response?</span>
+                    <span style={{ marginLeft: '12px', fontSize: '0.8rem', opacity: 0.7 }}>
+                        Why no response?
+                    </span>
                 </div>
                 <div aria-hidden="true">{expanded ? '▲' : '▼'}</div>
             </div>
@@ -108,7 +125,13 @@ const SilenceExplanation = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                     <div>
                         <span style={{ opacity: 0.7 }}>Uncertainty:</span>
-                        <span style={{ marginLeft: '6px', fontWeight: 'bold', color: getUncertaintyColor(uncertainty) }}>
+                        <span
+                            style={{
+                                marginLeft: '6px',
+                                fontWeight: 'bold',
+                                color: getUncertaintyColor(uncertainty),
+                            }}
+                        >
                             {uncertaintyPercent}%
                         </span>
                     </div>
@@ -120,19 +143,44 @@ const SilenceExplanation = ({
                     )}
                 </div>
                 {/* Optional: visual uncertainty bar */}
-                <div style={{ marginTop: '6px', height: '4px', background: '#3a4a5a', borderRadius: '2px' }}>
-                    <div style={{ width: `${uncertaintyPercent}%`, height: '100%', background: getUncertaintyColor(uncertainty), borderRadius: '2px' }} />
+                <div
+                    style={{
+                        marginTop: '6px',
+                        height: '4px',
+                        background: '#3a4a5a',
+                        borderRadius: '2px',
+                    }}
+                >
+                    <div
+                        style={{
+                            width: `${uncertaintyPercent}%`,
+                            height: '100%',
+                            background: getUncertaintyColor(uncertainty),
+                            borderRadius: '2px',
+                        }}
+                    />
                 </div>
             </div>
 
             {expanded && (
-                <div style={{ marginTop: '12px', borderTop: '1px solid #3a4a5a', paddingTop: '10px' }}>
+                <div
+                    style={{
+                        marginTop: '12px',
+                        borderTop: '1px solid #3a4a5a',
+                        paddingTop: '10px',
+                    }}
+                >
                     {testing && (
                         <div style={{ marginBottom: '12px' }}>
                             <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>🧪 Testing</div>
                             <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                                Direction: {testing.direction ? testing.direction.map(v => v.toFixed(2)).join(', ') : '—'}<br />
-                                Progress: {testing.progress || 'searching boundary...'}<br />
+                                Direction:{' '}
+                                {testing.direction
+                                    ? testing.direction.map((v) => v.toFixed(2)).join(', ')
+                                    : '—'}
+                                <br />
+                                Progress: {testing.progress || 'searching boundary...'}
+                                <br />
                                 Weight: {testing.weight?.toFixed(2) || '—'}
                             </div>
                         </div>
@@ -141,11 +189,22 @@ const SilenceExplanation = ({
                     {log.length > 0 && (
                         <div>
                             <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>📋 Recent tests</div>
-                            <div style={{ fontSize: '0.7rem', maxHeight: '150px', overflowY: 'auto', background: '#0f1a24', padding: '6px', borderRadius: '6px' }}>
+                            <div
+                                style={{
+                                    fontSize: '0.7rem',
+                                    maxHeight: '150px',
+                                    overflowY: 'auto',
+                                    background: '#0f1a24',
+                                    padding: '6px',
+                                    borderRadius: '6px',
+                                }}
+                            >
                                 {log.slice(-5).map((entry, idx) => (
                                     <div key={idx} style={{ marginBottom: '4px', fontFamily: 'monospace' }}>
                                         <span style={{ opacity: 0.6 }}>{entry.timestamp || ''}</span>
-                                        {entry.type && <span style={{ marginLeft: '6px' }}>{getLogIcon(entry.type)}</span>}
+                                        {entry.type && (
+                                            <span style={{ marginLeft: '6px' }}>{getLogIcon(entry.type)}</span>
+                                        )}
                                         <span style={{ marginLeft: '6px' }}>{entry.message}</span>
                                     </div>
                                 ))}
@@ -156,6 +215,34 @@ const SilenceExplanation = ({
             )}
         </div>
     );
+};
+
+SilenceExplanation.propTypes = {
+    uncertaintyRaw: PropTypes.number,
+    normalizeMethod: PropTypes.oneOf(['sigmoid', 'max']),
+    maxDistance: PropTypes.number,
+    reason: PropTypes.string,
+    testing: PropTypes.shape({
+        direction: PropTypes.arrayOf(PropTypes.number),
+        progress: PropTypes.string,
+        weight: PropTypes.number,
+    }),
+    log: PropTypes.arrayOf(
+        PropTypes.shape({
+            timestamp: PropTypes.string,
+            type: PropTypes.oneOf(['success', 'warning', 'error', 'info']),
+            message: PropTypes.string,
+        })
+    ),
+};
+
+SilenceExplanation.defaultProps = {
+    uncertaintyRaw: 0.5,
+    normalizeMethod: 'sigmoid',
+    maxDistance: 10.0,
+    reason: '',
+    testing: null,
+    log: [],
 };
 
 export default SilenceExplanation;
