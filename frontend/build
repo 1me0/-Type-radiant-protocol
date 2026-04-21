@@ -1,2 +1,51 @@
-cd frontend
+#!/bin/bash
+# frontend/build.sh
+# Production build script for Radiant Protocol frontend
+# Ensures dependencies are installed, environment is validated, and build succeeds.
+
+set -e  # exit on error
+
+echo "🚀 Starting Radiant Protocol frontend build..."
+
+# Check if Node.js is installed
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js is not installed. Please install Node.js 18 or higher."
+    exit 1
+fi
+
+# Check Node version
+NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_VERSION" -lt 18 ]; then
+    echo "❌ Node.js version $NODE_VERSION detected. Please use Node.js 18 or higher."
+    exit 1
+fi
+
+# Navigate to frontend directory (script assumes it's run from project root or frontend/)
+cd "$(dirname "$0")" || exit 1
+
+echo "📦 Installing dependencies..."
+npm ci --prefer-offline --no-audit --progress=false
+
+# Optional: check for required environment variables
+if [ -f .env.production ]; then
+    echo "🔧 Loading production environment variables"
+    export $(grep -v '^#' .env.production | xargs)
+fi
+
+if [ -z "$REACT_APP_CONTRACT_ADDRESS" ] && [ -f .env.production ]; then
+    echo "⚠️  Warning: REACT_APP_CONTRACT_ADDRESS not set. Build may be incomplete."
+fi
+
+echo "🛠️  Building production bundle..."
 npm run build
+
+# Verify build output
+if [ -d "build" ] && [ -f "build/index.html" ]; then
+    echo "✅ Build successful! Output in ./build"
+    du -sh build
+else
+    echo "❌ Build failed: missing build/index.html"
+    exit 1
+fi
+
+echo "🎉 Radiant Protocol frontend build complete."
