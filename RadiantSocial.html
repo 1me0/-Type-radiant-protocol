@@ -1,261 +1,228 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant Social – CIS Feed & Rewards</title>
+    <title>Radiant Social · Master CID</title>
     <style>
-        * { box-sizing: border-box; font-family: system-ui, sans-serif; }
-        body { background: var(--bg); margin: 0; padding: 20px; --bg: #f0f2f5; --card: white; --text: #1a2a3a; --border: #e2e8f0; transition: 0.2s; }
-        .dark { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --border: #334155; }
-        body.dark { background: var(--bg); }
-        .container { max-width: 800px; margin: auto; background: var(--card); border-radius: 28px; padding: 20px; color: var(--text); border: 1px solid var(--border); }
-        h1 { display: flex; justify-content: space-between; align-items: center; margin-top: 0; }
-        .user-info { background: #eef2ff; padding: 10px 16px; border-radius: 24px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-        .dark .user-info { background: #2d3a4a; }
-        .balance { background: #e8f5e9; padding: 2px 12px; border-radius: 30px; font-weight: bold; color: #2e7d32; }
-        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; }
-        button { background: #1a2a3a; color: white; border: none; padding: 6px 14px; border-radius: 30px; cursor: pointer; }
-        .post { border: 1px solid var(--border); border-radius: 20px; padding: 16px; margin-bottom: 20px; }
-        .post img, .post video { max-width: 100%; border-radius: 16px; margin: 8px 0; }
-        .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
-        .score-input { width: 70px; padding: 4px 8px; border-radius: 30px; border: 1px solid var(--border); background: var(--card); }
-        .badge { font-size: 0.7rem; background: #e6f0ff; border-radius: 20px; padding: 2px 10px; display: inline-block; margin-left: 10px; }
-        .progress-bar { background: #e2e8f0; border-radius: 20px; height: 6px; width: 100%; margin: 8px 0; overflow: hidden; }
-        .progress-fill { background: #2c7a4d; width: 0%; height: 100%; }
-        .flex-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-        textarea, input, select { padding: 8px 12px; border-radius: 30px; border: 1px solid var(--border); background: var(--card); color: var(--text); width: 100%; }
-        textarea { width: 100%; }
+        *{box-sizing:border-box;font-family:system-ui,sans-serif}body{background:#f0f2f5;margin:0;padding:20px;--bg:#f0f2f5;--card:#fff;--text:#1a2a3a;--border:#e2e8f0;transition:0.2s}body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--border:#334155;background:var(--bg)}.container{max-width:800px;margin:auto;background:var(--card);border-radius:28px;padding:24px;color:var(--text);border:1px solid var(--border)}h1{display:flex;justify-content:space-between;margin:0 0 20px}button{background:#1a2a3a;color:#fff;border:none;padding:8px 16px;border-radius:40px;cursor:pointer;font-weight:500}button.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}.user-info{background:#eef2ff;padding:12px 20px;border-radius:40px;display:flex;justify-content:space-between;margin-bottom:24px}.dark .user-info{background:#2d3a4a}.balance{background:#e8f5e9;padding:4px 16px;border-radius:40px;color:#2e7d32}.filter-bar{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}.post{border:1px solid var(--border);border-radius:24px;padding:20px;margin-bottom:20px}.post img,.post video{max-width:100%;border-radius:16px;margin:12px 0}.actions{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:16px}.score-input{width:80px;padding:8px;border-radius:40px;border:1px solid var(--border);background:var(--card);color:var(--text)}.badge{font-size:0.75rem;background:#e6f0ff;border-radius:40px;padding:4px 12px;margin-left:12px}.progress-bar{background:#e2e8f0;border-radius:40px;height:8px;margin:12px 0;overflow:hidden}.progress-fill{background:#2e7d32;height:100%;width:0%}.flex-row{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}textarea,input,select{padding:10px 16px;border-radius:40px;border:1px solid var(--border);background:var(--card);color:var(--text)}textarea{width:100%;resize:vertical}.upload-area{border:2px dashed var(--border);border-radius:40px;padding:16px;text-align:center;cursor:pointer}.upload-area input{display:none}
     </style>
 </head>
 <body>
 <div class="container">
     <h1>📸 Radiant Social <button id="darkToggle">🌙 Dark</button></h1>
-    <div id="userInfo" class="user-info">Loading...</div>
+    <div id="userInfo" class="user-info"></div>
     <div class="filter-bar">
-        <button id="showAll">All Posts</button>
-        <button id="showMine">My Posts</button>
-        <button id="simulateAllBtn" style="background:#8a6a2a;">⚡ Simulate Ratings (first post)</button>
+        <button id="showAll" class="secondary">All</button>
+        <button id="showMine" class="secondary">My</button>
+        <button id="simulateBtn" style="background:#8a6a2a;">⚡ Simulate</button>
+        <button id="setPinataToken" class="secondary">🔑 Set JWT</button>
+        <button id="exportDB" class="secondary">⬇️ Export File</button>
+        <button id="importDB" class="secondary">⬆️ Import File</button>
+        <button id="exportMasterCID" class="secondary">📦 Export Master CID</button>
+        <button id="importFromCID" class="secondary">🔗 Import from CID</button>
     </div>
     <div id="feed"></div>
-    <hr>
+    <hr style="border:0;border-top:1px solid var(--border);margin:24px 0">
     <div class="flex-row">
-        <input type="text" id="mediaUrl" placeholder="Image URL" value="https://picsum.photos/400/200?random=1" style="flex:3">
+        <div class="upload-area" id="dropZone">📁 Click/drop file<input type="file" id="fileInput" accept="image/*,video/*"></div>
         <select id="mediaType"><option value="image">Image</option><option value="video">Video</option></select>
-        <button id="addSample">📷 Sample Post</button>
+        <button id="addSample" class="secondary">📷 Sample</button>
     </div>
     <textarea id="description" rows="2" placeholder="Description"></textarea>
-    <button id="createPost">Post</button>
-    <div class="note" style="font-size:0.7rem; margin-top:12px;">🔓 Demo: 5 high ratings (≥7.5) unlocks post. Each like sends 1 RAD to owner.</div>
+    <button id="createPost" disabled>Post</button>
+    <div style="font-size:0.8rem;margin-top:16px">🔓 5 high ratings (≥7.5) unlock. Like = 1 RAD. JWT in memory only. Master CID recovery.</div>
 </div>
-
 <script>
-    const DB_NAME = "RadiantFeedDB", VERSION = 4;
-    let db, currentFilter = "all", PUBLIC_THRESHOLD = 5;
+(async function(){
+    const DB='RadiantDB',V=8,TH=5,ME='demo_user',GW=['https://ipfs.io/ipfs/','https://cloudflare-ipfs.com/ipfs/','https://dweb.link/ipfs/'];
+    let db,filter='all',pinJWT='',pendCID,pendMeta;
 
-    // helpers
-    const getStore = (name, mode = "readonly") => db.transaction(name, mode).objectStore(name);
-    const getAll = async (store) => { const s = getStore(store); return new Promise(r => { const req = s.getAll(); req.onsuccess = () => r(req.result); }); };
-    const put = (store, obj) => { getStore(store, "readwrite").put(obj); };
-    const del = (store, key) => { getStore(store, "readwrite").delete(key); };
+    // DB helpers
+    async function openDB(){ return new Promise(r=>{ const req=indexedDB.open(DB,V); req.onerror=()=>r(null); req.onsuccess=()=>{db=req.result;r(db)}; req.onupgradeneeded=e=>{ const d=e.target.result; ['users','posts','ratings','likes'].forEach(s=>{if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:s=='posts'||s=='ratings'||s=='likes'?'id':null,autoIncrement:s!='users'});}); }; });}
+    async function tx(s,m='readonly'){ return db.transaction(s,m).objectStore(s); }
+    async function getOne(s,k){ return new Promise(r=>{ const req=tx([s]).get(k); req.onsuccess=()=>r(req.result); }); }
+    async function getAll(s){ return new Promise(r=>{ const req=tx([s]).getAll(); req.onsuccess=()=>r(req.result); }); }
+    async function put(s,i){ const t=db.transaction([s],'readwrite'); t.objectStore(s).put(i); await t.done; }
+    async function clearAll(){ for(const s of ['users','posts','ratings','likes']) await new Promise(r=>{ const t=db.transaction([s],'readwrite'); t.objectStore(s).clear(); t.oncomplete=r; }); }
 
-    async function openDB() {
-        return new Promise((res, rej) => {
-            const req = indexedDB.open(DB_NAME, VERSION);
-            req.onerror = () => rej(req.error);
-            req.onsuccess = () => { db = req.result; res(db); };
-            req.onupgradeneeded = (e) => {
-                const d = e.target.result;
-                if (!d.objectStoreNames.contains("users")) d.createObjectStore("users", { keyPath: "id" });
-                if (!d.objectStoreNames.contains("posts")) d.createObjectStore("posts", { keyPath: "id", autoIncrement: true });
-                if (!d.objectStoreNames.contains("ratings")) d.createObjectStore("ratings", { keyPath: "id", autoIncrement: true });
-                if (!d.objectStoreNames.contains("likes")) d.createObjectStore("likes", { keyPath: ["postId", "userId"] });
-            };
-        });
+    // IPFS helpers
+    async function ipfsUp(file){
+        if(!pinJWT) throw new Error('JWT missing');
+        const f=new FormData(); f.append('file',file);
+        const r=await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS',{method:'POST',headers:{'Authorization':`Bearer ${pinJWT}`},body:f});
+        if(!r.ok) throw new Error(`Pinata ${r.status}`);
+        return (await r.json()).IpfsHash;
     }
+    async function jsonUp(obj){ return ipfsUp(new File([JSON.stringify(obj)],'meta.json')); }
 
-    // users
-    async function ensureUsers() {
-        const users = [
-            { id: "demo_user", name: "Elite Viewer", totalCIS: 1_200_000, balance: 1000 },
-            { id: "alice", name: "Alice", totalCIS: 1_500_000, balance: 1000 },
-            { id: "bob", name: "Bob", totalCIS: 1_300_000, balance: 1000 },
-        ];
-        for (const u of users) if (!(await (getStore("users")).get(u.id))) put("users", u);
-    }
-
-    async function getUser(id) { return (await getStore("users")).get(id); }
-    async function updateBalance(id, delta) { const u = await getUser(id); if (u) { u.balance = (u.balance || 1000) + delta; put("users", u); } }
-
-    // posts
-    async function createPost(userId, url, type, desc) {
-        const post = { userId, mediaUrl: url, mediaType: type, description: desc || "", createdAt: Date.now(), isPublic: false, ratingCount: 0, highScoreCount: 0, likeCount: 0 };
-        const store = getStore("posts", "readwrite");
-        await new Promise(r => { const req = store.add(post); req.onsuccess = r; });
-        renderFeed();
-    }
-
-    async function getPosts() { return await getAll("posts"); }
-    async function updatePost(post) { put("posts", post); }
-
-    // ratings
-    async function addRating(postId, userId, score) {
-        const ratings = await getAll("ratings");
-        if (ratings.some(r => r.postId === postId && r.userId === userId)) return false;
-        const posts = await getPosts();
-        const post = posts.find(p => p.id === postId);
-        if (!post || post.isPublic) return false;
-        const user = await getUser(userId);
-        if (!user || user.totalCIS < 1_000_000) return false;
-        await put("ratings", { postId, userId, cisScore: score, timestamp: Date.now() });
-        post.ratingCount++;
-        if (score >= 7.5) post.highScoreCount++;
-        if (post.highScoreCount >= PUBLIC_THRESHOLD) post.isPublic = true;
-        await updatePost(post);
-        await renderFeed();
-        return true;
-    }
-
-    async function simulateRatings(postId) {
-        const posts = await getPosts();
-        const post = posts.find(p => p.id === postId);
-        if (!post || post.isPublic) return;
-        let needed = PUBLIC_THRESHOLD - post.highScoreCount;
-        if (needed <= 0) return;
-        const users = await getAll("users");
-        let added = 0;
-        const existing = await getAll("ratings");
-        for (const u of users) {
-            if (added >= needed) break;
-            if (existing.some(r => r.postId === postId && r.userId === u.id)) continue;
-            await put("ratings", { postId, userId: u.id, cisScore: 9.0, timestamp: Date.now() });
-            post.ratingCount++;
-            post.highScoreCount++;
-            added++;
+    // Semantic verification: recompute balances from likes
+    function verifyAndFixBalances(data){
+        const users = data.users || [];
+        const likes = data.likes || [];
+        // Build balance deltas per user
+        const deltas = new Map();
+        for(const u of users) deltas.set(u.id, 0);
+        for(const l of likes){
+            deltas.set(l.userId, (deltas.get(l.userId)||0) - 1);
+            const post = (data.posts||[]).find(p=>p.id===l.postId);
+            if(post) deltas.set(post.userId, (deltas.get(post.userId)||0) + 1);
         }
-        if (post.highScoreCount >= PUBLIC_THRESHOLD) post.isPublic = true;
-        await updatePost(post);
-        await renderFeed();
-        alert(`Added ${added} high ratings. Post public: ${post.isPublic}`);
-    }
-
-    // likes
-    async function likePost(postId, userId) {
-        const posts = await getPosts();
-        const post = posts.find(p => p.id === postId);
-        if (!post || !post.isPublic) return alert("Only public posts can be liked.");
-        const likes = await getAll("likes");
-        if (likes.some(l => l.postId === postId && l.userId === userId)) return alert("Already liked.");
-        const liker = await getUser(userId);
-        if ((liker.balance || 1000) < 1) return alert("Insufficient RAD (need 1)");
-        await updateBalance(userId, -1);
-        await updateBalance(post.userId, +1);
-        await put("likes", { postId, userId, timestamp: Date.now() });
-        post.likeCount++;
-        await updatePost(post);
-        await renderFeed();
-        await displayUserInfo();
-    }
-
-    // rendering
-    async function renderFeed() {
-        const currentUser = await getUser("demo_user");
-        let posts = await getPosts();
-        posts.sort((a,b) => b.createdAt - a.createdAt);
-        if (currentFilter === "my") posts = posts.filter(p => p.userId === currentUser.id);
-
-        const feedDiv = document.getElementById('feed');
-        feedDiv.innerHTML = '';
-        for (const post of posts) {
-            let visible = post.userId === currentUser.id || post.isPublic || currentUser.totalCIS >= 1_000_000;
-            if (!visible) continue;
-            const prog = (post.highScoreCount / PUBLIC_THRESHOLD) * 100;
-            const media = post.mediaType === 'image' ? `<img src="${escape(post.mediaUrl)}">` : `<video controls src="${escape(post.mediaUrl)}"></video>`;
-            feedDiv.innerHTML += `
-                <div class="post">
-                    <div><strong>${escape(post.userId)}</strong> <span class="badge">${post.isPublic ? '🔓 Public' : '🔒 Limited'}</span></div>
-                    <div>${escape(post.description)}</div>
-                    ${media}
-                    <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
-                    <div class="actions">
-                        ${!post.isPublic && currentUser.totalCIS >= 1_000_000 ? `
-                            <div style="display:flex; gap:6px; align-items:center;">
-                                <input type="number" step="0.1" min="0" max="10" value="7.5" id="score-${post.id}" class="score-input">
-                                <button data-id="${post.id}" data-action="rate">Rate</button>
-                            </div>
-                        ` : ''}
-                        ${!post.isPublic ? `<button data-id="${post.id}" data-action="simulate">⚡ Simulate Ratings</button>` : ''}
-                        ${post.isPublic ? `<button data-id="${post.id}" data-action="like">❤️ Like (${post.likeCount}) – 1 RAD to owner</button>` : ''}
-                        <div>📊 ${post.ratingCount} ratings | ⭐≥7.5: ${post.highScoreCount}/${PUBLIC_THRESHOLD}</div>
-                    </div>
-                </div>`;
+        let fixed = false;
+        for(const u of users){
+            const computed = 1000 + (deltas.get(u.id)||0);
+            if(u.balance !== computed){
+                u.balance = computed;
+                fixed = true;
+            }
         }
-        document.querySelectorAll('[data-action="rate"]').forEach(btn => {
-            btn.onclick = async () => {
-                const id = parseInt(btn.dataset.id);
-                const inp = document.getElementById(`score-${id}`);
-                const score = parseFloat(inp.value);
-                if (isNaN(score) || score < 0 || score > 10) alert("Score 0-10");
-                else await addRating(id, currentUser.id, score);
-            };
-        });
-        document.querySelectorAll('[data-action="like"]').forEach(btn => {
-            btn.onclick = async () => await likePost(parseInt(btn.dataset.id), currentUser.id);
-        });
-        document.querySelectorAll('[data-action="simulate"]').forEach(btn => {
-            btn.onclick = async () => await simulateRatings(parseInt(btn.dataset.id));
-        });
+        return { data, fixed };
     }
 
-    async function displayUserInfo() {
-        const u = await getUser("demo_user");
-        const bal = u?.balance || 1000;
-        document.getElementById('userInfo').innerHTML = `
-            <span>👤 ${u?.name}</span>
-            <span>🏆 CIS: ${u?.totalCIS?.toLocaleString()}</span>
-            <span class="balance">💰 Balance: ${bal.toFixed(2)} RAD</span>
-        `;
+    // Data init
+    async function ensureUsers(){
+        const us=[{id:ME,name:'Elite',totalCIS:1_200_000,balance:1000},{id:'alice',name:'Alice',totalCIS:1_500_000,balance:1000},{id:'bob',name:'Bob',totalCIS:1_300_000,balance:1000}];
+        for(const u of us) if(!await getOne('users',u.id)) await put('users',u);
     }
+    async function getUser(id){ return await getOne('users',id); }
+    async function updBal(id,d){ const u=await getUser(id); u.balance+=d; await put('users',u); }
 
-    const escape = s => s?.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])) || '';
-
-    // init
-    window.onload = async () => {
-        await openDB();
-        await ensureUsers();
-        // sample posts if empty
-        const posts = await getPosts();
-        if (posts.length === 0) {
-            const demo = await getUser("demo_user");
-            await createPost(demo.id, "https://picsum.photos/400/200?random=2", "image", "Sunset");
-            await createPost(demo.id, "https://picsum.photos/400/200?random=3", "image", "Mountains");
+    async function createPost(uid,mediaCid,metaCid,type,desc){
+        await put('posts',{userId:uid,mediaCid,metaCid,mediaType:type,description:desc||'',createdAt:Date.now(),isPublic:false,ratingCount:0,highScoreCount:0,likeCount:0});
+        render();
+    }
+    async function addRating(pid,uid,score){
+        const u=await getUser(uid); if(!u||u.totalCIS<1_000_000) return alert('Need 1M CIS');
+        const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||p.isPublic) return;
+        if((await getAll('ratings')).some(r=>r.postId===pid&&r.userId===uid)) return alert('Already rated');
+        await put('ratings',{postId:pid,userId:uid,cisScore:score,timestamp:Date.now()});
+        p.ratingCount++; if(score>=7.5) p.highScoreCount++;
+        if(p.highScoreCount>=TH) p.isPublic=true;
+        await put('posts',p); render();
+    }
+    async function simulate(pid){
+        const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||p.isPublic) return;
+        const users=await getAll('users'), ratings=await getAll('ratings');
+        let added=0, need=TH-p.highScoreCount;
+        for(const u of users){
+            if(added>=need) break;
+            if(u.totalCIS<1_000_000||ratings.some(r=>r.postId===pid&&r.userId===u.id)) continue;
+            await put('ratings',{postId:pid,userId:u.id,cisScore:9,timestamp:Date.now()});
+            p.ratingCount++; p.highScoreCount++; added++;
         }
-        await displayUserInfo();
-        await renderFeed();
+        if(p.highScoreCount>=TH) p.isPublic=true;
+        await put('posts',p); render();
+        alert(`Added ${added} ratings. Public: ${p.isPublic}`);
+    }
+    async function like(pid,uid){
+        const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||!p.isPublic) return alert('Not public');
+        if((await getAll('likes')).some(l=>l.postId===pid&&l.userId===uid)) return alert('Already liked');
+        const liker=await getUser(uid); if((liker.balance||0)<1) return alert('Need 1 RAD');
+        await updBal(uid,-1); await updBal(p.userId,1);
+        await put('likes',{postId:pid,userId:uid,timestamp:Date.now()});
+        p.likeCount++; await put('posts',p);
+        render(); updUI();
+    }
 
-        document.getElementById('darkToggle').onclick = () => document.body.classList.toggle('dark');
-        document.getElementById('showAll').onclick = () => { currentFilter = "all"; renderFeed(); };
-        document.getElementById('showMine').onclick = () => { currentFilter = "my"; renderFeed(); };
-        document.getElementById('simulateAllBtn').onclick = async () => {
-            const posts = await getPosts();
-            if (posts.length) await simulateRatings(posts[0].id);
-            else alert("No posts");
-        };
-        document.getElementById('addSample').onclick = async () => {
-            const user = await getUser("demo_user");
-            await createPost(user.id, "https://picsum.photos/400/200?random="+Date.now(), "image", "Sample post");
-        };
-        document.getElementById('createPost').onclick = async () => {
-            const url = document.getElementById('mediaUrl').value.trim();
-            if (!url) return alert("Enter URL");
-            const type = document.getElementById('mediaType').value;
-            const desc = document.getElementById('description').value;
-            const user = await getUser("demo_user");
-            await createPost(user.id, url, type, desc);
-            document.getElementById('mediaUrl').value = '';
-            document.getElementById('description').value = '';
-        };
+    // UI
+    function esc(s){ return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    async function render(){
+        const me=await getUser(ME); if(!me) return;
+        let posts=await getAll('posts'); posts.sort((a,b)=>b.createdAt-a.createdAt);
+        if(filter==='my') posts=posts.filter(p=>p.userId===ME);
+        const feed=document.getElementById('feed'); feed.innerHTML='';
+        for(const p of posts){
+            const prog=Math.min(p.highScoreCount/TH*100,100);
+            const div=document.createElement('div'); div.className='post';
+            div.innerHTML=`<div><strong>${esc(p.userId)}</strong><span class="badge">${p.isPublic?'🔓':'🔒'}</span></div><div>${esc(p.description)}</div>`;
+            const mc=document.createElement('div'); div.appendChild(mc);
+            if(p.mediaCid){
+                const el=p.mediaType==='image'?document.createElement('img'):document.createElement('video');
+                if(p.mediaType==='video') el.controls=true;
+                mc.appendChild(el);
+                (async()=>{ for(const g of GW) try{ await new Promise((res,rej)=>{ el.onload=el.onloadedmetadata=res; el.onerror=rej; el.src=g+p.mediaCid; }); return; }catch{} })();
+            }
+            div.innerHTML+=`<div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div><div>📊 ${p.ratingCount} | ⭐ ${p.highScoreCount}/${TH}</div>`;
+            const acts=document.createElement('div'); acts.className='actions';
+            if(!p.isPublic&&me.totalCIS>=1_000_000&&p.userId!==ME){
+                const inp=document.createElement('input'); inp.type='number'; inp.step='0.1'; inp.min='0'; inp.max='10'; inp.value='7.5'; inp.className='score-input';
+                const btn=document.createElement('button'); btn.textContent='Rate';
+                btn.onclick=()=>{ const s=+inp.value; if(isNaN(s)||s<0||s>10) alert('0-10'); else addRating(p.id,ME,s); };
+                acts.append(inp,btn);
+            }
+            if(!p.isPublic){ const sim=document.createElement('button'); sim.textContent='⚡ Sim'; sim.style.background='#8a6a2a'; sim.onclick=()=>simulate(p.id); acts.appendChild(sim); }
+            if(p.isPublic){ const like=document.createElement('button'); like.textContent=`❤️ ${p.likeCount} -1 RAD`; like.onclick=()=>like(p.id,ME); acts.appendChild(like); }
+            div.appendChild(acts); feed.appendChild(div);
+        }
+    }
+    async function updUI(){ const u=await getUser(ME); document.getElementById('userInfo').innerHTML=`<span>👤 ${esc(u.name)}</span><span>🏆 ${u.totalCIS.toLocaleString()}</span><span class="balance">💰 ${(u.balance||0)} RAD</span>`; }
+
+    // Upload
+    const fi=document.getElementById('fileInput'), dz=document.getElementById('dropZone'), cp=document.getElementById('createPost');
+    async function handleFile(f){
+        if(!f) return; if(!pinJWT) return alert('Set JWT first');
+        cp.disabled=true; cp.textContent='Uploading...';
+        try{
+            const cid=await ipfsUp(f);
+            const meta=await jsonUp({desc:document.getElementById('description').value,ts:Date.now(),mediaCid:cid,type:document.getElementById('mediaType').value});
+            pendCID=cid; pendMeta=meta; cp.disabled=false; cp.textContent='Post';
+            dz.style.borderColor='#2e7d32'; dz.innerHTML=`✅ ${f.name} (${cid.slice(0,8)}…)`;
+        }catch(e){ alert(e.message); cp.disabled=true; cp.textContent='Post'; }
+    }
+    dz.onclick=()=>fi.click(); dz.ondragover=e=>{e.preventDefault();dz.style.background='rgba(0,0,0,0.05)';}; dz.ondragleave=()=>dz.style.background='';
+    dz.ondrop=e=>{e.preventDefault();dz.style.background=''; handleFile(e.dataTransfer.files[0]);};
+    fi.onchange=()=>handleFile(fi.files[0]);
+    cp.onclick=async()=>{
+        if(!pendCID) return alert('Upload file');
+        await createPost(ME,pendCID,pendMeta,document.getElementById('mediaType').value,document.getElementById('description').value);
+        pendCID=pendMeta=null; fi.value=''; dz.innerHTML='📁 Click/drop file<input type="file" id="fileInput" accept="image/*,video/*">'; dz.style.borderColor='';
+        cp.disabled=true; cp.textContent='Post'; document.getElementById('description').value='';
     };
+
+    // Export/Import with verification
+    async function getFullSnapshot(){ return {users:await getAll('users'),posts:await getAll('posts'),ratings:await getAll('ratings'),likes:await getAll('likes')}; }
+    async function exportFile(){ const d=await getFullSnapshot(); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)])); a.download=`radiant_${Date.now()}.json`; a.click(); }
+    async function importData(data){
+        const { data: verified, fixed } = verifyAndFixBalances(JSON.parse(JSON.stringify(data))); // deep copy
+        if(fixed) alert('⚠️ Balances were corrected during import.');
+        await clearAll();
+        for(const s of ['users','posts','ratings','likes']) for(const i of verified[s]||[]) await put(s,i);
+        location.reload();
+    }
+    async function importFile(f){ const t=await f.text(); await importData(JSON.parse(t)); }
+    async function exportMasterCID(){
+        if(!pinJWT) return alert('Set JWT first');
+        const snap = await getFullSnapshot();
+        const cid = await jsonUp(snap);
+        alert(`Master CID: ${cid}\n\nSave this CID to restore your entire account.`);
+    }
+    async function importFromCID(){
+        const cid = prompt('Enter Master CID:');
+        if(!cid) return;
+        try{
+            const resp = await fetch(`https://ipfs.io/ipfs/${cid}`);
+            if(!resp.ok) throw new Error('Fetch failed');
+            const data = await resp.json();
+            await importData(data);
+        }catch(e){ alert('Import failed: '+e.message); }
+    }
+
+    // Init
+    await openDB(); await ensureUsers();
+    if((await getAll('posts')).length===0) await put('posts',{userId:ME,mediaCid:'QmZ4tDuvesekSs4aJ1P5n9kNR4eB3B2E3Pp7QFpNcNYfVq',metaCid:'',mediaType:'image',description:'Welcome! Set JWT to upload.',createdAt:Date.now(),isPublic:false,ratingCount:0,highScoreCount:0,likeCount:0});
+    await updUI(); await render();
+
+    document.getElementById('darkToggle').onclick=()=>document.body.classList.toggle('dark');
+    document.getElementById('showAll').onclick=()=>{filter='all';render();};
+    document.getElementById('showMine').onclick=()=>{filter='my';render();};
+    document.getElementById('simulateBtn').onclick=async()=>{ const p=await getAll('posts'); if(p.length) simulate(p[0].id); };
+    document.getElementById('setPinataToken').onclick=()=>{ const t=prompt('Pinata JWT (memory only):'); if(t) pinJWT=t; };
+    document.getElementById('exportDB').onclick=exportFile;
+    document.getElementById('importDB').onclick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='.json'; i.onchange=e=>importFile(e.target.files[0]); i.click(); };
+    document.getElementById('exportMasterCID').onclick=exportMasterCID;
+    document.getElementById('importFromCID').onclick=importFromCID;
+    document.getElementById('addSample').onclick=async()=>{ if(!pinJWT) return alert('Set JWT'); const cid='QmZ4tDuvesekSs4aJ1P5n9kNR4eB3B2E3Pp7QFpNcNYfVq'; const meta=await jsonUp({desc:'Sample',ts:Date.now(),mediaCid:cid,type:'image'}); await createPost(ME,cid,meta,'image','Pinned sample'); };
+})();
 </script>
 </body>
 </html>
