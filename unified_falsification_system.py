@@ -13,7 +13,7 @@ License: MIT
 
 import numpy as np
 from scipy.optimize import linprog
-from typing import List, Tuple, Optional, Dict, Union
+from typing import List, Tuple, Optional, Dict, Union, Any
 import warnings
 
 
@@ -68,7 +68,7 @@ class SurvivabilityKernel:
         Args:
             dim: Dimension of the state space.
             epsilon: Safety margin added to each constraint.
-            weight_decay: Exponential decay factor for failure weights.
+            weight_decay: Exponential decay factor for failure weights (future use).
         """
         self.dim = dim
         self.epsilon = epsilon
@@ -80,13 +80,17 @@ class SurvivabilityKernel:
         self._cache_valid: bool = False
 
     def add_constraint(self, normal: np.ndarray, boundary_point: np.ndarray, weight: float = 1.0) -> None:
-        """Add a half‑space constraint derived from a failure boundary."""
+        """
+        Add a half‑space constraint derived from a failure boundary.
+        The constraint is: normal · P ≤ normal · boundary_point - epsilon.
+        """
         normal = normalize(normal)
         bound = np.dot(normal, boundary_point) - self.epsilon
         self.constraints.append((normal, bound))
 
+        # Track failure weight for this direction
         key = tuple(np.round(normal, 6))
-        self._failure_weights[key] = self._failure_weights.get(key, 0) + weight
+        self._failure_weights[key] = self._failure_weights.get(key, 0.0) + weight
 
         # Maintain orthonormal basis (for efficient independence checks)
         self._basis = orthogonalize([normal] + self._basis)
@@ -121,7 +125,7 @@ class SurvivabilityKernel:
     def chebyshev_center(self, force_recompute: bool = False) -> np.ndarray:
         """
         Compute the Chebyshev center (center of largest inscribed ball) by solving a linear program.
-        Caches result.
+        Caches result. If LP fails, falls back to projecting the zero vector.
         """
         if self._cache_valid and not force_recompute:
             return self._cached_center
@@ -171,19 +175,18 @@ class Interpretation:
         if rng is None:
             rng = np.random.default_rng()
         self.W = rng.normal(0, 0.1, size=(dim, dim))
+        self._z: Optional[np.ndarray] = None  # cached for gradient computation
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """Forward pass: tanh(W @ x)."""
-        z = self.W @ x
-        self._z = z                     # cache for gradient computation
-        return np.tanh(z)
+        self._z = self.W @ x
+        return np.tanh(self._z)
 
     def backward(self, grad_output: np.ndarray, x: np.ndarray) -> np.ndarray:
         """
         Compute gradient of loss w.r.t. W given gradient w.r.t. output (dL/dP).
         dL/dW = (dL/dP * (1 - tanh(z)^2)) @ x^T
         """
-        # derivative of tanh is 1 - tanh(z)^2
         tanh_z = np.tanh(self._z)
         dtanh = 1.0 - tanh_z * tanh_z
         grad_z = grad_output * dtanh
@@ -258,7 +261,7 @@ class UnifiedFalsificationSystem:
     Main engine integrating interpretation, kernel learning, and falsification.
     """
 
-    def __init__(self, system, kernel: SurvivabilityKernel, dim: int, seed: Optional[int] = None):
+    def __init__(self, system: Any, kernel: SurvivabilityKernel, dim: int, seed: Optional[int] = None):
         """
         Args:
             system: Object with method `failure(state) -> bool`.
@@ -302,11 +305,11 @@ class UnifiedFalsificationSystem:
         t_max = 10.0 * (1.0 + weight)
         steps = 25 + int(10 * weight)
 
-        t_low, t_high = 0.0, t_max
         # Check if failure occurs at t_max
-        if not self.system.failure(self.seed_state + t_high * direction):
+        if not self.system.failure(self.seed_state + t_max * direction):
             return None
 
+        t_low, t_high = 0.0, t_max
         for _ in range(steps):
             t_mid = (t_low + t_high) / 2.0
             P_mid = self.seed_state + t_mid * direction
@@ -319,7 +322,7 @@ class UnifiedFalsificationSystem:
         self.kernel.add_constraint(direction, boundary, weight=1.0)
         return boundary
 
-    def step(self, x: np.ndarray, target: Optional[np.ndarray] = None) -> Dict:
+    def step(self, x: np.ndarray, target: Optional[np.ndarray] = None) -> Dict[str, Any]:
         """
         One step of the system: interpret input, decide action, update state.
 
