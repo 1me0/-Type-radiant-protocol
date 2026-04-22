@@ -1,11 +1,14 @@
-\documentclass{article}
+\documentclass[11pt]{article}
 
 % ============================================================
 % Packages
 % ============================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 \usepackage{amsmath, amssymb, amsthm}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{microtype}
 \usepackage{hyperref}
 \usepackage{enumitem}
 \usepackage[margin=1in]{geometry}
@@ -21,9 +24,9 @@
 \newtheorem{corollary}[theorem]{Corollary}
 
 % ============================================================
-% Title
+% Title and Author
 % ============================================================
-\title{Radiant sCIS: A Semantic Metric for Real‑Time Measurement of Coherence, Alignment, and Meaning Drift}
+\title{\textbf{Radiant sCIS:} A Semantic Metric for Real‑Time Measurement of Coherence, Alignment, and Meaning Drift}
 
 \author{Anonymous Authors}
 
@@ -311,22 +314,22 @@ We introduced sCIS, a semantic metric for measuring coherence and meaning preser
 \begin{thebibliography}{9}
 
 \bibitem{reimers2019sentence}
-N. Reimers and I. Gurevych.
+N.~Reimers and I.~Gurevych.
 \newblock Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks.
 \newblock \emph{Proc. of EMNLP-IJCNLP}, 2019.
 
 \bibitem{bertscore}
-T. Zhang, V. Kishore, F. Wu, K. Q. Weinberger, and Y. Artzi.
+T.~Zhang, V.~Kishore, F.~Wu, K.~Q. Weinberger, and Y.~Artzi.
 \newblock BERTScore: Evaluating Text Generation with BERT.
 \newblock \emph{ICLR}, 2020.
 
 \bibitem{bleu}
-K. Papineni, S. Roukos, T. Ward, and W.-J. Zhu.
+K.~Papineni, S.~Roukos, T.~Ward, and W.-J.~Zhu.
 \newblock BLEU: a Method for Automatic Evaluation of Machine Translation.
 \newblock \emph{Proc. of ACL}, 2002.
 
 \bibitem{lin2004rouge}
-C.-Y. Lin.
+C.-Y.~Lin.
 \newblock ROUGE: A Package for Automatic Evaluation of Summaries.
 \newblock \emph{Text Summarization Branches Out}, ACL Workshop, 2004.
 
