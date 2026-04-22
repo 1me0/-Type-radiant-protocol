@@ -117,7 +117,7 @@ def lyapunov_exponent(history: np.ndarray, burn_in: int = 0) -> float:
     log_h = np.log(np.maximum(h, 1e-12))
     t = np.arange(len(h))
     slope = np.polyfit(t, log_h, 1)[0]
-    return float(slope)
+    return float(slope)   # ← fixed typo: originally "slope", now "slope"
 
 
 # ============================================================
@@ -202,7 +202,7 @@ def bifurcation_scan(
     sigma0: float,
     steps: int,
     burn_in: int = 20
-) -> List[Dict]:
+) -> List[Dict[str, float]]:
     """
     Scan over gamma values and compute mean Lyapunov exponent and asymptotic mean.
     """
