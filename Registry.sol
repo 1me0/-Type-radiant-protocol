@@ -1,37 +1,37 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 /**
  * @title Registry
- * @notice Stores canonical contract addresses for the Radiant Protocol.
- *         Only the owner can update addresses. Designed to be transparent and safe.
+ * @notice Canonical address storage for Radiant Protocol components.
+ * @dev Uses OpenZeppelin's Ownable for access control. All updates are
+ *      guarded by the `onlyOwner` modifier. Emits indexed events for
+ *      transparent tracking.
  */
-contract Registry {
-    address public owner;
+contract Registry is Ownable {
+    /// @notice Mapping from component key to its deployed address.
     mapping(string => address) public addresses;
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    /// @notice Emitted when a component address is updated.
+    /// @param key The component identifier (e.g., "RadiantShares").
+    /// @param oldAddress The previous address stored under the key.
+    /// @param newAddress The new address assigned.
     event AddressSet(string indexed key, address indexed oldAddress, address indexed newAddress);
 
     /**
-     * @dev Constructor sets the initial owner.
-     * @param initialOwner The address that will own the registry (cannot be zero).
+     * @dev Initializes the contract with the initial owner.
+     * @param initialOwner The address that will own the registry.
      */
-    constructor(address initialOwner) {
-        require(initialOwner != address(0), "Registry: initial owner is zero");
-        owner = initialOwner;
-        emit OwnershipTransferred(address(0), initialOwner);
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Registry: not owner");
-        _;
+    constructor(address initialOwner) Ownable(initialOwner) {
+        // OpenZeppelin Ownable handles zero address check and event emission.
     }
 
     /**
-     * @dev Set the contract address for a given key.
-     * @param key Unique identifier (e.g., "RadiantShares", "Radiant", "ArchitectFee")
-     * @param addr The contract address (cannot be zero)
+     * @notice Set the contract address for a given component key.
+     * @param key Unique identifier (e.g., "RadiantShares", "Radiant").
+     * @param addr The deployed contract address (must not be zero).
      */
     function setAddress(string calldata key, address addr) external onlyOwner {
         require(addr != address(0), "Registry: zero address");
@@ -41,30 +41,36 @@ contract Registry {
     }
 
     /**
-     * @dev Get the contract address for a given key.
-     * @param key Unique identifier
-     * @return The stored address (may be zero if not set)
+     * @notice Batch set multiple addresses in a single transaction.
+     * @param keys Array of component identifiers.
+     * @param addrs Array of corresponding addresses (same length as keys).
+     */
+    function setAddresses(string[] calldata keys, address[] calldata addrs) external onlyOwner {
+        require(keys.length == addrs.length, "Registry: length mismatch");
+        for (uint256 i = 0; i < keys.length; i++) {
+            require(addrs[i] != address(0), "Registry: zero address in batch");
+            address old = addresses[keys[i]];
+            addresses[keys[i]] = addrs[i];
+            emit AddressSet(keys[i], old, addrs[i]);
+        }
+    }
+
+    /**
+     * @notice Retrieve the address for a given component key.
+     * @param key Unique identifier.
+     * @return The stored address (zero if never set).
      */
     function getAddress(string calldata key) external view returns (address) {
         return addresses[key];
     }
 
     /**
-     * @dev Transfer ownership to a new address (immediate).
-     * @param newOwner The new owner (cannot be zero)
+     * @notice Remove a component entry (set address to zero).
+     * @param key The component identifier to remove.
      */
-    function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "Registry: new owner is zero");
-        emit OwnershipTransferred(owner, newOwner);
-        owner = newOwner;
-    }
-
-    /**
-     * @dev Renounce ownership (use with extreme caution).
-     *      After renouncing, no one can update addresses.
-     */
-    function renounceOwnership() external onlyOwner {
-        emit OwnershipTransferred(owner, address(0));
-        owner = address(0);
+    function removeAddress(string calldata key) external onlyOwner {
+        address old = addresses[key];
+        delete addresses[key];
+        emit AddressSet(key, old, address(0));
     }
 }
