@@ -7,18 +7,18 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
- * @title RadiantSharesUltimate
+ * @title RadiantShares
  * @dev ERC20 token with:
  *      - Max supply (100M)
  *      - 50/50 mint split (architect / treasury)
- *      - 1% transfer tax (configurable, max 5%) to architect (perpetual income)
+ *      - Configurable transfer tax (≤5%) to architect (perpetual income)
  *      - Tax exempt for architect and treasury wallets
- *      - Timelock on minting (2 days)
- *      - Timelock on address changes (2 days)
+ *      - Timelocked mint proposals (2 days)
+ *      - Timelocked address changes (2 days)
  *      - Pausable (emergency stop)
- *      - No renounceAdmin – governance can be delegated to multi-sig
+ *      - Admin role cannot be renounced
  */
-contract RadiantSharesUltimate is ERC20, AccessControl, ReentrancyGuard, Pausable {
+contract RadiantShares is ERC20, AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
@@ -63,9 +63,10 @@ contract RadiantSharesUltimate is ERC20, AccessControl, ReentrancyGuard, Pausabl
     event MintTimelockCancelled(bytes32 indexed id);
     event MintWithReceiver(address indexed minter, address indexed receiver, uint256 amount);
     event EmergencyMint(address indexed governor, address indexed recipient, uint256 amount);
-    event Paused(address indexed account);
-    event Unpaused(address indexed account);
 
+    /**
+     * @dev Constructor sets initial wallets, tax, and roles.
+     */
     constructor(
         string memory name,
         string memory symbol,
@@ -118,10 +119,12 @@ contract RadiantSharesUltimate is ERC20, AccessControl, ReentrancyGuard, Pausabl
     // ==================== Pausable ====================
     function pause() external onlyGovernor {
         _pause();
+        emit Paused(msg.sender);
     }
 
     function unpause() external onlyGovernor {
         _unpause();
+        emit Unpaused(msg.sender);
     }
 
     // ==================== Transfer Tax Management ====================
@@ -243,5 +246,13 @@ contract RadiantSharesUltimate is ERC20, AccessControl, ReentrancyGuard, Pausabl
         emit ProtocolTreasuryExecuted(protocolTreasury);
     }
 
-    // ==================== No renounceAdmin – admin remains ====================
+    // ==================== Prevent Renounce of Admin Role ====================
+    /**
+     * @dev Override renounceRole to prevent renouncing the DEFAULT_ADMIN_ROLE.
+     * Governance must always retain at least one admin.
+     */
+    function renounceRole(bytes32 role, address account) public virtual override {
+        require(role != DEFAULT_ADMIN_ROLE, "Cannot renounce admin role");
+        super.renounceRole(role, account);
+    }
 }
