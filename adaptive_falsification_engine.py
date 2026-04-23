@@ -14,16 +14,17 @@ License: MIT
 
 import numpy as np
 from scipy.optimize import linprog
-from typing import List, Tuple, Optional, Callable, Dict, Any
+from typing import List, Tuple, Optional, Callable, Dict, Any, Union
 import warnings
+
 
 # ============================================================
 # UTILITIES
 # ============================================================
-def normalize(v: np.ndarray) -> np.ndarray:
+def normalize(v: np.ndarray, tol: float = 1e-12) -> np.ndarray:
     """Return unit vector in the same direction; zero vector unchanged."""
     norm = np.linalg.norm(v)
-    if norm < 1e-12:
+    if norm < tol:
         return v
     return v / norm
 
@@ -33,10 +34,10 @@ def is_independent(d: np.ndarray, basis: List[np.ndarray], tol: float = 1e-6) ->
     Check if direction d is linearly independent of the orthonormal basis.
     For an orthonormal basis, independence ⇔ projection residual > tol.
     """
+    w = d.copy()
     for b in basis:
-        if abs(np.dot(d, b)) > tol:
-            return False
-    return True
+        w -= np.dot(w, b) * b
+    return np.linalg.norm(w) > tol
 
 
 def orthogonalize(vectors: List[np.ndarray]) -> List[np.ndarray]:
@@ -46,8 +47,9 @@ def orthogonalize(vectors: List[np.ndarray]) -> List[np.ndarray]:
         w = v.copy()
         for b in basis:
             w -= np.dot(w, b) * b
-        if np.linalg.norm(w) > 1e-8:
-            basis.append(normalize(w))
+        norm = np.linalg.norm(w)
+        if norm > 1e-8:
+            basis.append(w / norm)
     return basis
 
 
@@ -189,7 +191,7 @@ class SurvivabilityKernel:
         self.weight_decay = weight_decay
         self.constraints: List[Tuple[np.ndarray, float]] = []
         self._basis: List[np.ndarray] = []
-        self._failure_weights: Dict[Tuple, float] = {}
+        self._failure_weights: Dict[Tuple[float, ...], float] = {}
         self._cached_center: Optional[np.ndarray] = None
         self._cache_valid: bool = False
 
@@ -200,7 +202,7 @@ class SurvivabilityKernel:
         self.constraints.append((normal, bound))
 
         key = tuple(np.round(normal, 6))
-        self._failure_weights[key] = self._failure_weights.get(key, 0) + weight
+        self._failure_weights[key] = self._failure_weights.get(key, 0.0) + weight
 
         self._basis = orthogonalize([normal] + self._basis)
         self._cache_valid = False
@@ -209,6 +211,7 @@ class SurvivabilityKernel:
         """Apply exponential decay to all failure weights."""
         for k in list(self._failure_weights.keys()):
             self._failure_weights[k] *= self.weight_decay
+        # Remove negligible weights
         self._failure_weights = {k: v for k, v in self._failure_weights.items() if v > 1e-6}
 
     def get_weight(self, d: np.ndarray) -> float:
@@ -216,10 +219,10 @@ class SurvivabilityKernel:
         d = normalize(d)
         key = tuple(np.round(d, 6))
         key_neg = tuple(np.round(-d, 6))
-        return max(self._failure_weights.get(key, 0), self._failure_weights.get(key_neg, 0))
+        return max(self._failure_weights.get(key, 0.0), self._failure_weights.get(key_neg, 0.0))
 
     def is_safe(self, P: np.ndarray) -> bool:
-        """Check if point satisfies all constraints."""
+        """Check if point satisfies all constraints (with numerical tolerance)."""
         return all(np.dot(n, P) <= b + 1e-9 for n, b in self.constraints)
 
     def project(self, P: np.ndarray, max_iter: int = 50, tol: float = 1e-8) -> np.ndarray:
@@ -239,6 +242,7 @@ class SurvivabilityKernel:
     def chebyshev_center(self, force_recompute: bool = False) -> np.ndarray:
         """
         Compute the Chebyshev center (center of largest inscribed ball) via linear programming.
+        Caches result.
         """
         if self._cache_valid and not force_recompute:
             return self._cached_center
@@ -250,7 +254,7 @@ class SurvivabilityKernel:
 
         # Variables: [P, r] where r is the radius (maximise r)
         c = np.zeros(self.dim + 1)
-        c[-1] = -1   # maximise r
+        c[-1] = -1.0  # maximise r
 
         A_ub = []
         b_ub = []
@@ -259,8 +263,8 @@ class SurvivabilityKernel:
             A_ub.append(row)
             b_ub.append(b)
         # r >= 0
-        A_ub.append(np.append(np.zeros(self.dim), -1))
-        b_ub.append(0)
+        A_ub.append(np.append(np.zeros(self.dim), -1.0))
+        b_ub.append(0.0)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -293,7 +297,10 @@ class FalsificationExplorer:
     def __init__(
         self,
         failure_func: Callable[[np.ndarray], bool],
-        simulate_func: Callable,
+        simulate_func: Union[
+            Callable[[np.ndarray, np.ndarray, float], np.ndarray],  # linear
+            Callable[[np.ndarray, np.ndarray], np.ndarray]           # local
+        ],
         dim: int,
         simulation_type: str = "linear",
         stochastic_trials: int = 1,
@@ -308,13 +315,13 @@ class FalsificationExplorer:
         self.stochastic_trials = stochastic_trials
         self.dim = dim
         self.kernel = SurvivabilityKernel(dim, weight_decay=weight_decay)
-        self._seed_state: Optional[np.ndarray] = None
+        self._seed_state: np.ndarray = np.zeros(dim)  # will be set in run()
         self._rng = np.random.default_rng(seed)
 
     def _get_initial_safe_state(self, max_attempts: int = 100) -> np.ndarray:
         """Find a random safe state; fallback to zero."""
         for _ in range(max_attempts):
-            P = self._rng.normal(0, 5.0, self.dim)
+            P = self._rng.normal(0.0, 5.0, self.dim)
             if not self.failure(P):
                 return P
         return np.zeros(self.dim)
@@ -325,11 +332,12 @@ class FalsificationExplorer:
         for direction in (d_norm, -d_norm):
             weight = self.kernel.get_weight(direction)
             if self.sim_type == "linear":
-                t_max = 10.0 * (1 + weight)
+                t_max = 10.0 * (1.0 + weight)
                 refine_iter = 20 + int(10 * weight)
 
-                def sim_linear(P, dir_vec, t):
-                    return self.simulate_func(P, dir_vec, t)
+                def sim_linear(P: np.ndarray, dir_vec: np.ndarray, t: float) -> np.ndarray:
+                    # simulate_func is assumed to have signature (P, d, t)
+                    return self.simulate_func(P, dir_vec, t)  # type: ignore[call-arg]
 
                 boundary = find_failure_boundary_linear(
                     self.failure,
@@ -343,7 +351,7 @@ class FalsificationExplorer:
             else:  # local
                 boundary = find_failure_boundary_local(
                     self.failure,
-                    self.simulate_func,
+                    self.simulate_func,  # type: ignore[arg-type]
                     self._seed_state,
                     direction,
                     weight=weight,
@@ -355,13 +363,14 @@ class FalsificationExplorer:
             if boundary is not None:
                 self.kernel.add_constraint(direction, boundary, weight=1.0)
 
-    def run(self, iterations: int = 100, reset_every: int = 10) -> SurvivabilityKernel:
+    def run(self, iterations: int = 100, reset_every: int = 10, verbose: bool = False) -> SurvivabilityKernel:
         """
         Main exploration loop.
 
         Args:
             iterations: Total number of random direction attempts.
             reset_every: After this many direction probes, reset origin to Chebyshev center.
+            verbose: If True, print progress updates.
         Returns:
             The final SurvivabilityKernel.
         """
@@ -369,7 +378,7 @@ class FalsificationExplorer:
         self.kernel.decay_weights()  # initial decay
 
         for i in range(iterations):
-            d = normalize(self._rng.normal(0, 1, self.dim))
+            d = normalize(self._rng.normal(0.0, 1.0, self.dim))
 
             if is_independent(d, self.kernel._basis):
                 self._probe_direction(d)
@@ -379,7 +388,8 @@ class FalsificationExplorer:
                 if not self.kernel.is_safe(center):
                     center = self.kernel.project(center)
                 self._seed_state = center
-                print(f"[{i}] Reset → center norm: {np.linalg.norm(center):.4f}")
+                if verbose:
+                    print(f"[{i+1}] Reset → center norm: {np.linalg.norm(center):.4f}")
                 self.kernel.decay_weights()
 
         return self.kernel
@@ -391,7 +401,7 @@ class FalsificationExplorer:
 if __name__ == "__main__":
     # Define a simple nonlinear system: failure if norm > 10
     def failure_func(P: np.ndarray) -> bool:
-        return np.linalg.norm(P) > 10.0
+        return bool(np.linalg.norm(P) > 10.0)
 
     def local_step(P: np.ndarray, delta: np.ndarray) -> np.ndarray:
         return P + delta
@@ -409,7 +419,7 @@ if __name__ == "__main__":
         seed=42,
     )
 
-    kernel = explorer.run(iterations=200, reset_every=20)
+    kernel = explorer.run(iterations=200, reset_every=20, verbose=True)
 
     # Test points
     test_points = [np.array([5.0, 0.0]), np.array([9.0, 0.0]), np.array([11.0, 0.0])]
