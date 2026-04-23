@@ -8,15 +8,15 @@ pragma solidity ^0.8.19;
  *         are derived from the refusal capacity ratio.
  *
  * @dev This library provides pure functions that mirror the mathematical
- *      axioms and theorems of the Radiant Protocol’s metaphysical foundation.
+ *      axioms and theorems of the Radiant Protocol's metaphysical foundation.
  *      All functions are deterministic and gas‑efficient.
  *
  *      ⚠️ **Overflow safety**: The `power` and `democracyIntegral` functions use
  *      multiplication with `SCALE = 1e18`. For extremely large refusal capacities
- *      (e.g., > 2^256 / 1e18), they may revert due to overflow. In typical
- *      applications (refusal capacities in token amounts or reputation scores),
- *      this is safe. If larger values are expected, consider using a smaller
- *      scaling factor or a checked math library.
+ *      (e.g., > type(uint256).max / 1e18), they may revert due to overflow.
+ *      In typical applications (refusal capacities in token amounts or reputation
+ *      scores), this is safe. If larger values are expected, consider using a
+ *      smaller scaling factor or a checked math library.
  */
 library RadiantIdentity {
     /// @dev The one substance, represented as a constant hash.
@@ -37,6 +37,7 @@ library RadiantIdentity {
      * @return Always true.
      */
     function isIdentity(address x) external pure returns (bool) {
+        // The input is intentionally unused to reflect the axiom.
         return true;
     }
 
@@ -49,7 +50,10 @@ library RadiantIdentity {
      */
     function selfDifference(uint256 x) external pure returns (uint256) {
         require(x != 0, "RadiantIdentity: division by zero");
-        return x / x; // Always 1
+        unchecked {
+            // In Solidity 0.8+, division is checked, but we use unchecked for minor gas savings.
+            return x / x; // Always 1
+        }
     }
 
     // ============================================================
@@ -65,7 +69,10 @@ library RadiantIdentity {
      * @return True if |x - y| ≤ tolerance.
      */
     function areEqual(uint256 x, uint256 y, uint256 tolerance) external pure returns (bool) {
-        return (x > y ? x - y : y - x) <= tolerance;
+        unchecked {
+            uint256 diff = x > y ? x - y : y - x;
+            return diff <= tolerance;
+        }
     }
 
     /**
@@ -79,6 +86,7 @@ library RadiantIdentity {
     function power(uint256 refusalX, uint256 refusalY) external pure returns (int256) {
         uint256 sum = refusalX + refusalY;
         if (sum == 0) return 0;
+        // Safe casting because both are uint256 and fit in int256.
         int256 diff = int256(refusalX) - int256(refusalY);
         // Returns (diff * SCALE) / sum, using integer division (rounded toward zero).
         return (diff * int256(SCALE)) / int256(sum);
@@ -92,15 +100,20 @@ library RadiantIdentity {
      * @param stateRefusal Refusal capacity of the state.
      * @return Democracy index scaled by 1e18 (range [0, 1e18]).
      */
-    function democracyIntegral(uint256[] calldata citizenRefusal, uint256 stateRefusal) external pure returns (uint256) {
+    function democracyIntegral(
+        uint256[] calldata citizenRefusal,
+        uint256 stateRefusal
+    ) external pure returns (uint256) {
         uint256 n = citizenRefusal.length;
         if (n == 0) return SCALE; // Full democracy by definition
 
-        uint256 total = 0;
-        for (uint256 i = 0; i < n; i++) {
-            uint256 denominator = citizenRefusal[i] + stateRefusal;
-            if (denominator > 0) {
-                total += (citizenRefusal[i] * SCALE) / denominator;
+        uint256 total;
+        unchecked {
+            for (uint256 i = 0; i < n; i++) {
+                uint256 denominator = citizenRefusal[i] + stateRefusal;
+                if (denominator > 0) {
+                    total += (citizenRefusal[i] * SCALE) / denominator;
+                }
             }
         }
         return total / n;
