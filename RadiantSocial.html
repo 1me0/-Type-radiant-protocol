@@ -1,201 +1,81 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Radiant Social</title>
-    <style>
-        *{box-sizing:border-box;font-family:system-ui}body{background:#f0f2f5;margin:0;padding:20px;--bg:#f0f2f5;--card:#fff;--text:#1a2a3a;--border:#e2e8f0}body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--border:#334155;background:var(--bg)}.container{max-width:800px;margin:auto;background:var(--card);border-radius:28px;padding:24px;color:var(--text);border:1px solid var(--border)}h1{display:flex;justify-content:space-between}button{background:#1a2a3a;color:#fff;border:none;padding:8px 16px;border-radius:40px;cursor:pointer}.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}.user-info{background:#eef2ff;padding:12px 20px;border-radius:40px;display:flex;justify-content:space-between;margin-bottom:24px}.dark .user-info{background:#2d3a4a}.balance{background:#e8f5e9;padding:4px 16px;border-radius:40px;color:#2e7d32}.filter-bar{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}.post{border:1px solid var(--border);border-radius:24px;padding:20px;margin-bottom:20px}.post img,.post video{max-width:100%;border-radius:16px}.actions{display:flex;gap:16px;margin-top:16px}.score-input{width:80px;padding:8px;border-radius:40px;border:1px solid var(--border)}.badge{font-size:.75rem;background:#e6f0ff;border-radius:40px;padding:4px 12px;margin-left:12px}.progress-bar{background:#e2e8f0;border-radius:40px;height:8px;margin:12px 0}.progress-fill{background:#2e7d32;height:100%;width:0%}.flex-row{display:flex;gap:12px;margin:16px 0}textarea,input,select{padding:10px 16px;border-radius:40px;border:1px solid var(--border);background:var(--card);color:var(--text)}.upload-area{border:2px dashed var(--border);border-radius:40px;padding:16px;text-align:center;cursor:pointer}.upload-area input{display:none}
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13/dist/ethers.umd.min.js"></script>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Radiant Social</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui}body{background:#f0f2f5;margin:0;padding:20px;--bg:#f0f2f5;--card:#fff;--text:#1a2a3a;--border:#e2e8f0}body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--border:#334155;background:var(--bg)}.container{max-width:800px;margin:auto;background:var(--card);border-radius:28px;padding:24px;color:var(--text);border:1px solid var(--border)}h1{display:flex;justify-content:space-between}button{background:#1a2a3a;color:#fff;border:none;padding:8px 16px;border-radius:40px;cursor:pointer}.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}.user-info{background:#eef2ff;padding:12px 20px;border-radius:40px;display:flex;justify-content:space-between;margin-bottom:24px}.dark .user-info{background:#2d3a4a}.balance{background:#e8f5e9;padding:4px 16px;border-radius:40px;color:#2e7d32}.filter-bar{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;align-items:center}.post{border:1px solid var(--border);border-radius:24px;padding:20px;margin-bottom:20px}.post img,.post video{max-width:100%;border-radius:16px}.actions{display:flex;gap:16px;margin-top:16px}.score-input{width:80px;padding:8px;border-radius:40px;border:1px solid var(--border)}.badge{font-size:.75rem;background:#e6f0ff;border-radius:40px;padding:4px 12px;margin-left:12px}.progress-bar{background:#e2e8f0;border-radius:40px;height:8px;margin:12px 0}.progress-fill{height:100%;width:0%;border-radius:40px;transition:width 0.2s,background 0.2s}@keyframes pulse{0%{opacity:1}50%{opacity:.7}100%{opacity:1}}.progress-fill.pulse{animation:pulse 1.5s infinite}.flex-row{display:flex;gap:12px;margin:16px 0}textarea,input,select{padding:10px 16px;border-radius:40px;border:1px solid var(--border);background:var(--card);color:var(--text)}.upload-area{border:2px dashed var(--border);border-radius:40px;padding:16px;text-align:center;cursor:pointer}.upload-area input{display:none}.syncing{display:inline-block;margin-left:8px;font-size:0.9rem;animation:pulse 1s infinite}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13/dist/ethers.umd.min.js"></script>
 </head>
-<body>
-<div class="container">
-    <h1>📸 Radiant <button id="darkToggle">🌙</button></h1>
-    <div id="userInfo" class="user-info"></div>
-    <div class="filter-bar">
-        <button id="showAll" class="secondary">All</button>
-        <button id="showMine" class="secondary">My</button>
-        <button id="simulateBtn" style="background:#8a6a2a;display:none">⚡Sim</button>
-        <button id="setPinataToken" class="secondary">🔑JWT</button>
-        <button id="exportDB" class="secondary">⬇️Export</button>
-        <button id="importDB" class="secondary">⬆️Import</button>
-        <button id="exportCID" class="secondary">📦CID</button>
-        <button id="importCID" class="secondary">🔗Load</button>
-        <button id="connectWallet">👛Connect</button>
-    </div>
-    <div id="feed"></div>
-    <hr style="border:0;border-top:1px solid var(--border);margin:24px 0">
-    <div class="flex-row">
-        <div class="upload-area" id="dropZone">📁Drop file<input type="file" id="fileInput" accept="image/*,video/*"></div>
-        <select id="mediaType"><option>image</option><option>video</option></select>
-        <button id="addSample" class="secondary">📷Sample</button>
-    </div>
-    <textarea id="description" placeholder="Description"></textarea>
-    <button id="createPost" disabled>Post</button>
-    <div style="font-size:.8rem;margin-top:16px">🔓Weighted ≥7.5. Like=1RAD. Wallet ID.</div>
+<body><div class="container">
+<h1>📸 Radiant <button id="darkToggle">🌙</button></h1>
+<div id="userInfo" class="user-info"></div>
+<div class="filter-bar">
+<button id="showAll" class="secondary">All</button><button id="showMine" class="secondary">My</button><button id="simulateBtn" style="background:#8a6a2a;display:none">⚡Sim</button><button id="setPinataToken" class="secondary">🔑JWT</button><button id="toggleP2PMode" class="secondary">🌐 P2P <span id="p2pStatus">(Pinata)</span></button><span id="syncIndicator" class="syncing" style="display:none">🔄 Syncing</span><button id="exportDB" class="secondary">⬇️Export</button><button id="importDB" class="secondary">⬆️Import</button><button id="exportCID" class="secondary">📦CID</button><button id="importCID" class="secondary">🔗Load</button><button id="connectWallet">👛Connect</button>
 </div>
-<script>
-(async function(){
-    const DB='RS',V=1,TH=5,GW=['https://ipfs.io/ipfs/','https://cloudflare-ipfs.com/ipfs/','https://dweb.link/ipfs/'];
-    let db,filter='all',pinJWT='',pendCID,pendMeta,provider,signer,wallet,user;
-    const isDev=location.search.includes('dev');
-    if(isDev) document.getElementById('simulateBtn').style.display='inline-block';
+<div id="feed"></div><hr style="border:0;border-top:1px solid var(--border);margin:24px 0">
+<div class="flex-row"><div class="upload-area" id="dropZone">📁Drop file<input type="file" id="fileInput" accept="image/*,video/*"></div><select id="mediaType"><option>image</option><option>video</option></select><button id="addSample" class="secondary">📷Sample</button></div>
+<textarea id="description" placeholder="Description"></textarea><button id="createPost" disabled>Post</button>
+<div style="font-size:.8rem;margin-top:16px">🔓Weighted avg≥7.5 & ≥5 ratings. Bar: red→green. Pulse=public. P2P sync live.</div>
+</div>
+<script type="module">
+import{createHelia}from'https://cdn.jsdelivr.net/npm/helia@4.2.0/dist/index.min.js';
+import{gossipsub}from'https://cdn.jsdelivr.net/npm/@chainsafe/libp2p-gossipsub@11.2.0/dist/index.min.js';
+import{noise}from'https://cdn.jsdelivr.net/npm/@chainsafe/libp2p-noise@14.1.0/dist/index.min.js';
+import{yamux}from'https://cdn.jsdelivr.net/npm/@chainsafe/libp2p-yamux@6.0.2/dist/index.min.js';
+import{bootstrap}from'https://cdn.jsdelivr.net/npm/@libp2p/bootstrap@10.0.20/dist/index.min.js';
+import{webSockets}from'https://cdn.jsdelivr.net/npm/@libp2p/websockets@8.0.20/dist/index.min.js';
+import{webRTC,circuitRelayTransport}from'https://cdn.jsdelivr.net/npm/@libp2p/webrtc@4.0.33/dist/index.min.js';
+import{createLibp2p}from'https://cdn.jsdelivr.net/npm/libp2p@1.6.0/dist/index.min.js';
+import{identify}from'https://cdn.jsdelivr.net/npm/@libp2p/identify@2.1.4/dist/index.min.js';
 
-    // DB
-    async function openDB(){ return new Promise(r=>{ const req=indexedDB.open(DB,V); req.onerror=()=>r(null); req.onsuccess=()=>{db=req.result;r(db)}; req.onupgradeneeded=e=>{ const d=e.target.result; ['users','posts','ratings','likes'].forEach(s=>{if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:s=='posts'||s=='ratings'||s=='likes'?'id':null,autoIncrement:s!='users'});}); }; });}
-    async function tx(s,m='readonly'){ return db.transaction(s,m).objectStore(s); }
-    async function getAll(s){ return new Promise(r=>{ tx([s]).getAll().onsuccess=e=>r(e.target.result); }); }
-    async function put(s,i){ const t=db.transaction([s],'readwrite'); t.objectStore(s).put(i); await t.done; }
-    async function clearAll(){ for(const s of ['users','posts','ratings','likes']) await new Promise(r=>{ const t=db.transaction([s],'readwrite'); t.objectStore(s).clear(); t.oncomplete=r; }); }
+const DB='RS',V=5,TH=5,GW=['https://ipfs.io/ipfs/','https://cloudflare-ipfs.com/ipfs/','https://dweb.link/ipfs/'],TOPIC='radiant-posts-v1';
+let db,filter='all',pinJWT='',pendCID,pendMeta,provider,signer,wallet,user,useP2P=!1,heliaNode,pubsub,libp2pNode,syncTimer=null;
+const isDev=location.search.includes('dev');if(isDev)document.getElementById('simulateBtn').style.display='inline-block';
 
-    // IPFS
-    async function ipfsUp(f){ if(!pinJWT) throw new Error('JWT'); const d=new FormData(); d.append('file',f); const r=await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS',{method:'POST',headers:{'Authorization':`Bearer ${pinJWT}`},body:d}); if(!r.ok) throw new Error('Pinata'); return (await r.json()).IpfsHash; }
-    async function jsonUp(o){ return ipfsUp(new File([JSON.stringify(o)],'m.json')); }
+function showSyncing(){const el=document.getElementById('syncIndicator');el.style.display='inline';if(syncTimer)clearTimeout(syncTimer);syncTimer=setTimeout(()=>el.style.display='none',800);}
+async function openDB(){return new Promise(r=>{const req=indexedDB.open(DB,V);req.onerror=()=>r(null);req.onsuccess=()=>{db=req.result;r(db)};req.onupgradeneeded=e=>{const d=e.target.result;['users','posts','ratings','likes'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:s=='posts'||s=='ratings'||s=='likes'?'id':null,autoIncrement:s!='users'});});};});}
+async function tx(s,m='readonly'){return db.transaction(s,m).objectStore(s);}
+async function getAll(s){return new Promise(r=>{tx([s]).getAll().onsuccess=e=>r(e.target.result);});}
+async function put(s,i){const t=db.transaction([s],'readwrite');t.objectStore(s).put(i);await t.done;}
+async function clearAll(){for(const s of['users','posts','ratings','likes'])await new Promise(r=>{const t=db.transaction([s],'readwrite');t.objectStore(s).clear();t.oncomplete=r;});}
+async function uploadFile(f){if(useP2P&&heliaNode){const cid=await heliaNode.add(f);return cid.toString();}if(!pinJWT)throw new Error('JWT required');const d=new FormData();d.append('file',f);const r=await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS',{method:'POST',headers:{'Authorization':`Bearer ${pinJWT}`},body:d});if(!r.ok)throw new Error(`Pinata ${r.status}`);return(await r.json()).IpfsHash;}
+async function jsonUp(o){return uploadFile(new File([JSON.stringify(o)],'m.json'));}
+async function sign(msg){return signer.signMessage(msg);}
+function updatePeerCount(){if(libp2pNode){const p=libp2pNode.getPeers().length;document.getElementById('p2pStatus').textContent=` (${p} peer${p!==1?'s':''})`;}}
+async function startP2P(){if(heliaNode)return heliaNode;libp2pNode=await createLibp2p({addresses:{listen:['/webrtc']},transports:[webSockets(),webRTC(),circuitRelayTransport()],connectionEncryption:[noise()],streamMuxers:[yamux()],peerDiscovery:[bootstrap({list:['/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN']})],services:{identify:identify(),pubsub:gossipsub({allowPublishToZeroPeers:!0})}});libp2pNode.addEventListener('peer:connect',updatePeerCount);libp2pNode.addEventListener('peer:disconnect',updatePeerCount);heliaNode=await createHelia({libp2p:libp2pNode});pubsub=libp2pNode.services.pubsub;pubsub.subscribe(TOPIC);pubsub.addEventListener('message',async e=>{showSyncing();try{const m=JSON.parse(new TextDecoder().decode(e.detail.data));if(!m.post||!m.sig||!m.msg)return;const rec=ethers.verifyMessage(m.msg,m.sig);if(rec.toLowerCase()!==m.post.userId.toLowerCase())return;if((await getAll('posts')).some(p=>p.sig===m.sig))return;await put('posts',m.post);render();}catch{}});updatePeerCount();return heliaNode;}
+async function connect(){if(!window.ethereum)return alert('MetaMask');provider=new ethers.BrowserProvider(window.ethereum);await provider.send("eth_requestAccounts",[]);signer=await provider.getSigner();wallet=await signer.getAddress();let u=await (tx('users').get(wallet));if(!u){u={id:wallet,name:wallet.slice(0,8),totalCIS:1_200_000,balance:1000};await put('users',u);}user=u;document.getElementById('connectWallet').textContent=`👛 ${wallet.slice(0,6)}`;document.getElementById('createPost').disabled=!1;updUI();render();}
+async function createPost(cid,meta,type,desc){const ts=Date.now(),msg=`post:${cid}@${ts}`,sig=await sign(msg),post={userId:wallet,mediaCid:cid,metaCid:meta,mediaType:type,description:desc,createdAt:ts,isPublic:!1,ratingCount:0,highScoreCount:0,likeCount:0,_wSum:0,_wCnt:0,sig,msg};await put('posts',post);if(useP2P&&pubsub)await pubsub.publish(TOPIC,new TextEncoder().encode(JSON.stringify({post,sig,msg})));render();}
+async function rate(pid,score){if(!user||user.totalCIS<1e6)return alert('1M CIS needed');const posts=await getAll('posts'),p=posts.find(x=>x.id===pid);if(!p||p.isPublic)return;if((await getAll('ratings')).some(r=>r.postId===pid&&r.userId===wallet))return alert('Rated');const ts=Date.now(),msg=`rate:${pid}:${score}@${ts}`,sig=await sign(msg);await put('ratings',{postId:pid,userId:wallet,cisScore:score,timestamp:ts,sig,msg});p.ratingCount++;const w=Math.log10(user.totalCIS)/6;p._wSum=(p._wSum||0)+score*w;p._wCnt=(p._wCnt||0)+w;const avg=p._wSum/p._wCnt;p.highScoreCount=avg>=7.5?Math.floor(p._wCnt):0;if(avg>=7.5&&p._wCnt>=TH)p.isPublic=!0;await put('posts',p);render();}
+async function like(pid){const posts=await getAll('posts'),p=posts.find(x=>x.id===pid);if(!p||!p.isPublic)return;if((await getAll('likes')).some(l=>l.postId===pid&&l.userId===wallet))return alert('Liked');if(user.balance<1)return alert('Need RAD');const ts=Date.now(),msg=`like:${pid}@${ts}`,sig=await sign(msg);await put('likes',{postId:pid,userId:wallet,timestamp:ts,sig,msg});let u=await tx('users').get(wallet);u.balance--;await put('users',u);let owner=await tx('users').get(p.userId);if(owner){owner.balance++;await put('users',owner);}p.likeCount++;await put('posts',p);user=u;updUI();render();}
+async function simulate(pid){if(!isDev)return;const posts=await getAll('posts'),p=posts.find(x=>x.id===pid);if(!p||p.isPublic)return;const users=await getAll('users'),ratings=await getAll('ratings');let need=TH-(p._wCnt||0);for(const u of users){if(need<=0)break;if(u.totalCIS<1e6||ratings.some(r=>r.postId===pid&&r.userId===u.id))continue;const score=9,w=Math.log10(u.totalCIS)/6;await put('ratings',{postId:pid,userId:u.id,cisScore:score,timestamp:Date.now(),sig:'dev',msg:'dev'});p.ratingCount++;p._wSum=(p._wSum||0)+score*w;p._wCnt=(p._wCnt||0)+w;need--;}const avg=p._wSum/p._wCnt;if(avg>=7.5&&p._wCnt>=TH)p.isPublic=!0;await put('posts',p);render();alert(`Simulated. Public: ${p.isPublic}`);}
+function esc(s){return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+async function render(){if(!wallet)return;let posts=await getAll('posts');posts.sort((a,b)=>b.createdAt-a.createdAt);if(filter==='my')posts=posts.filter(p=>p.userId===wallet);document.getElementById('feed').innerHTML='';for(const p of posts){const wCnt=p._wCnt||0,prog=Math.min(wCnt/TH*100,100),avgScore=wCnt>0?p._wSum/wCnt:0,hue=Math.min(120,Math.max(0,avgScore*12)),barColor=`hsl(${hue},70%,50%)`;const d=document.createElement('div');d.className='post';d.innerHTML=`<div><strong>${esc(p.userId.slice(0,8))}</strong><span class="badge">${p.isPublic?'🔓':'🔒'}</span></div><div>${esc(p.description)}</div>`;const mc=document.createElement('div');d.appendChild(mc);if(p.mediaCid){const el=p.mediaType==='image'?document.createElement('img'):document.createElement('video');if(p.mediaType==='video')el.controls=!0;mc.appendChild(el);(async()=>{for(const g of GW)try{await new Promise((res,rej)=>{el.onload=el.onloadedmetadata=res;el.onerror=rej;el.src=g+p.mediaCid;});return;}catch{}})();}d.innerHTML+=`<div class="progress-bar"><div class="progress-fill ${p.isPublic?'pulse':''}" style="width:${prog}%;background:${barColor};"></div></div><div>📊 ${p.ratingCount} | ⭐ ${avgScore.toFixed(1)} (${wCnt.toFixed(1)}/${TH})</div>`;const acts=document.createElement('div');acts.className='actions';if(!p.isPublic&&user&&user.totalCIS>=1e6&&p.userId!==wallet){const inp=document.createElement('input');inp.type='number';inp.step='0.1';inp.min='0';inp.max='10';inp.value='7.5';inp.className='score-input';const btn=document.createElement('button');btn.textContent='Rate';btn.onclick=()=>{const s=+inp.value;if(isNaN(s)||s<0||s>10)alert('0-10');else rate(p.id,s);};acts.append(inp,btn);}if(!p.isPublic&&isDev){const sim=document.createElement('button');sim.textContent='⚡Sim';sim.style.background='#8a6a2a';sim.onclick=()=>simulate(p.id);acts.appendChild(sim);}if(p.isPublic){const like=document.createElement('button');like.textContent=`❤️ ${p.likeCount} -1`;like.onclick=()=>like(p.id);acts.appendChild(like);}d.appendChild(acts);feed.appendChild(d);}}
+async function updUI(){if(!user)return;document.getElementById('userInfo').innerHTML=`<span>👤 ${esc(user.name)}</span><span>🏆 ${user.totalCIS.toLocaleString()}</span><span class="balance">💰 ${user.balance} RAD</span>`;}
+async function snapshot(){return{users:await getAll('users'),posts:await getAll('posts'),ratings:await getAll('ratings'),likes:await getAll('likes')};}
+async function exportFile(){const d=await snapshot(),h=ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d))),sig=await sign(h),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({d,h,sig,wallet})]));a.download=`radiant_${Date.now()}.json`;a.click();}
+async function importFile(f){const t=await f.text(),{d,h,sig,wallet:w}=JSON.parse(t);if(ethers.verifyMessage(h,sig)!==w)return alert('Bad sig');if(ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d)))!==h)return alert('Hash mismatch');await clearAll();for(const s of['users','posts','ratings','likes'])for(const i of d[s]||[])await put(s,i);location.reload();}
+async function exportCID(){if(!pinJWT&&!useP2P)return alert('Set JWT or enable P2P');const snap=await snapshot(),h=ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(snap))),sig=await sign(h),cid=await jsonUp({d:snap,h,sig,wallet});alert(`CID: ${cid}`);}
+async function importCID(){const cid=prompt('CID:');if(!cid)return;const r=await fetch(`https://ipfs.io/ipfs/${cid}`);if(!r.ok)return alert('Fetch fail');const{d,h,sig,wallet:w}=await r.json();if(ethers.verifyMessage(h,sig)!==w)return alert('Bad sig');if(ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d)))!==h)return alert('Hash mismatch');await clearAll();for(const s of['users','posts','ratings','likes'])for(const i of d[s]||[])await put(s,i);location.reload();}
 
-    // Crypto
-    async function sign(msg){ return await signer.signMessage(msg); }
+const fi=document.getElementById('fileInput'),dz=document.getElementById('dropZone'),cp=document.getElementById('createPost');
+async function handleFile(f){if(!f)return;if(!useP2P&&!pinJWT)return alert('Set JWT or enable P2P');cp.disabled=!0;cp.textContent='Uploading...';try{const cid=await uploadFile(f),meta=await jsonUp({desc:document.getElementById('description').value,ts:Date.now(),cid,type:document.getElementById('mediaType').value});pendCID=cid;pendMeta=meta;cp.disabled=!1;cp.textContent='Post';dz.style.borderColor='#2e7d32';dz.innerHTML=`✅ ${f.name} (${cid.slice(0,8)})`;}catch(e){alert(e.message);cp.disabled=!0;cp.textContent='Post';}}
+dz.onclick=()=>fi.click();dz.ondragover=e=>{e.preventDefault();dz.style.background='rgba(0,0,0,0.05)';};dz.ondragleave=()=>dz.style.background='';dz.ondrop=e=>{e.preventDefault();dz.style.background='';handleFile(e.dataTransfer.files[0]);};fi.onchange=()=>handleFile(fi.files[0]);
+cp.onclick=async()=>{if(!wallet)return alert('Connect');if(!pendCID)return alert('Upload');await createPost(pendCID,pendMeta,document.getElementById('mediaType').value,document.getElementById('description').value);pendCID=pendMeta=null;fi.value='';dz.innerHTML='📁Drop file<input type="file" id="fileInput" accept="image/*,video/*">';dz.style.borderColor='';cp.disabled=!0;cp.textContent='Post';document.getElementById('description').value='';};
 
-    // Wallet connect
-    async function connect(){
-        if(!window.ethereum) return alert('MetaMask');
-        provider=new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts",[]);
-        signer=await provider.getSigner();
-        wallet=await signer.getAddress();
-        let u=await (tx('users').get(wallet));
-        if(!u){ u={id:wallet,name:wallet.slice(0,8),totalCIS:1_200_000,balance:1000}; await put('users',u); }
-        user=u;
-        document.getElementById('connectWallet').textContent=`👛 ${wallet.slice(0,6)}`;
-        document.getElementById('createPost').disabled=false;
-        updUI(); render();
-    }
-
-    // Actions
-    async function createPost(cid,meta,type,desc){
-        const ts=Date.now(), msg=`post:${cid}@${ts}`, sig=await sign(msg);
-        await put('posts',{userId:wallet,mediaCid:cid,metaCid:meta,mediaType:type,description:desc,createdAt:ts,isPublic:false,ratingCount:0,highScoreCount:0,likeCount:0,_wSum:0,_wCnt:0,sig,msg});
-        render();
-    }
-    async function rate(pid,score){
-        if(!user||user.totalCIS<1e6) return alert('1M CIS needed');
-        const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||p.isPublic) return;
-        if((await getAll('ratings')).some(r=>r.postId===pid&&r.userId===wallet)) return alert('Rated');
-        const ts=Date.now(), msg=`rate:${pid}:${score}@${ts}`, sig=await sign(msg);
-        await put('ratings',{postId:pid,userId:wallet,cisScore:score,timestamp:ts,sig,msg});
-        p.ratingCount++;
-        const w=Math.log10(user.totalCIS)/6;
-        p._wSum=(p._wSum||0)+score*w; p._wCnt=(p._wCnt||0)+w;
-        const avg=p._wSum/p._wCnt;
-        p.highScoreCount=avg>=7.5?Math.floor(p._wCnt):0;
-        if(avg>=7.5 && p._wCnt>=TH) p.isPublic=true;
-        await put('posts',p); render();
-    }
-    async function like(pid){
-        const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||!p.isPublic) return;
-        if((await getAll('likes')).some(l=>l.postId===pid&&l.userId===wallet)) return alert('Liked');
-        if(user.balance<1) return alert('Need RAD');
-        const ts=Date.now(), msg=`like:${pid}@${ts}`, sig=await sign(msg);
-        await put('likes',{postId:pid,userId:wallet,timestamp:ts,sig,msg});
-        // transfer
-        let u=await tx('users').get(wallet); u.balance--; await put('users',u);
-        let owner=await tx('users').get(p.userId); if(owner){ owner.balance++; await put('users',owner); }
-        p.likeCount++; await put('posts',p);
-        user=u; updUI(); render();
-    }
-    async function simulate(pid){
-        if(!isDev) return;
-        const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||p.isPublic) return;
-        const users=await getAll('users'); const ratings=await getAll('ratings');
-        let need=TH-(p._wCnt||0);
-        for(const u of users){
-            if(need<=0) break;
-            if(u.totalCIS<1e6||ratings.some(r=>r.postId===pid&&r.userId===u.id)) continue;
-            const score=9, w=Math.log10(u.totalCIS)/6;
-            await put('ratings',{postId:pid,userId:u.id,cisScore:score,timestamp:Date.now(),sig:'dev',msg:'dev'});
-            p.ratingCount++; p._wSum=(p._wSum||0)+score*w; p._wCnt=(p._wCnt||0)+w; need--;
-        }
-        const avg=p._wSum/p._wCnt;
-        if(avg>=7.5 && p._wCnt>=TH) p.isPublic=true;
-        await put('posts',p); render();
-        alert(`Simulated. Public: ${p.isPublic}`);
-    }
-
-    // UI
-    function esc(s){ return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-    async function render(){
-        if(!wallet) return;
-        let posts=await getAll('posts'); posts.sort((a,b)=>b.createdAt-a.createdAt);
-        if(filter==='my') posts=posts.filter(p=>p.userId===wallet);
-        const feed=document.getElementById('feed'); feed.innerHTML='';
-        for(const p of posts){
-            const wCnt=p._wCnt||0, prog=Math.min(wCnt/TH*100,100);
-            const div=document.createElement('div'); div.className='post';
-            div.innerHTML=`<div><strong>${esc(p.userId.slice(0,8))}</strong><span class="badge">${p.isPublic?'🔓':'🔒'}</span></div><div>${esc(p.description)}</div>`;
-            const mc=document.createElement('div'); div.appendChild(mc);
-            if(p.mediaCid){
-                const el=p.mediaType==='image'?document.createElement('img'):document.createElement('video');
-                if(p.mediaType==='video') el.controls=true;
-                mc.appendChild(el);
-                (async()=>{ for(const g of GW) try{ await new Promise((res,rej)=>{ el.onload=el.onloadedmetadata=res; el.onerror=rej; el.src=g+p.mediaCid; }); return; }catch{} })();
-            }
-            div.innerHTML+=`<div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div><div>📊 ${p.ratingCount} | ⭐ ${wCnt.toFixed(1)}/${TH}</div>`;
-            const acts=document.createElement('div'); acts.className='actions';
-            if(!p.isPublic && user && user.totalCIS>=1e6 && p.userId!==wallet){
-                const inp=document.createElement('input'); inp.type='number'; inp.step='0.1'; inp.min='0'; inp.max='10'; inp.value='7.5'; inp.className='score-input';
-                const btn=document.createElement('button'); btn.textContent='Rate';
-                btn.onclick=()=>{ const s=+inp.value; if(isNaN(s)||s<0||s>10) alert('0-10'); else rate(p.id,s); };
-                acts.append(inp,btn);
-            }
-            if(!p.isPublic && isDev){ const sim=document.createElement('button'); sim.textContent='⚡Sim'; sim.style.background='#8a6a2a'; sim.onclick=()=>simulate(p.id); acts.appendChild(sim); }
-            if(p.isPublic){ const like=document.createElement('button'); like.textContent=`❤️ ${p.likeCount} -1`; like.onclick=()=>like(p.id); acts.appendChild(like); }
-            div.appendChild(acts); feed.appendChild(div);
-        }
-    }
-    async function updUI(){
-        if(!user) return;
-        document.getElementById('userInfo').innerHTML=`<span>👤 ${esc(user.name)}</span><span>🏆 ${user.totalCIS.toLocaleString()}</span><span class="balance">💰 ${user.balance} RAD</span>`;
-    }
-
-    // Export/Import
-    async function snapshot(){ return {users:await getAll('users'),posts:await getAll('posts'),ratings:await getAll('ratings'),likes:await getAll('likes')}; }
-    async function exportFile(){ const d=await snapshot(); const h=ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d))); const sig=await sign(h); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify({d,h,sig,wallet})])); a.download=`radiant_${Date.now()}.json`; a.click(); }
-    async function importFile(f){ const t=await f.text(); const {d,h,sig,wallet:w}=JSON.parse(t); if(ethers.verifyMessage(h,sig)!==w) return alert('Bad sig'); if(ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d)))!==h) return alert('Hash mismatch'); await clearAll(); for(const s of ['users','posts','ratings','likes']) for(const i of d[s]||[]) await put(s,i); location.reload(); }
-    async function exportCID(){ if(!pinJWT) return alert('Set JWT'); const snap=await snapshot(); const h=ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(snap))); const sig=await sign(h); const cid=await jsonUp({d:snap,h,sig,wallet}); alert(`CID: ${cid}`); }
-    async function importCID(){ const cid=prompt('CID:'); if(!cid) return; const r=await fetch(`https://ipfs.io/ipfs/${cid}`); if(!r.ok) return alert('Fetch fail'); const {d,h,sig,wallet:w}=await r.json(); if(ethers.verifyMessage(h,sig)!==w) return alert('Bad sig'); if(ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d)))!==h) return alert('Hash mismatch'); await clearAll(); for(const s of ['users','posts','ratings','likes']) for(const i of d[s]||[]) await put(s,i); location.reload(); }
-
-    // Upload
-    const fi=document.getElementById('fileInput'), dz=document.getElementById('dropZone'), cp=document.getElementById('createPost');
-    async function handleFile(f){
-        if(!f) return; if(!pinJWT) return alert('JWT'); cp.disabled=true; cp.textContent='Upload...';
-        try{
-            const cid=await ipfsUp(f);
-            const meta=await jsonUp({desc:document.getElementById('description').value,ts:Date.now(),cid,type:document.getElementById('mediaType').value});
-            pendCID=cid; pendMeta=meta; cp.disabled=false; cp.textContent='Post';
-            dz.style.borderColor='#2e7d32'; dz.innerHTML=`✅ ${f.name} (${cid.slice(0,8)})`;
-        }catch(e){ alert(e.message); cp.disabled=true; cp.textContent='Post'; }
-    }
-    dz.onclick=()=>fi.click(); dz.ondragover=e=>{e.preventDefault();dz.style.background='rgba(0,0,0,0.05)';}; dz.ondragleave=()=>dz.style.background='';
-    dz.ondrop=e=>{e.preventDefault();dz.style.background=''; handleFile(e.dataTransfer.files[0]);};
-    fi.onchange=()=>handleFile(fi.files[0]);
-    cp.onclick=async()=>{ if(!wallet) return alert('Connect'); if(!pendCID) return alert('Upload'); await createPost(pendCID,pendMeta,document.getElementById('mediaType').value,document.getElementById('description').value); pendCID=pendMeta=null; fi.value=''; dz.innerHTML='📁Drop file<input type="file" id="fileInput" accept="image/*,video/*">'; dz.style.borderColor=''; cp.disabled=true; cp.textContent='Post'; document.getElementById('description').value=''; };
-
-    // Init
-    await openDB();
-    if((await getAll('users')).length===0) await put('users',{id:'0xDemo',name:'Demo',totalCIS:1_200_000,balance:1000});
-    document.getElementById('connectWallet').onclick=connect;
-    document.getElementById('darkToggle').onclick=()=>document.body.classList.toggle('dark');
-    document.getElementById('showAll').onclick=()=>{filter='all';render();};
-    document.getElementById('showMine').onclick=()=>{filter='my';render();};
-    document.getElementById('simulateBtn').onclick=async()=>{ const p=await getAll('posts'); if(p.length) simulate(p[0].id); };
-    document.getElementById('setPinataToken').onclick=()=>{ const t=prompt('Pinata JWT:'); if(t) pinJWT=t; };
-    document.getElementById('exportDB').onclick=exportFile;
-    document.getElementById('importDB').onclick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='.json'; i.onchange=e=>importFile(e.target.files[0]); i.click(); };
-    document.getElementById('exportCID').onclick=exportCID;
-    document.getElementById('importCID').onclick=importCID;
-    document.getElementById('addSample').onclick=async()=>{ if(!pinJWT) return alert('JWT'); const cid='QmZ4tDuvesekSs4aJ1P5n9kNR4eB3B2E3Pp7QFpNcNYfVq'; const meta=await jsonUp({desc:'Sample',ts:Date.now(),cid,type:'image'}); await createPost(cid,meta,'image','Sample'); };
-    updUI(); render();
-})();
+await openDB();if((await getAll('users')).length===0)await put('users',{id:'0xDemo',name:'Demo',totalCIS:1_200_000,balance:1000});
+document.getElementById('connectWallet').onclick=connect;
+document.getElementById('darkToggle').onclick=()=>document.body.classList.toggle('dark');
+document.getElementById('showAll').onclick=()=>{filter='all';render();};
+document.getElementById('showMine').onclick=()=>{filter='my';render();};
+document.getElementById('simulateBtn').onclick=async()=>{const p=await getAll('posts');if(p.length)simulate(p[0].id);};
+document.getElementById('setPinataToken').onclick=()=>{const t=prompt('Pinata JWT:');if(t)pinJWT=t;};
+document.getElementById('toggleP2PMode').onclick=async()=>{useP2P=!useP2P;const s=document.getElementById('p2pStatus');if(useP2P){await startP2P();s.textContent=` (${libp2pNode?.getPeers().length||0} peers)`;}else{s.textContent=' (Pinata)';document.getElementById('syncIndicator').style.display='none';}};
+document.getElementById('exportDB').onclick=exportFile;
+document.getElementById('importDB').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>importFile(e.target.files[0]);i.click();};
+document.getElementById('exportCID').onclick=exportCID;
+document.getElementById('importCID').onclick=importCID;
+document.getElementById('addSample').onclick=async()=>{if(!useP2P&&!pinJWT)return alert('Set JWT or enable P2P');const cid='QmZ4tDuvesekSs4aJ1P5n9kNR4eB3B2E3Pp7QFpNcNYfVq',meta=await jsonUp({desc:'Sample',ts:Date.now(),cid,type:'image'});await createPost(cid,meta,'image','Sample');};
+updUI();render();
 </script>
 </body>
 </html>
