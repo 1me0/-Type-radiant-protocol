@@ -2,139 +2,136 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant Social · Master CID</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Radiant Social</title>
     <style>
-        *{box-sizing:border-box;font-family:system-ui,sans-serif}body{background:#f0f2f5;margin:0;padding:20px;--bg:#f0f2f5;--card:#fff;--text:#1a2a3a;--border:#e2e8f0;transition:0.2s}body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--border:#334155;background:var(--bg)}.container{max-width:800px;margin:auto;background:var(--card);border-radius:28px;padding:24px;color:var(--text);border:1px solid var(--border)}h1{display:flex;justify-content:space-between;margin:0 0 20px}button{background:#1a2a3a;color:#fff;border:none;padding:8px 16px;border-radius:40px;cursor:pointer;font-weight:500}button.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}.user-info{background:#eef2ff;padding:12px 20px;border-radius:40px;display:flex;justify-content:space-between;margin-bottom:24px}.dark .user-info{background:#2d3a4a}.balance{background:#e8f5e9;padding:4px 16px;border-radius:40px;color:#2e7d32}.filter-bar{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}.post{border:1px solid var(--border);border-radius:24px;padding:20px;margin-bottom:20px}.post img,.post video{max-width:100%;border-radius:16px;margin:12px 0}.actions{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:16px}.score-input{width:80px;padding:8px;border-radius:40px;border:1px solid var(--border);background:var(--card);color:var(--text)}.badge{font-size:0.75rem;background:#e6f0ff;border-radius:40px;padding:4px 12px;margin-left:12px}.progress-bar{background:#e2e8f0;border-radius:40px;height:8px;margin:12px 0;overflow:hidden}.progress-fill{background:#2e7d32;height:100%;width:0%}.flex-row{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}textarea,input,select{padding:10px 16px;border-radius:40px;border:1px solid var(--border);background:var(--card);color:var(--text)}textarea{width:100%;resize:vertical}.upload-area{border:2px dashed var(--border);border-radius:40px;padding:16px;text-align:center;cursor:pointer}.upload-area input{display:none}
+        *{box-sizing:border-box;font-family:system-ui}body{background:#f0f2f5;margin:0;padding:20px;--bg:#f0f2f5;--card:#fff;--text:#1a2a3a;--border:#e2e8f0}body.dark{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--border:#334155;background:var(--bg)}.container{max-width:800px;margin:auto;background:var(--card);border-radius:28px;padding:24px;color:var(--text);border:1px solid var(--border)}h1{display:flex;justify-content:space-between}button{background:#1a2a3a;color:#fff;border:none;padding:8px 16px;border-radius:40px;cursor:pointer}.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}.user-info{background:#eef2ff;padding:12px 20px;border-radius:40px;display:flex;justify-content:space-between;margin-bottom:24px}.dark .user-info{background:#2d3a4a}.balance{background:#e8f5e9;padding:4px 16px;border-radius:40px;color:#2e7d32}.filter-bar{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}.post{border:1px solid var(--border);border-radius:24px;padding:20px;margin-bottom:20px}.post img,.post video{max-width:100%;border-radius:16px}.actions{display:flex;gap:16px;margin-top:16px}.score-input{width:80px;padding:8px;border-radius:40px;border:1px solid var(--border)}.badge{font-size:.75rem;background:#e6f0ff;border-radius:40px;padding:4px 12px;margin-left:12px}.progress-bar{background:#e2e8f0;border-radius:40px;height:8px;margin:12px 0}.progress-fill{background:#2e7d32;height:100%;width:0%}.flex-row{display:flex;gap:12px;margin:16px 0}textarea,input,select{padding:10px 16px;border-radius:40px;border:1px solid var(--border);background:var(--card);color:var(--text)}.upload-area{border:2px dashed var(--border);border-radius:40px;padding:16px;text-align:center;cursor:pointer}.upload-area input{display:none}
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13/dist/ethers.umd.min.js"></script>
 </head>
 <body>
 <div class="container">
-    <h1>📸 Radiant Social <button id="darkToggle">🌙 Dark</button></h1>
+    <h1>📸 Radiant <button id="darkToggle">🌙</button></h1>
     <div id="userInfo" class="user-info"></div>
     <div class="filter-bar">
         <button id="showAll" class="secondary">All</button>
         <button id="showMine" class="secondary">My</button>
-        <button id="simulateBtn" style="background:#8a6a2a;">⚡ Simulate</button>
-        <button id="setPinataToken" class="secondary">🔑 Set JWT</button>
-        <button id="exportDB" class="secondary">⬇️ Export File</button>
-        <button id="importDB" class="secondary">⬆️ Import File</button>
-        <button id="exportMasterCID" class="secondary">📦 Export Master CID</button>
-        <button id="importFromCID" class="secondary">🔗 Import from CID</button>
+        <button id="simulateBtn" style="background:#8a6a2a;display:none">⚡Sim</button>
+        <button id="setPinataToken" class="secondary">🔑JWT</button>
+        <button id="exportDB" class="secondary">⬇️Export</button>
+        <button id="importDB" class="secondary">⬆️Import</button>
+        <button id="exportCID" class="secondary">📦CID</button>
+        <button id="importCID" class="secondary">🔗Load</button>
+        <button id="connectWallet">👛Connect</button>
     </div>
     <div id="feed"></div>
     <hr style="border:0;border-top:1px solid var(--border);margin:24px 0">
     <div class="flex-row">
-        <div class="upload-area" id="dropZone">📁 Click/drop file<input type="file" id="fileInput" accept="image/*,video/*"></div>
-        <select id="mediaType"><option value="image">Image</option><option value="video">Video</option></select>
-        <button id="addSample" class="secondary">📷 Sample</button>
+        <div class="upload-area" id="dropZone">📁Drop file<input type="file" id="fileInput" accept="image/*,video/*"></div>
+        <select id="mediaType"><option>image</option><option>video</option></select>
+        <button id="addSample" class="secondary">📷Sample</button>
     </div>
-    <textarea id="description" rows="2" placeholder="Description"></textarea>
+    <textarea id="description" placeholder="Description"></textarea>
     <button id="createPost" disabled>Post</button>
-    <div style="font-size:0.8rem;margin-top:16px">🔓 5 high ratings (≥7.5) unlock. Like = 1 RAD. JWT in memory only. Master CID recovery.</div>
+    <div style="font-size:.8rem;margin-top:16px">🔓Weighted ≥7.5. Like=1RAD. Wallet ID.</div>
 </div>
 <script>
 (async function(){
-    const DB='RadiantDB',V=8,TH=5,ME='demo_user',GW=['https://ipfs.io/ipfs/','https://cloudflare-ipfs.com/ipfs/','https://dweb.link/ipfs/'];
-    let db,filter='all',pinJWT='',pendCID,pendMeta;
+    const DB='RS',V=1,TH=5,GW=['https://ipfs.io/ipfs/','https://cloudflare-ipfs.com/ipfs/','https://dweb.link/ipfs/'];
+    let db,filter='all',pinJWT='',pendCID,pendMeta,provider,signer,wallet,user;
+    const isDev=location.search.includes('dev');
+    if(isDev) document.getElementById('simulateBtn').style.display='inline-block';
 
-    // DB helpers
+    // DB
     async function openDB(){ return new Promise(r=>{ const req=indexedDB.open(DB,V); req.onerror=()=>r(null); req.onsuccess=()=>{db=req.result;r(db)}; req.onupgradeneeded=e=>{ const d=e.target.result; ['users','posts','ratings','likes'].forEach(s=>{if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:s=='posts'||s=='ratings'||s=='likes'?'id':null,autoIncrement:s!='users'});}); }; });}
     async function tx(s,m='readonly'){ return db.transaction(s,m).objectStore(s); }
-    async function getOne(s,k){ return new Promise(r=>{ const req=tx([s]).get(k); req.onsuccess=()=>r(req.result); }); }
-    async function getAll(s){ return new Promise(r=>{ const req=tx([s]).getAll(); req.onsuccess=()=>r(req.result); }); }
+    async function getAll(s){ return new Promise(r=>{ tx([s]).getAll().onsuccess=e=>r(e.target.result); }); }
     async function put(s,i){ const t=db.transaction([s],'readwrite'); t.objectStore(s).put(i); await t.done; }
     async function clearAll(){ for(const s of ['users','posts','ratings','likes']) await new Promise(r=>{ const t=db.transaction([s],'readwrite'); t.objectStore(s).clear(); t.oncomplete=r; }); }
 
-    // IPFS helpers
-    async function ipfsUp(file){
-        if(!pinJWT) throw new Error('JWT missing');
-        const f=new FormData(); f.append('file',file);
-        const r=await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS',{method:'POST',headers:{'Authorization':`Bearer ${pinJWT}`},body:f});
-        if(!r.ok) throw new Error(`Pinata ${r.status}`);
-        return (await r.json()).IpfsHash;
-    }
-    async function jsonUp(obj){ return ipfsUp(new File([JSON.stringify(obj)],'meta.json')); }
+    // IPFS
+    async function ipfsUp(f){ if(!pinJWT) throw new Error('JWT'); const d=new FormData(); d.append('file',f); const r=await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS',{method:'POST',headers:{'Authorization':`Bearer ${pinJWT}`},body:d}); if(!r.ok) throw new Error('Pinata'); return (await r.json()).IpfsHash; }
+    async function jsonUp(o){ return ipfsUp(new File([JSON.stringify(o)],'m.json')); }
 
-    // Semantic verification: recompute balances from likes
-    function verifyAndFixBalances(data){
-        const users = data.users || [];
-        const likes = data.likes || [];
-        // Build balance deltas per user
-        const deltas = new Map();
-        for(const u of users) deltas.set(u.id, 0);
-        for(const l of likes){
-            deltas.set(l.userId, (deltas.get(l.userId)||0) - 1);
-            const post = (data.posts||[]).find(p=>p.id===l.postId);
-            if(post) deltas.set(post.userId, (deltas.get(post.userId)||0) + 1);
-        }
-        let fixed = false;
-        for(const u of users){
-            const computed = 1000 + (deltas.get(u.id)||0);
-            if(u.balance !== computed){
-                u.balance = computed;
-                fixed = true;
-            }
-        }
-        return { data, fixed };
+    // Crypto
+    async function sign(msg){ return await signer.signMessage(msg); }
+
+    // Wallet connect
+    async function connect(){
+        if(!window.ethereum) return alert('MetaMask');
+        provider=new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts",[]);
+        signer=await provider.getSigner();
+        wallet=await signer.getAddress();
+        let u=await (tx('users').get(wallet));
+        if(!u){ u={id:wallet,name:wallet.slice(0,8),totalCIS:1_200_000,balance:1000}; await put('users',u); }
+        user=u;
+        document.getElementById('connectWallet').textContent=`👛 ${wallet.slice(0,6)}`;
+        document.getElementById('createPost').disabled=false;
+        updUI(); render();
     }
 
-    // Data init
-    async function ensureUsers(){
-        const us=[{id:ME,name:'Elite',totalCIS:1_200_000,balance:1000},{id:'alice',name:'Alice',totalCIS:1_500_000,balance:1000},{id:'bob',name:'Bob',totalCIS:1_300_000,balance:1000}];
-        for(const u of us) if(!await getOne('users',u.id)) await put('users',u);
-    }
-    async function getUser(id){ return await getOne('users',id); }
-    async function updBal(id,d){ const u=await getUser(id); u.balance+=d; await put('users',u); }
-
-    async function createPost(uid,mediaCid,metaCid,type,desc){
-        await put('posts',{userId:uid,mediaCid,metaCid,mediaType:type,description:desc||'',createdAt:Date.now(),isPublic:false,ratingCount:0,highScoreCount:0,likeCount:0});
+    // Actions
+    async function createPost(cid,meta,type,desc){
+        const ts=Date.now(), msg=`post:${cid}@${ts}`, sig=await sign(msg);
+        await put('posts',{userId:wallet,mediaCid:cid,metaCid:meta,mediaType:type,description:desc,createdAt:ts,isPublic:false,ratingCount:0,highScoreCount:0,likeCount:0,_wSum:0,_wCnt:0,sig,msg});
         render();
     }
-    async function addRating(pid,uid,score){
-        const u=await getUser(uid); if(!u||u.totalCIS<1_000_000) return alert('Need 1M CIS');
+    async function rate(pid,score){
+        if(!user||user.totalCIS<1e6) return alert('1M CIS needed');
         const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||p.isPublic) return;
-        if((await getAll('ratings')).some(r=>r.postId===pid&&r.userId===uid)) return alert('Already rated');
-        await put('ratings',{postId:pid,userId:uid,cisScore:score,timestamp:Date.now()});
-        p.ratingCount++; if(score>=7.5) p.highScoreCount++;
-        if(p.highScoreCount>=TH) p.isPublic=true;
+        if((await getAll('ratings')).some(r=>r.postId===pid&&r.userId===wallet)) return alert('Rated');
+        const ts=Date.now(), msg=`rate:${pid}:${score}@${ts}`, sig=await sign(msg);
+        await put('ratings',{postId:pid,userId:wallet,cisScore:score,timestamp:ts,sig,msg});
+        p.ratingCount++;
+        const w=Math.log10(user.totalCIS)/6;
+        p._wSum=(p._wSum||0)+score*w; p._wCnt=(p._wCnt||0)+w;
+        const avg=p._wSum/p._wCnt;
+        p.highScoreCount=avg>=7.5?Math.floor(p._wCnt):0;
+        if(avg>=7.5 && p._wCnt>=TH) p.isPublic=true;
         await put('posts',p); render();
+    }
+    async function like(pid){
+        const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||!p.isPublic) return;
+        if((await getAll('likes')).some(l=>l.postId===pid&&l.userId===wallet)) return alert('Liked');
+        if(user.balance<1) return alert('Need RAD');
+        const ts=Date.now(), msg=`like:${pid}@${ts}`, sig=await sign(msg);
+        await put('likes',{postId:pid,userId:wallet,timestamp:ts,sig,msg});
+        // transfer
+        let u=await tx('users').get(wallet); u.balance--; await put('users',u);
+        let owner=await tx('users').get(p.userId); if(owner){ owner.balance++; await put('users',owner); }
+        p.likeCount++; await put('posts',p);
+        user=u; updUI(); render();
     }
     async function simulate(pid){
+        if(!isDev) return;
         const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||p.isPublic) return;
-        const users=await getAll('users'), ratings=await getAll('ratings');
-        let added=0, need=TH-p.highScoreCount;
+        const users=await getAll('users'); const ratings=await getAll('ratings');
+        let need=TH-(p._wCnt||0);
         for(const u of users){
-            if(added>=need) break;
-            if(u.totalCIS<1_000_000||ratings.some(r=>r.postId===pid&&r.userId===u.id)) continue;
-            await put('ratings',{postId:pid,userId:u.id,cisScore:9,timestamp:Date.now()});
-            p.ratingCount++; p.highScoreCount++; added++;
+            if(need<=0) break;
+            if(u.totalCIS<1e6||ratings.some(r=>r.postId===pid&&r.userId===u.id)) continue;
+            const score=9, w=Math.log10(u.totalCIS)/6;
+            await put('ratings',{postId:pid,userId:u.id,cisScore:score,timestamp:Date.now(),sig:'dev',msg:'dev'});
+            p.ratingCount++; p._wSum=(p._wSum||0)+score*w; p._wCnt=(p._wCnt||0)+w; need--;
         }
-        if(p.highScoreCount>=TH) p.isPublic=true;
+        const avg=p._wSum/p._wCnt;
+        if(avg>=7.5 && p._wCnt>=TH) p.isPublic=true;
         await put('posts',p); render();
-        alert(`Added ${added} ratings. Public: ${p.isPublic}`);
-    }
-    async function like(pid,uid){
-        const posts=await getAll('posts'); const p=posts.find(x=>x.id===pid); if(!p||!p.isPublic) return alert('Not public');
-        if((await getAll('likes')).some(l=>l.postId===pid&&l.userId===uid)) return alert('Already liked');
-        const liker=await getUser(uid); if((liker.balance||0)<1) return alert('Need 1 RAD');
-        await updBal(uid,-1); await updBal(p.userId,1);
-        await put('likes',{postId:pid,userId:uid,timestamp:Date.now()});
-        p.likeCount++; await put('posts',p);
-        render(); updUI();
+        alert(`Simulated. Public: ${p.isPublic}`);
     }
 
     // UI
     function esc(s){ return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
     async function render(){
-        const me=await getUser(ME); if(!me) return;
+        if(!wallet) return;
         let posts=await getAll('posts'); posts.sort((a,b)=>b.createdAt-a.createdAt);
-        if(filter==='my') posts=posts.filter(p=>p.userId===ME);
+        if(filter==='my') posts=posts.filter(p=>p.userId===wallet);
         const feed=document.getElementById('feed'); feed.innerHTML='';
         for(const p of posts){
-            const prog=Math.min(p.highScoreCount/TH*100,100);
+            const wCnt=p._wCnt||0, prog=Math.min(wCnt/TH*100,100);
             const div=document.createElement('div'); div.className='post';
-            div.innerHTML=`<div><strong>${esc(p.userId)}</strong><span class="badge">${p.isPublic?'🔓':'🔒'}</span></div><div>${esc(p.description)}</div>`;
+            div.innerHTML=`<div><strong>${esc(p.userId.slice(0,8))}</strong><span class="badge">${p.isPublic?'🔓':'🔒'}</span></div><div>${esc(p.description)}</div>`;
             const mc=document.createElement('div'); div.appendChild(mc);
             if(p.mediaCid){
                 const el=p.mediaType==='image'?document.createElement('img'):document.createElement('video');
@@ -142,86 +139,62 @@
                 mc.appendChild(el);
                 (async()=>{ for(const g of GW) try{ await new Promise((res,rej)=>{ el.onload=el.onloadedmetadata=res; el.onerror=rej; el.src=g+p.mediaCid; }); return; }catch{} })();
             }
-            div.innerHTML+=`<div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div><div>📊 ${p.ratingCount} | ⭐ ${p.highScoreCount}/${TH}</div>`;
+            div.innerHTML+=`<div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div><div>📊 ${p.ratingCount} | ⭐ ${wCnt.toFixed(1)}/${TH}</div>`;
             const acts=document.createElement('div'); acts.className='actions';
-            if(!p.isPublic&&me.totalCIS>=1_000_000&&p.userId!==ME){
+            if(!p.isPublic && user && user.totalCIS>=1e6 && p.userId!==wallet){
                 const inp=document.createElement('input'); inp.type='number'; inp.step='0.1'; inp.min='0'; inp.max='10'; inp.value='7.5'; inp.className='score-input';
                 const btn=document.createElement('button'); btn.textContent='Rate';
-                btn.onclick=()=>{ const s=+inp.value; if(isNaN(s)||s<0||s>10) alert('0-10'); else addRating(p.id,ME,s); };
+                btn.onclick=()=>{ const s=+inp.value; if(isNaN(s)||s<0||s>10) alert('0-10'); else rate(p.id,s); };
                 acts.append(inp,btn);
             }
-            if(!p.isPublic){ const sim=document.createElement('button'); sim.textContent='⚡ Sim'; sim.style.background='#8a6a2a'; sim.onclick=()=>simulate(p.id); acts.appendChild(sim); }
-            if(p.isPublic){ const like=document.createElement('button'); like.textContent=`❤️ ${p.likeCount} -1 RAD`; like.onclick=()=>like(p.id,ME); acts.appendChild(like); }
+            if(!p.isPublic && isDev){ const sim=document.createElement('button'); sim.textContent='⚡Sim'; sim.style.background='#8a6a2a'; sim.onclick=()=>simulate(p.id); acts.appendChild(sim); }
+            if(p.isPublic){ const like=document.createElement('button'); like.textContent=`❤️ ${p.likeCount} -1`; like.onclick=()=>like(p.id); acts.appendChild(like); }
             div.appendChild(acts); feed.appendChild(div);
         }
     }
-    async function updUI(){ const u=await getUser(ME); document.getElementById('userInfo').innerHTML=`<span>👤 ${esc(u.name)}</span><span>🏆 ${u.totalCIS.toLocaleString()}</span><span class="balance">💰 ${(u.balance||0)} RAD</span>`; }
+    async function updUI(){
+        if(!user) return;
+        document.getElementById('userInfo').innerHTML=`<span>👤 ${esc(user.name)}</span><span>🏆 ${user.totalCIS.toLocaleString()}</span><span class="balance">💰 ${user.balance} RAD</span>`;
+    }
+
+    // Export/Import
+    async function snapshot(){ return {users:await getAll('users'),posts:await getAll('posts'),ratings:await getAll('ratings'),likes:await getAll('likes')}; }
+    async function exportFile(){ const d=await snapshot(); const h=ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d))); const sig=await sign(h); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify({d,h,sig,wallet})])); a.download=`radiant_${Date.now()}.json`; a.click(); }
+    async function importFile(f){ const t=await f.text(); const {d,h,sig,wallet:w}=JSON.parse(t); if(ethers.verifyMessage(h,sig)!==w) return alert('Bad sig'); if(ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d)))!==h) return alert('Hash mismatch'); await clearAll(); for(const s of ['users','posts','ratings','likes']) for(const i of d[s]||[]) await put(s,i); location.reload(); }
+    async function exportCID(){ if(!pinJWT) return alert('Set JWT'); const snap=await snapshot(); const h=ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(snap))); const sig=await sign(h); const cid=await jsonUp({d:snap,h,sig,wallet}); alert(`CID: ${cid}`); }
+    async function importCID(){ const cid=prompt('CID:'); if(!cid) return; const r=await fetch(`https://ipfs.io/ipfs/${cid}`); if(!r.ok) return alert('Fetch fail'); const {d,h,sig,wallet:w}=await r.json(); if(ethers.verifyMessage(h,sig)!==w) return alert('Bad sig'); if(ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(d)))!==h) return alert('Hash mismatch'); await clearAll(); for(const s of ['users','posts','ratings','likes']) for(const i of d[s]||[]) await put(s,i); location.reload(); }
 
     // Upload
     const fi=document.getElementById('fileInput'), dz=document.getElementById('dropZone'), cp=document.getElementById('createPost');
     async function handleFile(f){
-        if(!f) return; if(!pinJWT) return alert('Set JWT first');
-        cp.disabled=true; cp.textContent='Uploading...';
+        if(!f) return; if(!pinJWT) return alert('JWT'); cp.disabled=true; cp.textContent='Upload...';
         try{
             const cid=await ipfsUp(f);
-            const meta=await jsonUp({desc:document.getElementById('description').value,ts:Date.now(),mediaCid:cid,type:document.getElementById('mediaType').value});
+            const meta=await jsonUp({desc:document.getElementById('description').value,ts:Date.now(),cid,type:document.getElementById('mediaType').value});
             pendCID=cid; pendMeta=meta; cp.disabled=false; cp.textContent='Post';
-            dz.style.borderColor='#2e7d32'; dz.innerHTML=`✅ ${f.name} (${cid.slice(0,8)}…)`;
+            dz.style.borderColor='#2e7d32'; dz.innerHTML=`✅ ${f.name} (${cid.slice(0,8)})`;
         }catch(e){ alert(e.message); cp.disabled=true; cp.textContent='Post'; }
     }
     dz.onclick=()=>fi.click(); dz.ondragover=e=>{e.preventDefault();dz.style.background='rgba(0,0,0,0.05)';}; dz.ondragleave=()=>dz.style.background='';
     dz.ondrop=e=>{e.preventDefault();dz.style.background=''; handleFile(e.dataTransfer.files[0]);};
     fi.onchange=()=>handleFile(fi.files[0]);
-    cp.onclick=async()=>{
-        if(!pendCID) return alert('Upload file');
-        await createPost(ME,pendCID,pendMeta,document.getElementById('mediaType').value,document.getElementById('description').value);
-        pendCID=pendMeta=null; fi.value=''; dz.innerHTML='📁 Click/drop file<input type="file" id="fileInput" accept="image/*,video/*">'; dz.style.borderColor='';
-        cp.disabled=true; cp.textContent='Post'; document.getElementById('description').value='';
-    };
-
-    // Export/Import with verification
-    async function getFullSnapshot(){ return {users:await getAll('users'),posts:await getAll('posts'),ratings:await getAll('ratings'),likes:await getAll('likes')}; }
-    async function exportFile(){ const d=await getFullSnapshot(); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)])); a.download=`radiant_${Date.now()}.json`; a.click(); }
-    async function importData(data){
-        const { data: verified, fixed } = verifyAndFixBalances(JSON.parse(JSON.stringify(data))); // deep copy
-        if(fixed) alert('⚠️ Balances were corrected during import.');
-        await clearAll();
-        for(const s of ['users','posts','ratings','likes']) for(const i of verified[s]||[]) await put(s,i);
-        location.reload();
-    }
-    async function importFile(f){ const t=await f.text(); await importData(JSON.parse(t)); }
-    async function exportMasterCID(){
-        if(!pinJWT) return alert('Set JWT first');
-        const snap = await getFullSnapshot();
-        const cid = await jsonUp(snap);
-        alert(`Master CID: ${cid}\n\nSave this CID to restore your entire account.`);
-    }
-    async function importFromCID(){
-        const cid = prompt('Enter Master CID:');
-        if(!cid) return;
-        try{
-            const resp = await fetch(`https://ipfs.io/ipfs/${cid}`);
-            if(!resp.ok) throw new Error('Fetch failed');
-            const data = await resp.json();
-            await importData(data);
-        }catch(e){ alert('Import failed: '+e.message); }
-    }
+    cp.onclick=async()=>{ if(!wallet) return alert('Connect'); if(!pendCID) return alert('Upload'); await createPost(pendCID,pendMeta,document.getElementById('mediaType').value,document.getElementById('description').value); pendCID=pendMeta=null; fi.value=''; dz.innerHTML='📁Drop file<input type="file" id="fileInput" accept="image/*,video/*">'; dz.style.borderColor=''; cp.disabled=true; cp.textContent='Post'; document.getElementById('description').value=''; };
 
     // Init
-    await openDB(); await ensureUsers();
-    if((await getAll('posts')).length===0) await put('posts',{userId:ME,mediaCid:'QmZ4tDuvesekSs4aJ1P5n9kNR4eB3B2E3Pp7QFpNcNYfVq',metaCid:'',mediaType:'image',description:'Welcome! Set JWT to upload.',createdAt:Date.now(),isPublic:false,ratingCount:0,highScoreCount:0,likeCount:0});
-    await updUI(); await render();
-
+    await openDB();
+    if((await getAll('users')).length===0) await put('users',{id:'0xDemo',name:'Demo',totalCIS:1_200_000,balance:1000});
+    document.getElementById('connectWallet').onclick=connect;
     document.getElementById('darkToggle').onclick=()=>document.body.classList.toggle('dark');
     document.getElementById('showAll').onclick=()=>{filter='all';render();};
     document.getElementById('showMine').onclick=()=>{filter='my';render();};
     document.getElementById('simulateBtn').onclick=async()=>{ const p=await getAll('posts'); if(p.length) simulate(p[0].id); };
-    document.getElementById('setPinataToken').onclick=()=>{ const t=prompt('Pinata JWT (memory only):'); if(t) pinJWT=t; };
+    document.getElementById('setPinataToken').onclick=()=>{ const t=prompt('Pinata JWT:'); if(t) pinJWT=t; };
     document.getElementById('exportDB').onclick=exportFile;
     document.getElementById('importDB').onclick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='.json'; i.onchange=e=>importFile(e.target.files[0]); i.click(); };
-    document.getElementById('exportMasterCID').onclick=exportMasterCID;
-    document.getElementById('importFromCID').onclick=importFromCID;
-    document.getElementById('addSample').onclick=async()=>{ if(!pinJWT) return alert('Set JWT'); const cid='QmZ4tDuvesekSs4aJ1P5n9kNR4eB3B2E3Pp7QFpNcNYfVq'; const meta=await jsonUp({desc:'Sample',ts:Date.now(),mediaCid:cid,type:'image'}); await createPost(ME,cid,meta,'image','Pinned sample'); };
+    document.getElementById('exportCID').onclick=exportCID;
+    document.getElementById('importCID').onclick=importCID;
+    document.getElementById('addSample').onclick=async()=>{ if(!pinJWT) return alert('JWT'); const cid='QmZ4tDuvesekSs4aJ1P5n9kNR4eB3B2E3Pp7QFpNcNYfVq'; const meta=await jsonUp({desc:'Sample',ts:Date.now(),cid,type:'image'}); await createPost(cid,meta,'image','Sample'); };
+    updUI(); render();
 })();
 </script>
 </body>
