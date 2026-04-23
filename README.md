@@ -13,19 +13,22 @@ Radiant Protocol is a cryptographic system for proving that an entity was active
 ## 📄 Table of Contents
 
 - [Abstract](#abstract)
-- [System Model](#system-model)
-- [Protocol Definition](#protocol-definition)
-- [Security Model](#security-model)
-- [Adversarial Analysis](#adversarial-analysis)
-- [Implementation Considerations](#implementation-considerations)
-- [Getting Started](#getting-started)
+- [1. Introduction](#1-introduction)
+- [2. Preliminaries](#2-preliminaries)
+- [3. System Model](#3-system-model)
+- [4. Protocol Definition](#4-protocol-definition)
+- [5. Recursive Aggregation](#5-recursive-aggregation)
+- [6. Security Model](#6-security-model)
+- [7. Adversarial Analysis](#7-adversarial-analysis)
+- [8. Implementation Considerations](#8-implementation-considerations)
+- [9. Getting Started](#9-getting-started)
 - [License](#license)
 
 ---
 
 ## Abstract
 
-We introduce Radiant Protocol, a cryptographic system for proving presence—the fact that an entity was actively responsive within a specific time window—without revealing sensitive information. Unlike traditional identity systems, Radiant focuses on liveness-bound participation rather than static identity. The protocol combines digital signatures, blockchain-derived challenges, zero-knowledge proofs, and recursive proof composition (IVC) to produce compact, verifiable attestations of ordered presence events. We formalise the model, define security properties, and analyse adversarial strategies under both cryptographic and economic assumptions.
+We introduce Radiant Protocol, a cryptographic system for proving presence—the fact that an entity was actively responsive within a specific time window—without revealing sensitive information. Unlike traditional identity systems, Radiant focuses on liveness‑bound participation rather than static identity. The protocol combines digital signatures, blockchain‑derived challenges, zero‑knowledge proofs, and recursive proof composition (IVC) to produce compact, verifiable attestations of ordered presence events. We formalise the model, define security properties, and analyse adversarial strategies under both cryptographic and economic assumptions.
 
 ## 1. Introduction
 
