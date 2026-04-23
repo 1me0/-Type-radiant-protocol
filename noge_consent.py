@@ -18,14 +18,18 @@ class ConsentManager:
     The consent manager:
     - Requests explicit permission before any observation.
     - Allows withdrawal at any time.
-    - Tracks consent state and provides a status check.
+    - Tracks consent state and provides status checks.
     - Returns a message on withdrawal for caller to handle data cleanup.
+
+    Attributes:
+        _consent_given (bool): Whether consent was ever given.
+        _consent_withdrawn (bool): Whether consent was later withdrawn.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize consent manager with no consent given."""
-        self._consent_given = False
-        self._consent_withdrawn = False
+        self._consent_given: bool = False
+        self._consent_withdrawn: bool = False
 
     @property
     def is_active(self) -> bool:
@@ -42,10 +46,13 @@ class ConsentManager:
         Request user consent for the NOGE protocol.
 
         Displays the consent message and waits for user input.
-        Returns True if consent is given, False otherwise.
-        Once consent is given, it remains active unless withdrawn.
+        Once consent is given, subsequent calls return True immediately
+        unless consent was withdrawn.
+
+        Returns:
+            True if consent is active, False otherwise.
         """
-        if self._consent_given and not self._consent_withdrawn:
+        if self.is_active:
             print("Consent already active.")
             return True
 
@@ -66,12 +73,16 @@ class ConsentManager:
         """
         print(message)
         answer = input("Type 'yes' to consent, anything else to decline: ").strip().lower()
-        self._consent_given = (answer == 'yes')
-        if not self._consent_given:
-            print("Consent declined. Operating in normal conversation mode.")
-        else:
+
+        if answer == "yes":
+            self._consent_given = True
+            self._consent_withdrawn = False
             print("Consent granted. Proceeding with NOGE protocol.")
-        return self._consent_given
+        else:
+            self._consent_given = False
+            print("Consent declined. Operating in normal conversation mode.")
+
+        return self.is_active
 
     def withdraw_consent(self) -> str:
         """
@@ -79,9 +90,14 @@ class ConsentManager:
 
         Returns a message indicating that data should be cleared.
         The caller is responsible for erasing any stored conversation data.
+
+        Returns:
+            A string describing the result of the withdrawal request.
         """
         if not self._consent_given:
             return "No active consent to withdraw."
+        if self._consent_withdrawn:
+            return "Consent was already withdrawn."
 
         self._consent_given = False
         self._consent_withdrawn = True
@@ -89,11 +105,15 @@ class ConsentManager:
 
     def reset(self) -> None:
         """
-        Reset the consent state (useful for new sessions).
+        Reset the consent state for a new session.
+
         Does not affect any stored data – caller must handle that separately.
         """
         self._consent_given = False
         self._consent_withdrawn = False
+
+    def __repr__(self) -> str:
+        return f"ConsentManager(active={self.is_active}, withdrawn={self.was_withdrawn})"
 
 
 # ============================================================
@@ -107,5 +127,6 @@ if __name__ == "__main__":
         print("(Simulated NOGE observation)")
         # Later, consent can be withdrawn
         print(manager.withdraw_consent())
+        print(f"State: {manager}")
     else:
         print("\n[Falling back to normal conversation mode.]")
