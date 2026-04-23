@@ -11,7 +11,7 @@ Welcome to the first public release of the **Radiant Protocol** – a ZK‑recur
 This release includes all core components necessary to run a complete instance of the Radiant Protocol on a testnet (Sepolia) or locally.
 
 ### Smart Contracts (Solidity)
-- `Radiant.sol` – staking, proof submission, reputation, rewards, slashing, council‑based emergency governance.
+- `Radiant.sol` – staking, proof submission, reputation, rewards, slashing, and council‑based emergency governance.
 - `RadiantShares.sol` – ERC20 token with vesting and reputation‑weighted rewards.
 - `ArchitectFee.sol` – competitive fee game (50% fee, record‑breaking bonus).
 - `Registry.sol` – canonical address registry.
@@ -19,15 +19,15 @@ This release includes all core components necessary to run a complete instance o
 
 ### Backend & Services
 - **FastAPI** (`app.py`) – CIS scoring endpoint (`/score`) and trend analytics.
-- **Relayer** (Node.js) – listens to contract events, forwards proofs to Kafka.
+- **Relayer** (Node.js) – listens to contract events and forwards proofs to Kafka.
 - **Rust Worker** – placeholder for ZK‑recursive proof validation (Nova integration coming soon).
-- **WebSocket Server** – broadcasts validation results to frontend.
-- **Kafka** – message bus for proof pipeline.
+- **WebSocket Server** – broadcasts validation results to the frontend.
+- **Kafka** – message bus for the proof pipeline.
 
 ### Frontend
-- **React Dashboard** – staking, proof submission, leaderboard, live proof feed.
+- **React Dashboard** – staking, proof submission, leaderboard, and live proof feed.
 - **RadiantPresence.html** – Proof of Presence demo with local storage and on‑chain anchoring.
-- **RadiantTransaction.html** – Competitive fee game interface.
+- **RadiantTransaction.html** – competitive fee game interface.
 - **RadiantSocial.html** – CIS‑gated social feed.
 
 ### Infrastructure
@@ -52,10 +52,10 @@ For a detailed step‑by‑step tutorial, refer to [TUTORIAL.md](TUTORIAL.md).
 
 ## 📦 Assets
 
-- **Smart contracts** – deployed on Sepolia testnet (addresses available in the registry)
-- **Docker images** – coming soon to Docker Hub
-- **Frontend build** – `/frontend/build` (static files ready for hosting)
-- **SDK** – `RadiantSDK.ts` for TypeScript/JavaScript integrations
+- **Smart contracts** – deployed on Sepolia testnet (addresses available in the registry).
+- **Docker images** – coming soon to Docker Hub.
+- **Frontend build** – `/frontend/build` (static files ready for hosting).
+- **SDK** – `RadiantSDK.ts` for TypeScript/JavaScript integrations.
 
 ---
 
@@ -72,8 +72,8 @@ For a detailed step‑by‑step tutorial, refer to [TUTORIAL.md](TUTORIAL.md).
 
 - The Rust worker currently simulates proof validation (actual Nova folding not yet integrated).
 - On‑chain anchoring for Proof of Presence requires a deployed `PresenceRegistry` contract (provided).
-- WebSocket server is not yet scaled for high concurrency (single instance only).
-- The CIS scoring API uses a rule‑based fallback; AI‑powered scoring requires additional setup (see `ai/` directory).
+- The WebSocket server is not yet scaled for high concurrency (single instance only).
+- The CIS scoring API uses a rule‑based fallback; AI‑powered scoring requires additional setup (see the `ai/` directory).
 
 ---
 
