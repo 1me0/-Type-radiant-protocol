@@ -17,20 +17,21 @@ License: MIT
 """
 
 import numpy as np
-from typing import Callable, Tuple, Optional
 from dataclasses import dataclass
+from typing import Callable, Dict, Optional, Tuple
 from scipy.stats import wasserstein_distance
 
 
 @dataclass
 class ValidityReport:
     """Report containing all validity flags and diagnostic details."""
+
     lyapunov_consistent: bool
     foster_lyapunov_holds: bool
     empirical_stationarity: bool
     support_violation_rate_ok: bool
     is_valid: bool
-    details: dict
+    details: Dict[str, float | str | int]
 
 
 class MetaStructuralValidity:
@@ -65,7 +66,9 @@ class MetaStructuralValidity:
     # ------------------------------------------------------------
     # 1. LYAPUNOV CONSISTENCY (empirical)
     # ------------------------------------------------------------
-    def check_lyapunov_consistency(self, samples: int = 2000, eps: float = 1e-6) -> Tuple[bool, str]:
+    def check_lyapunov_consistency(
+        self, samples: int = 2000, eps: float = 1e-6
+    ) -> Tuple[bool, str]:
         """
         Checks whether V behaves consistently with M:
         - V ≈ 0 on M
@@ -88,7 +91,9 @@ class MetaStructuralValidity:
     # ------------------------------------------------------------
     # 2. LOCAL FOSTER–LYAPUNOV DRIFT (single point)
     # ------------------------------------------------------------
-    def check_foster_lyapunov(self, P: np.ndarray, samples: int = 100) -> Tuple[bool, float]:
+    def check_foster_lyapunov(
+        self, P: np.ndarray, samples: int = 100
+    ) -> Tuple[bool, float]:
         """
         Estimates δ(P) = V(P) - E[V(T(P,ξ))].
         Condition: δ(P) > 0 for P ∉ M.
@@ -150,12 +155,11 @@ class MetaStructuralValidity:
         P = np.zeros(self.n)
         traj = []
 
-        for t in range(steps + burn_in):
+        for _ in range(steps + burn_in):
             P = self.T(P, self.noise())
-            if t >= burn_in:
-                traj.append(P.copy())
+            traj.append(P.copy())
 
-        traj = np.array(traj)
+        traj = np.array(traj[burn_in:])  # discard burn‑in
         if len(traj) == 0:
             return False, np.inf, traj
 
@@ -264,12 +268,12 @@ class MetaStructuralValidity:
 if __name__ == "__main__":
     # Define projection onto the invariant manifold (line y = x)
     def project(P: np.ndarray) -> np.ndarray:
-        m = (P[0] + P[1]) / 2
+        m = (P[0] + P[1]) / 2.0
         return np.array([m, m])
 
     # Lyapunov function: squared distance to manifold
     def V(P: np.ndarray) -> float:
-        return np.linalg.norm(P - project(P)) ** 2
+        return float(np.linalg.norm(P - project(P)) ** 2)
 
     # Invariant set indicator (within 1e-6 of the line)
     def in_M(P: np.ndarray) -> bool:
@@ -279,7 +283,7 @@ if __name__ == "__main__":
     def T(P: np.ndarray, xi: np.ndarray) -> np.ndarray:
         alpha, beta = 0.4, 0.6
         Pi = project(P)
-        correction = (1 + beta) * Pi - beta * P
+        correction = (1.0 + beta) * Pi - beta * P
         return P + alpha * correction + 0.05 * xi
 
     def noise() -> np.ndarray:
@@ -299,5 +303,5 @@ if __name__ == "__main__":
     report = checker.validate()
 
     print("\n=== META-STRUCTURAL VALIDITY REPORT ===")
-    for k, v in report.__dict__.items():
-        print(f"{k}: {v}")
+    for field, value in report.__dict__.items():
+        print(f"{field}: {value}")
