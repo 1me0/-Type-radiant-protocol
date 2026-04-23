@@ -1,448 +1,198 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiant Protocol – Live Demo</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Radiant Protocol · Demo</title>
     <style>
-        * {
-            box-sizing: border-box;
-            font-family: system-ui, 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-        }
-        body {
-            background: linear-gradient(135deg, #0a1a2a 0%, #1a2a3a 100%);
-            min-height: 100vh;
-            margin: 0;
-            padding: 24px;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #ffffff, #9bb8d4);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            margin-bottom: 8px;
-        }
-        .sub {
-            color: #9bb8d4;
-            margin-bottom: 32px;
-            font-size: 1rem;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-            gap: 24px;
-        }
-        .card {
-            background: rgba(255,255,255,0.08);
-            backdrop-filter: blur(10px);
-            border-radius: 28px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: transform 0.2s;
-        }
-        .card:hover {
-            transform: translateY(-4px);
-        }
-        .card h2 {
-            font-size: 1.4rem;
-            margin: 0 0 16px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: white;
-        }
-        .card p {
-            color: #cbd5e0;
-            font-size: 0.85rem;
-            margin-bottom: 16px;
-        }
-        input, textarea, select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 40px;
-            border: 1px solid #2c4a6a;
-            background: rgba(0,0,0,0.3);
-            color: white;
-            margin-bottom: 12px;
-        }
-        button {
-            background: #2c7a4d;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 40px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background: #1e5a3a;
-        }
-        .btn-secondary {
-            background: #3a5a7a;
-        }
-        .btn-secondary:hover {
-            background: #2c4a6a;
-        }
-        .score-badge {
-            background: #1e2a3a;
-            border-radius: 30px;
-            padding: 6px 12px;
-            font-size: 0.85rem;
-            display: inline-block;
-            margin-top: 8px;
-            color: #cbd5e0;
-        }
-        .metric-slider {
-            margin: 12px 0;
-        }
-        .metric-slider label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            color: #cbd5e0;
-        }
-        input[type="range"] {
-            margin-top: 4px;
-        }
-        .value-display {
-            font-weight: bold;
-            color: #7bcfa2;
-        }
-        .record-badge {
-            background: #ffd966;
-            color: #1a2a3a;
-            border-radius: 20px;
-            padding: 2px 8px;
-            font-size: 0.7rem;
-        }
-        hr {
-            border-color: #2c4a6a;
-            margin: 16px 0;
-        }
-        footer {
-            text-align: center;
-            margin-top: 40px;
-            color: #5a7a9a;
-            font-size: 0.75rem;
-        }
-        .flex-buttons {
-            display: flex;
-            gap: 12px;
-            margin-top: 8px;
-        }
-        .reset-btn {
-            background: #8a2a2a;
-        }
-        .reset-btn:hover {
-            background: #6a1a1a;
-        }
-        .balance-display {
-            background: rgba(0,0,0,0.4);
-            border-radius: 30px;
-            padding: 6px 12px;
-            margin-bottom: 12px;
-            font-size: 0.85rem;
-            color: #9bb8d4;
-        }
+        *{box-sizing:border-box;font-family:system-ui,sans-serif}body{background:linear-gradient(135deg,#0a1a2a,#1a2a3a);min-height:100vh;margin:0;padding:20px;color:#fff}.container{max-width:1200px;margin:auto}h1{font-size:2rem;background:linear-gradient(135deg,#fff,#9bb8d4);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{color:#9bb8d4;margin-bottom:24px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}.card{background:rgba(255,255,255,.08);backdrop-filter:blur(10px);border-radius:28px;padding:20px;border:1px solid rgba(255,255,255,.1)}.card h2{font-size:1.3rem;margin:0 0 12px;color:#fff}input,textarea,select{width:100%;padding:10px;border-radius:40px;border:1px solid #2c4a6a;background:rgba(0,0,0,.3);color:#fff;margin-bottom:10px}button{background:#2c7a4d;border:none;padding:8px 16px;border-radius:40px;color:#fff;font-weight:600;cursor:pointer;margin-right:8px;margin-bottom:8px}button:hover{background:#1e5a3a}.btn-secondary{background:#3a5a7a}.btn-secondary:hover{background:#2c4a6a}.reset-btn{background:#8a2a2a}.reset-btn:hover{background:#6a1a1a}.score-badge{background:#1e2a3a;border-radius:30px;padding:8px 16px;margin-top:10px;display:inline-block;border:1px solid #2c4a6a;transition:filter 0.3s ease, background 0.3s ease}.metric-slider{margin:12px 0}.metric-slider label{display:flex;justify-content:space-between;font-size:.8rem;color:#cbd5e0}input[type=range]{width:100%;margin:5px 0}.balance-display{background:rgba(0,0,0,.4);border-radius:30px;padding:8px 16px;margin-bottom:16px;font-size:.9rem}.flex-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}footer{text-align:center;margin-top:30px;color:#5a7a9a;font-size:.75rem}
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>✨ Radiant Protocol – Live Demo</h1>
-    <div class="sub">ZK‑Recursive Proof of Presence · CIS Scoring · Value Alignment</div>
-
+    <h1>✨ Radiant Protocol · Live Demo</h1>
+    <div class="sub">ZK Proof of Presence · CIS · Value Alignment</div>
     <div class="grid">
-        <!-- 1. Proof of Presence -->
+        <!-- Presence -->
         <div class="card">
             <h2>🔹 Proof of Presence</h2>
-            <p>Generate a deterministic presence score from your wallet or name. Stored locally – proves you were here.</p>
-            <input type="text" id="presenceId" placeholder="Wallet address or name (e.g., 0x... or @alice)">
-            <button id="registerPresenceBtn">✨ Register Presence</button>
-            <div id="presenceResult" style="margin-top: 12px;"></div>
+            <p style="color:#cbd5e0;font-size:.9rem">Deterministic score from your ID.</p>
+            <input id="presenceId" placeholder="Wallet or name">
+            <button id="registerPresenceBtn">✨ Register</button>
+            <div id="presenceResult"></div>
         </div>
-
-        <!-- 2. CIS Scoring -->
+        <!-- CIS -->
         <div class="card">
-            <h2>📊 CIS Score (Communication Intelligence)</h2>
-            <p>Rate your message clarity. Higher score = better alignment, understanding, accuracy, low distortion.</p>
-            <textarea id="messageText" rows="2" placeholder="Type a message..."></textarea>
-            <div class="metric-slider">
-                <label>Alignment (context fit) <span id="alignVal">0.80</span></label>
-                <input type="range" id="alignment" min="0" max="1" step="0.01" value="0.8">
-            </div>
-            <div class="metric-slider">
-                <label>Understanding (intent captured) <span id="understandVal">0.80</span></label>
-                <input type="range" id="understanding" min="0" max="1" step="0.01" value="0.8">
-            </div>
-            <div class="metric-slider">
-                <label>Accuracy (correctness) <span id="accuracyVal">0.80</span></label>
-                <input type="range" id="accuracy" min="0" max="1" step="0.01" value="0.8">
-            </div>
-            <div class="metric-slider">
-                <label>Distortion (noise/manipulation) <span id="distortVal">0.10</span></label>
-                <input type="range" id="distortion" min="0" max="1" step="0.01" value="0.1">
-            </div>
-            <button id="computeCISBtn">🧠 Compute CIS Score</button>
+            <h2>📊 CIS Score</h2>
+            <textarea id="messageText" rows="2" placeholder="Message..."></textarea>
+            <div class="metric-slider"><label>Alignment <span id="alignVal">0.80</span></label><input type="range" id="alignment" min="0" max="1" step="0.01" value="0.8"></div>
+            <div class="metric-slider"><label>Understanding <span id="understandVal">0.80</span></label><input type="range" id="understanding" min="0" max="1" step="0.01" value="0.8"></div>
+            <div class="metric-slider"><label>Accuracy <span id="accuracyVal">0.80</span></label><input type="range" id="accuracy" min="0" max="1" step="0.01" value="0.8"></div>
+            <div class="metric-slider"><label>Distortion <span id="distortVal">0.10</span></label><input type="range" id="distortion" min="0" max="1" step="0.01" value="0.1"></div>
+            <button id="computeCISBtn">🧠 Compute</button>
             <div id="cisResult" class="score-badge"></div>
         </div>
-
-        <!-- 3. Transaction Fee Game -->
+        <!-- Fee Game -->
         <div class="card">
-            <h2>💰 Transaction Fee Game</h2>
-            <p>Send tokens – 50% fee to architect. If you beat the record, you get a bonus reward!</p>
-            <input type="number" id="txAmount" placeholder="Amount (RAD)" step="0.01" value="100">
-            <input type="text" id="recipient" placeholder="Recipient address (simulated)">
-            <button id="sendTxBtn">⚡ Send & Pay Fee</button>
-            <div id="txResult" style="margin-top: 12px;"></div>
-            <div id="recordDisplay" class="score-badge">Architect's last record: 0 RAD</div>
+            <h2>💰 Tx Fee Game</h2>
+            <p style="color:#cbd5e0;font-size:.9rem">50% fee to architect. Beat record → bonus.</p>
+            <input id="txAmount" type="number" placeholder="Amount (RAD)" value="100">
+            <input id="recipient" placeholder="Recipient address">
+            <button id="sendTxBtn">⚡ Send</button>
+            <div id="txResult"></div>
+            <div id="recordDisplay" class="score-badge">Record: 0 RAD</div>
         </div>
-
-        <!-- 4. Staking & Rewards -->
+        <!-- Staking -->
         <div class="card">
-            <h2>🏦 Staking & Rewards</h2>
-            <p>Stake RAD to earn from the fee pool. Rewards are distributed proportionally.</p>
-            <input type="number" id="stakeAmount" placeholder="Amount to stake" step="0.01" value="50">
-            <button id="stakeBtn">🔒 Stake</button>
-            <button id="unstakeBtn" style="background:#3a5a7a;">🔓 Unstake</button>
-            <button id="claimRewardsBtn">💰 Claim Rewards</button>
+            <h2>🏦 Staking</h2>
+            <input id="stakeAmount" type="number" placeholder="Amount" value="50">
+            <div class="flex-buttons">
+                <button id="stakeBtn">🔒 Stake</button>
+                <button id="unstakeBtn" class="btn-secondary">🔓 Unstake</button>
+                <button id="claimRewardsBtn">💰 Claim</button>
+            </div>
             <div id="stakingInfo" class="score-badge"></div>
             <div id="rewardInfo" class="score-badge"></div>
             <div class="balance-display" id="balanceDisplay"></div>
         </div>
     </div>
-    <div class="flex-buttons" style="justify-content: center; margin-top: 20px;">
-        <button id="resetDemoBtn" class="reset-btn">🗑️ Reset Demo (Clear All Data)</button>
+    <div style="text-align:center;margin-top:20px">
+        <button id="resetDemoBtn" class="reset-btn">🗑️ Reset All</button>
     </div>
-    <footer>
-        🔐 This demo runs locally in your browser (simulated). All logic is client‑side.<br>
-        To connect to real testnet contracts, replace the mock functions with web3 calls.
-    </footer>
+    <footer>🔐 Client‑side demo · Integer RAD · LocalStorage · Smooth distortion</footer>
 </div>
-
 <script>
-    // ============================================================
-    // Radiant Protocol Demo – Simulated Economy
-    // ============================================================
-    (function() {
-        // ---------- Helper: deterministic hash (0‑100) ----------
-        function hashToScore(str) {
-            let hash = 5381;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) + hash) + str.charCodeAt(i);
-                hash = hash & hash;
-            }
-            return Math.abs(hash % 101);
+(function(){
+    // State (integers for RAD)
+    let state = {
+        presenceId: '', presenceScore: 0, lastRecord: 0,
+        userStake: 0, totalStaked: 0, rewardPool: 100,
+        userRewards: 0, userBalance: 1000, architectBalance: 0, treasury: 500
+    };
+    const recipMap = new Map();
+    const STORE = {
+        pid:'rp_id', psc:'rp_score', rec:'rp_rec', usk:'rp_usk', tsk:'rp_tsk', rpl:'rp_rpl', urw:'rp_urw', ubl:'rp_ubl', abl:'rp_abl', trs:'rp_trs'
+    };
+
+    function hash(s){ let h=5381; for(let i=0;i<s.length;i++)h=((h<<5)+h)+s.charCodeAt(i); return (h>>>0)%101; }
+    function persist(){
+        localStorage.setItem(STORE.pid, state.presenceId); localStorage.setItem(STORE.psc, state.presenceScore);
+        localStorage.setItem(STORE.rec, state.lastRecord); localStorage.setItem(STORE.usk, state.userStake);
+        localStorage.setItem(STORE.tsk, state.totalStaked); localStorage.setItem(STORE.rpl, state.rewardPool);
+        localStorage.setItem(STORE.urw, state.userRewards); localStorage.setItem(STORE.ubl, state.userBalance);
+        localStorage.setItem(STORE.abl, state.architectBalance); localStorage.setItem(STORE.trs, state.treasury);
+        recipMap.forEach((v,k)=>localStorage.setItem(`bal_${k}`,v));
+    }
+    function load(){
+        state.presenceId = localStorage.getItem(STORE.pid)||'';
+        state.presenceScore = parseInt(localStorage.getItem(STORE.psc)||'0');
+        state.lastRecord = parseInt(localStorage.getItem(STORE.rec)||'0');
+        state.userStake = parseInt(localStorage.getItem(STORE.usk)||'0');
+        state.totalStaked = parseInt(localStorage.getItem(STORE.tsk)||'0');
+        state.rewardPool = parseInt(localStorage.getItem(STORE.rpl)||'100');
+        state.userRewards = parseInt(localStorage.getItem(STORE.urw)||'0');
+        state.userBalance = parseInt(localStorage.getItem(STORE.ubl)||'1000');
+        state.architectBalance = parseInt(localStorage.getItem(STORE.abl)||'0');
+        state.treasury = parseInt(localStorage.getItem(STORE.trs)||'500');
+        for(let i=0;i<localStorage.length;i++){ let k=localStorage.key(i); if(k&&k.startsWith('bal_')) recipMap.set(k.slice(4),parseInt(localStorage.getItem(k))); }
+    }
+    function updateUI(){
+        document.getElementById('recordDisplay').innerText = `Record: ${state.lastRecord} RAD`;
+        document.getElementById('stakingInfo').innerHTML = `Stake: ${state.userStake} / ${state.totalStaked} RAD`;
+        document.getElementById('rewardInfo').innerHTML = `Pool: ${state.rewardPool} · Pending: ${state.userRewards} RAD`;
+        document.getElementById('balanceDisplay').innerHTML = `💎 You: ${state.userBalance} · Architect: ${state.architectBalance} · Treasury: ${state.treasury}`;
+        if(state.presenceId) document.getElementById('presenceResult').innerHTML = `<div class="score-badge">✅ ${state.presenceId.slice(0,10)}… Score: ${state.presenceScore}</div>`;
+        else document.getElementById('presenceResult').innerHTML = '';
+    }
+
+    // Presence
+    document.getElementById('registerPresenceBtn').onclick = ()=>{
+        let id = document.getElementById('presenceId').value.trim();
+        if(!id) return alert('Enter ID');
+        state.presenceId = id; state.presenceScore = hash(id);
+        persist(); updateUI();
+    };
+    // CIS sliders + distortion visualization
+    const sliders = ['alignment','understanding','accuracy','distortion'];
+    sliders.forEach(id=>{
+        let s = document.getElementById(id), sp = document.getElementById(id+'Val');
+        s.oninput = ()=> { sp.innerText = parseFloat(s.value).toFixed(2); }
+    });
+    function updateCISResult(){
+        let a = +document.getElementById('alignment').value,
+            u = +document.getElementById('understanding').value,
+            c = +document.getElementById('accuracy').value,
+            d = +document.getElementById('distortion').value;
+        let cis = Math.min(10, Math.max(0, (0.2*a + 0.3*u + 0.4*c - 0.1*d)*10 ));
+        let resEl = document.getElementById('cisResult');
+        resEl.innerHTML = `CIS: ${cis.toFixed(2)} / 10`;
+        // Apply blur proportional to distortion (max 8px blur)
+        let blurAmount = d * 8;
+        resEl.style.filter = `blur(${blurAmount}px)`;
+    }
+    document.getElementById('computeCISBtn').onclick = updateCISResult;
+    document.getElementById('distortion').oninput = updateCISResult;
+    updateCISResult();
+
+    // Fee game
+    function updateRecord(amt){ if(amt > state.lastRecord){ state.lastRecord = amt; persist(); updateUI(); return true; } return false; }
+    document.getElementById('sendTxBtn').onclick = ()=>{
+        let amt = parseInt(document.getElementById('txAmount').value), rec = document.getElementById('recipient').value.trim();
+        if(isNaN(amt)||amt<=0||!rec) return alert('Invalid input');
+        let fee = Math.floor(amt*0.5), total = amt+fee;
+        if(state.userBalance < total) return alert(`Need ${total} RAD, have ${state.userBalance}`);
+        state.userBalance -= total; state.architectBalance += fee;
+        recipMap.set(rec, (recipMap.get(rec)||0)+amt);
+        let bonus = 0, beat = amt > state.lastRecord;
+        if(beat && state.treasury >= fee){ bonus = fee; state.treasury -= fee; state.userBalance += fee; updateRecord(amt); }
+        else if(beat) alert('Treasury low, no bonus');
+        persist(); updateUI();
+        document.getElementById('txResult').innerHTML = `<div class="score-badge">✅ Sent ${amt} RAD, fee ${fee}${beat&&bonus?` +${bonus} bonus!`:''}</div>`;
+        setTimeout(()=>document.getElementById('txResult').innerHTML='', 4000);
+    };
+    // Staking
+    document.getElementById('stakeBtn').onclick = ()=>{
+        let amt = parseInt(document.getElementById('stakeAmount').value);
+        if(isNaN(amt)||amt<=0||state.userBalance<amt) return alert('Invalid amount');
+        state.userBalance -= amt; state.userStake += amt; state.totalStaked += amt;
+        persist(); updateUI();
+    };
+    document.getElementById('unstakeBtn').onclick = ()=>{
+        let amt = parseInt(document.getElementById('stakeAmount').value);
+        if(isNaN(amt)||amt<=0||amt>state.userStake) return alert('Invalid amount');
+        state.userStake -= amt; state.totalStaked -= amt; state.userBalance += amt;
+        persist(); updateUI();
+    };
+    document.getElementById('claimRewardsBtn').onclick = ()=>{
+        if(state.userRewards<=0) return alert('No rewards');
+        state.userBalance += state.userRewards; state.userRewards = 0;
+        persist(); updateUI();
+    };
+    // Periodic rewards
+    setInterval(()=>{
+        if(state.totalStaked>0 && state.rewardPool>0){
+            let share = Math.floor(state.rewardPool * (state.userStake / state.totalStaked));
+            if(share>0){ state.userRewards += share; state.rewardPool -= share; persist(); updateUI(); }
         }
-
-        // ---------- Persistent state keys ----------
-        const STORAGE = {
-            presenceId: 'radiant_presence_id',
-            presenceScore: 'radiant_presence_score',
-            lastRecord: 'architect_last_record',
-            userStake: 'user_stake',
-            totalStaked: 'total_staked',
-            rewardPool: 'reward_pool',
-            userRewards: 'user_rewards',
-            userBalance: 'user_balance',
-            architectBalance: 'architect_balance',
-            treasury: 'treasury'
-        };
-
-        // ---------- Load initial state ----------
-        let presence = {
-            identifier: localStorage.getItem(STORAGE.presenceId) || '',
-            score: parseInt(localStorage.getItem(STORAGE.presenceScore) || '0')
-        };
-        let lastRecord = parseFloat(localStorage.getItem(STORAGE.lastRecord) || '0');
-        let userStake = parseFloat(localStorage.getItem(STORAGE.userStake) || '0');
-        let totalStaked = parseFloat(localStorage.getItem(STORAGE.totalStaked) || '0');
-        let rewardPool = parseFloat(localStorage.getItem(STORAGE.rewardPool) || '100');
-        let userRewards = parseFloat(localStorage.getItem(STORAGE.userRewards) || '0');
-        let userBalance = parseFloat(localStorage.getItem(STORAGE.userBalance) || '1000');
-        let architectBalance = parseFloat(localStorage.getItem(STORAGE.architectBalance) || '0');
-        let treasury = parseFloat(localStorage.getItem(STORAGE.treasury) || '500');
-
-        // ---------- Persistence helper ----------
-        function persistAll() {
-            localStorage.setItem(STORAGE.presenceId, presence.identifier);
-            localStorage.setItem(STORAGE.presenceScore, presence.score);
-            localStorage.setItem(STORAGE.lastRecord, lastRecord);
-            localStorage.setItem(STORAGE.userStake, userStake);
-            localStorage.setItem(STORAGE.totalStaked, totalStaked);
-            localStorage.setItem(STORAGE.rewardPool, rewardPool);
-            localStorage.setItem(STORAGE.userRewards, userRewards);
-            localStorage.setItem(STORAGE.userBalance, userBalance);
-            localStorage.setItem(STORAGE.architectBalance, architectBalance);
-            localStorage.setItem(STORAGE.treasury, treasury);
+    }, 10000);
+    // Reset
+    document.getElementById('resetDemoBtn').onclick = ()=>{
+        if(confirm('Reset all data?')){
+            localStorage.clear();
+            state = {presenceId:'',presenceScore:0,lastRecord:0,userStake:0,totalStaked:0,rewardPool:100,userRewards:0,userBalance:1000,architectBalance:0,treasury:500};
+            recipMap.clear(); persist(); updateUI();
+            document.getElementById('presenceId').value='';
+            document.getElementById('distortion').value = 0.1;
+            document.getElementById('distortVal').innerText = '0.10';
+            updateCISResult();
         }
-
-        // ---------- UI update ----------
-        function updateUI() {
-            document.getElementById('recordDisplay').innerHTML = `Architect's last record: ${lastRecord.toFixed(2)} RAD`;
-            document.getElementById('stakingInfo').innerHTML = `Your stake: ${userStake.toFixed(2)} RAD | Total staked: ${totalStaked.toFixed(2)} RAD`;
-            document.getElementById('rewardInfo').innerHTML = `Reward pool: ${rewardPool.toFixed(2)} RAD | Your pending rewards: ${userRewards.toFixed(2)} RAD`;
-            document.getElementById('balanceDisplay').innerHTML = `💎 Your balance: ${userBalance.toFixed(2)} RAD | Architect balance: ${architectBalance.toFixed(2)} RAD`;
-            if (presence.identifier) {
-                document.getElementById('presenceResult').innerHTML = `<div class="score-badge">✅ Presence: ${presence.identifier.slice(0,10)}... Score: ${presence.score}</div>`;
-            } else {
-                document.getElementById('presenceResult').innerHTML = '';
-            }
-        }
-
-        // ---------- 1. Proof of Presence ----------
-        document.getElementById('registerPresenceBtn').addEventListener('click', () => {
-            const id = document.getElementById('presenceId').value.trim();
-            if (!id) { alert('Enter a name or address'); return; }
-            const score = hashToScore(id);
-            presence = { identifier: id, score };
-            persistAll();
-            updateUI();
-        });
-
-        // ---------- 2. CIS Scoring ----------
-        const sliders = ['alignment', 'understanding', 'accuracy', 'distortion'];
-        sliders.forEach(s => {
-            const elem = document.getElementById(s);
-            const span = document.getElementById(s + 'Val');
-            elem.addEventListener('input', () => {
-                span.innerText = parseFloat(elem.value).toFixed(2);
-            });
-        });
-        document.getElementById('computeCISBtn').addEventListener('click', () => {
-            const a = parseFloat(document.getElementById('alignment').value);
-            const u = parseFloat(document.getElementById('understanding').value);
-            const c = parseFloat(document.getElementById('accuracy').value);
-            const d = parseFloat(document.getElementById('distortion').value);
-            const raw = 0.2*a + 0.3*u + 0.4*c - 0.1*d;
-            const cis = Math.min(10, Math.max(0, raw * 10));
-            document.getElementById('cisResult').innerHTML = `CIS Score: ${cis.toFixed(2)} / 10`;
-        });
-
-        // ---------- 3. Transaction Fee Game ----------
-        function updateRecord(newAmount) {
-            if (newAmount > lastRecord) {
-                lastRecord = newAmount;
-                persistAll();
-                updateUI();
-                return true;
-            }
-            return false;
-        }
-
-        document.getElementById('sendTxBtn').addEventListener('click', () => {
-            const amount = parseFloat(document.getElementById('txAmount').value);
-            const recipient = document.getElementById('recipient').value.trim();
-            if (isNaN(amount) || amount <= 0) { alert('Invalid amount'); return; }
-            if (!recipient) { alert('Enter recipient'); return; }
-
-            const fee = amount * 0.5;
-            const total = amount + fee;
-            if (userBalance < total) {
-                alert(`Insufficient balance: need ${total.toFixed(2)} RAD (you have ${userBalance.toFixed(2)})`);
-                return;
-            }
-
-            // Deduct from sender
-            userBalance -= total;
-            // Send fee to architect
-            architectBalance += fee;
-            // Send principal to recipient (simulated – store in a map)
-            let recipientBalance = parseFloat(localStorage.getItem(`balance_${recipient}`) || '0');
-            recipientBalance += amount;
-            localStorage.setItem(`balance_${recipient}`, recipientBalance);
-
-            let bonus = 0;
-            const beatsRecord = amount > lastRecord;
-            if (beatsRecord) {
-                bonus = fee; // bonus equals fee amount
-                if (treasury >= bonus) {
-                    treasury -= bonus;
-                    userBalance += bonus;
-                } else {
-                    bonus = 0;
-                    alert('Treasury insufficient for bonus.');
-                }
-                updateRecord(amount);
-            }
-
-            persistAll();
-            updateUI();
-            document.getElementById('txResult').innerHTML = `<div class="score-badge">✅ Sent ${amount.toFixed(2)} RAD to ${recipient}. Fee: ${fee.toFixed(2)} RAD to architect.${beatsRecord ? ` Bonus: +${bonus.toFixed(2)} RAD!` : ''}</div>`;
-            setTimeout(() => document.getElementById('txResult').innerHTML = '', 3000);
-        });
-
-        // ---------- 4. Staking & Rewards ----------
-        document.getElementById('stakeBtn').addEventListener('click', () => {
-            let amount = parseFloat(document.getElementById('stakeAmount').value);
-            if (isNaN(amount) || amount <= 0) return;
-            if (userBalance < amount) { alert('Insufficient balance'); return; }
-            userBalance -= amount;
-            userStake += amount;
-            totalStaked += amount;
-            persistAll();
-            updateUI();
-        });
-        document.getElementById('unstakeBtn').addEventListener('click', () => {
-            let amount = parseFloat(document.getElementById('stakeAmount').value);
-            if (isNaN(amount) || amount <= 0 || amount > userStake) return;
-            userStake -= amount;
-            totalStaked -= amount;
-            userBalance += amount;
-            persistAll();
-            updateUI();
-        });
-        document.getElementById('claimRewardsBtn').addEventListener('click', () => {
-            if (userRewards <= 0) { alert('No rewards to claim'); return; }
-            userBalance += userRewards;
-            userRewards = 0;
-            persistAll();
-            updateUI();
-        });
-
-        // ---------- Periodic reward distribution (every 10 seconds) ----------
-        setInterval(() => {
-            if (totalStaked > 0 && rewardPool > 0) {
-                const share = rewardPool * (userStake / totalStaked);
-                userRewards += share;
-                rewardPool -= share;
-                persistAll();
-                updateUI();
-            }
-        }, 10000);
-
-        // ---------- Reset demo: clear all data ----------
-        document.getElementById('resetDemoBtn').addEventListener('click', () => {
-            if (confirm('Reset all demo data? This will erase presence, stake, rewards, and transaction records.')) {
-                localStorage.clear();
-                // Re‑initialize defaults
-                localStorage.setItem(STORAGE.userBalance, '1000');
-                localStorage.setItem(STORAGE.architectBalance, '0');
-                localStorage.setItem(STORAGE.treasury, '500');
-                localStorage.setItem(STORAGE.rewardPool, '100');
-                localStorage.setItem(STORAGE.totalStaked, '0');
-                location.reload();
-            }
-        });
-
-        // ---------- Initialize defaults if missing ----------
-        if (!localStorage.getItem(STORAGE.userBalance)) localStorage.setItem(STORAGE.userBalance, '1000');
-        if (!localStorage.getItem(STORAGE.architectBalance)) localStorage.setItem(STORAGE.architectBalance, '0');
-        if (!localStorage.getItem(STORAGE.treasury)) localStorage.setItem(STORAGE.treasury, '500');
-        if (!localStorage.getItem(STORAGE.rewardPool)) localStorage.setItem(STORAGE.rewardPool, '100');
-        if (!localStorage.getItem(STORAGE.totalStaked)) localStorage.setItem(STORAGE.totalStaked, '0');
-        // Ensure userRewards is set
-        if (!localStorage.getItem(STORAGE.userRewards)) localStorage.setItem(STORAGE.userRewards, '0');
-
-        // Final UI update
-        updateUI();
-    })();
+    };
+    // Init
+    load(); updateUI();
+    if(state.presenceId) document.getElementById('presenceId').value = state.presenceId;
+    sliders.forEach(id=>{ let s=document.getElementById(id); document.getElementById(id+'Val').innerText = parseFloat(s.value).toFixed(2); });
+    updateCISResult();
+})();
 </script>
 </body>
 </html>
