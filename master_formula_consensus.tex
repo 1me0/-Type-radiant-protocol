@@ -1,0 +1,20 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{amsmath, amssymb}
+\begin{document}
+\boxed{
+\begin{aligned}
+P_{t+1} = P_t \;+\; \alpha\,\nabla\Phi\!\Big(
+(1+\beta)\,\big(\,\mathbb{E}[P_t] + \eta_t\,\big) \;-\; \beta\,P_t
+\Big)
+\end{aligned}
+}
+\qquad
+\begin{aligned}
+&\bullet\;\mathbb{E}[P_t] \text{ -- consensus manifold, approximated via}\\
+&\quad\;\;\text{iterative neighbour averaging (decentralised).}\\[4pt]
+&\bullet\;\eta_t \sim \mathcal{N}\!\big(0,\; (\sigma_0 + \gamma_t\,\|P_t - \mathbb{E}[P_t]\|)^2 I\big)\\
+&\quad\;\;\text{-- state‑dependent noise; vanishes as } P_t\to\mathbb{E}[P_t].\\[4pt]
+&\bullet\;\gamma_t = \gamma_0\,e^{-\kappa t}\;\text{ -- time‑decaying coupling;}\\
+&\quad\;\;\text{noise attenuates as collective converges.}
+\end{aligned}
+\end{document}
