@@ -17,7 +17,7 @@
         .toggle-group { display: flex; gap: 16px; background: #f1f5f9; border: none; padding: 8px 16px; }
         .toggle-group label { margin: 0; cursor: pointer; display: flex; align-items: center; gap: 6px; }
         .status { margin-top: 20px; padding: 12px; background: #f8fafc; border-radius: 16px; font-size: 0.85rem; word-break: break-all; }
-        .simulation { background: #fef9e3; border-left: 4px solid #f59e0b; padding: 12px; margin: 12px 0; border-radius: 16px; }
+        .simulation { background: #fef9e3; border-left: 4px solid #f59e0b; padding: 12px; margin: 12px 0; border-radius: 16px; font-size: 0.9rem; }
         .warning { font-size: 0.7rem; color: #6c757d; margin-top: 6px; }
         .history { margin-top: 20px; border-top: 1px solid #cbd5e1; padding-top: 12px; max-height: 200px; overflow-y: auto; font-size: 0.75rem; }
         .history-item { padding: 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; }
@@ -26,6 +26,7 @@
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .balance-preview { margin-top: 8px; font-size: 0.8rem; color: #2c3e50; background: #e6f7e6; padding: 6px 12px; border-radius: 20px; display: inline-block; }
+        .dark-mode-toggle { float: right; background: transparent; border: 1px solid #cbd5e1; color: inherit; }
     </style>
 </head>
 <body>
@@ -41,8 +42,8 @@
     <div id="balancePreview" class="balance-preview" style="display:none"></div>
     <div id="disclaimer" class="warning"></div>
 
-    <input type="text" id="recipient" placeholder="Recipient address (0x...)">
-    <input type="number" id="amount" step="any" placeholder="Amount (tokens)">
+    <input type="text" id="recipient" placeholder="Recipient address (0x...)" autocomplete="off">
+    <input type="number" id="amount" step="any" placeholder="Amount (tokens)" autocomplete="off">
 
     <div class="toggle-group">
         <label><input type="checkbox" id="requireWin"> 🔒 Protection mode: only send if I will beat the record (contract-enforced)</label>
@@ -63,13 +64,16 @@
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 <script>
-    // ==================== CONFIGURATION (REPLACE WITH YOUR CONTRACTS) ====================
-    const TOKEN_ADDRESS = "0xYourTokenAddress";               // ERC20 token address
-    const FEE_CONTRACT_ADDRESS = "0xYourFeeContractAddress";  // Fee contract with transferWithFee(recipient, amount, requireWin)
-    const EXPECTED_CHAIN_ID = 11155111;                       // Sepolia testnet (change as needed)
-    const EXPECTED_CHAIN_NAME = "Sepolia";
-    // ===================================================================================
+    // ==================== CONFIGURATION ====================
+    const CONFIG = {
+        TOKEN_ADDRESS: "0xYourTokenAddress",
+        FEE_CONTRACT_ADDRESS: "0xYourFeeContractAddress",
+        EXPECTED_CHAIN_ID: 11155111,          // Sepolia testnet
+        EXPECTED_CHAIN_NAME: "Sepolia",
+        SIMULATION_DEBOUNCE_MS: 300           // debounce time for simulation updates
+    };
 
+    // ==================== ABIs ====================
     const ERC20_ABI = [
         "function approve(address spender, uint256 amount) returns (bool)",
         "function balanceOf(address) view returns (uint256)",
@@ -84,9 +88,12 @@
         "event TransactionWithFee(address indexed from, address indexed to, uint256 amount, uint256 fee, bool userKeptFee)"
     ];
 
+    // ==================== GLOBAL STATE ====================
     let provider, signer, token, fee, userAddress;
     let feeBasisPoints = 5000n, decimals = 18, lastRecord = 0n, loading = false;
+    let simulationTimer = null;
 
+    // ==================== DOM ELEMENTS ====================
     const sendBtn = document.getElementById("sendBtn");
     const statusDiv = document.getElementById("status");
     const recipientInp = document.getElementById("recipient");
@@ -102,6 +109,7 @@
     const networkBadge = document.getElementById("networkBadge");
     const historyDiv = document.getElementById("historyList");
 
+    // ==================== UTILITY FUNCTIONS ====================
     function setStatus(msg, isErr = false) {
         statusDiv.innerHTML = msg;
         statusDiv.style.background = isErr ? "#fee2e2" : "#f8fafc";
@@ -114,28 +122,25 @@
         sendBtn.innerHTML = load ? '<span class="spinner"></span> Processing...' : 'Send Transaction';
     }
 
-    unlimitedChk.addEventListener("change", () => {
-        unlimitedWarning.style.display = unlimitedChk.checked ? "block" : "none";
-    });
-
-    async function getGasPrice() {
-        const feeData = await provider.getFeeData();
-        return feeData.gasPrice ?? feeData.maxFeePerGas;
+    /** Debounce helper: invokes `fn` after `delay` ms of inactivity. */
+    function debounce(fn, delay) {
+        if (simulationTimer) clearTimeout(simulationTimer);
+        simulationTimer = setTimeout(fn, delay);
     }
 
+    // ==================== CONTRACT INTERACTIONS ====================
     async function checkNetwork() {
         const network = await provider.getNetwork();
         const chainId = Number(network.chainId);
-        if (chainId !== EXPECTED_CHAIN_ID) {
+        if (chainId !== CONFIG.EXPECTED_CHAIN_ID) {
             networkBadge.textContent = `❌ Wrong Network (${chainId})`;
             networkBadge.style.background = "#fee2e2";
-            setStatus(`Please switch to ${EXPECTED_CHAIN_NAME} (chain ID ${EXPECTED_CHAIN_ID})`, true);
+            setStatus(`Please switch to ${CONFIG.EXPECTED_CHAIN_NAME} (chain ID ${CONFIG.EXPECTED_CHAIN_ID})`, true);
             sendBtn.disabled = true;
             return false;
         } else {
-            networkBadge.textContent = `✓ ${EXPECTED_CHAIN_NAME}`;
+            networkBadge.textContent = `✓ ${CONFIG.EXPECTED_CHAIN_NAME}`;
             networkBadge.style.background = "#dcfce7";
-            setStatus(`Connected to ${EXPECTED_CHAIN_NAME}. Ready.`);
             return true;
         }
     }
@@ -146,8 +151,8 @@
             const percent = Number(feeBasisPoints) / 100;
             feeSpan.innerText = percent;
         } catch (e) {
-            console.warn(e);
-            feeBasisPoints = 5000n;
+            console.warn('Error fetching fee basis points:', e);
+            feeBasisPoints = 5000n; // default 50%
             feeSpan.innerText = "50 (default)";
         }
     }
@@ -165,14 +170,17 @@
         }
     }
 
+    /**
+     * Off‑chain simulation using the current record.
+     * Returns an object: { willBeat: boolean, fee: bigint, currentRecord: bigint }
+     */
     async function contractSimulate(amount) {
-        // Off‑chain simulation using current record and fee basis points.
-        // This is a fallback if the contract doesn't have a `simulate` view.
         const feeAmount = (amount * feeBasisPoints) / 10000n;
         const willBeat = amount > lastRecord;
         return { willBeat, fee: feeAmount, currentRecord: lastRecord };
     }
 
+    /** Refresh simulation and balance preview after user input */
     async function updateSimulation() {
         const amtStr = amountInp.value.trim();
         if (!amtStr || parseFloat(amtStr) <= 0 || !fee) {
@@ -203,6 +211,9 @@
         }
     }
 
+    // Trigger simulation with debounce on user input
+    const triggerSimulation = () => debounce(updateSimulation, CONFIG.SIMULATION_DEBOUNCE_MS);
+
     async function loadHistory() {
         try {
             const filter = fee.filters.TransactionWithFee();
@@ -220,28 +231,8 @@
         } catch(e) { historyDiv.innerHTML = "History error"; }
     }
 
-    async function init() {
-        if (!window.ethereum) { setStatus("❌ MetaMask not installed", true); return; }
-        provider = new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = await provider.getSigner();
-        userAddress = await signer.getAddress();
-        token = new ethers.Contract(TOKEN_ADDRESS, ERC20_ABI, signer);
-        fee = new ethers.Contract(FEE_CONTRACT_ADDRESS, FEE_ABI, signer);
-        decimals = await token.decimals();
-        await fetchFeeAndDecimals();
-        await updateRecord();
-        await loadHistory();
-        const ok = await checkNetwork();
-        if (!ok) return;
-        sendBtn.disabled = false;
-        setStatus("✅ Ready. Enter recipient and amount.");
-        amountInp.addEventListener("input", updateSimulation);
-        recipientInp.addEventListener("input", updateSimulation);
-        updateSimulation();
-    }
-
-    sendBtn.onclick = async () => {
+    // ==================== TRANSACTION FLOW ====================
+    async function handleSend() {
         if (loading) return;
         const recipient = recipientInp.value.trim();
         const amtStr = amountInp.value.trim();
@@ -249,28 +240,31 @@
         const amountNum = parseFloat(amtStr);
         if (isNaN(amountNum) || amountNum <= 0) return setStatus("❌ Invalid amount", true);
         setLoading(true);
-        setStatus("Updating record...");
-        await updateRecord();
         try {
+            setStatus("Updating record...");
+            await updateRecord();
             const amount = ethers.parseUnits(amtStr, decimals);
-            const { willBeat, fee: feeAmt, currentRecord } = await contractSimulate(amount);
+            const { willBeat, fee: feeAmt } = await contractSimulate(amount);
+            if (requireWinChk.checked && !willBeat) throw new Error("🔒 Protection mode: simulation says you would NOT beat the record.");
             const totalNeeded = amount + feeAmt;
-            if (requireWinChk.checked && !willBeat) throw new Error("Protection mode: simulation says you would NOT beat the record.");
             const balance = await token.balanceOf(userAddress);
-            if (balance < totalNeeded) throw new Error(`Need ${ethers.formatUnits(totalNeeded, decimals)} tokens.`);
-            const approveAmount = unlimitedChk.checked ? ethers.MaxUint256 : totalNeeded;
-            const allowance = await token.allowance(userAddress, FEE_CONTRACT_ADDRESS);
-            if (allowance < totalNeeded) {
+            if (balance < totalNeeded) throw new Error(`Insufficient balance: need ${ethers.formatUnits(totalNeeded, decimals)} tokens.`);
+
+            // Approve tokens if needed
+            const approvalRequired = unlimitedChk.checked ? ethers.MaxUint256 : totalNeeded;
+            const currentAllowance = await token.allowance(userAddress, CONFIG.FEE_CONTRACT_ADDRESS);
+            if (currentAllowance < totalNeeded) {
                 setStatus("Approving tokens...");
-                const approveTx = await token.approve(FEE_CONTRACT_ADDRESS, approveAmount);
+                const approveTx = await token.approve(CONFIG.FEE_CONTRACT_ADDRESS, approvalRequired);
                 await approveTx.wait();
             }
-            // Estimate gas with a buffer
+
+            // Estimate gas with buffer
             let gasEst;
             try {
                 gasEst = await fee.transferWithFee.estimateGas(recipient, amount, requireWinChk.checked);
             } catch (estErr) {
-                if (estErr.message.includes("revert")) throw new Error("Transaction would fail (check amount, protection mode, or record)");
+                if (estErr.message.includes("revert")) throw new Error("Transaction would revert (check amount, protection mode, or record)");
                 throw estErr;
             }
             const gasLimit = (gasEst * 120n) / 100n;
@@ -291,10 +285,42 @@
         } catch (err) {
             setStatus(`❌ ${err.message || err}`, true);
         } finally { setLoading(false); }
-    };
+    }
 
+    // ==================== INITIALISATION ====================
+    async function init() {
+        if (!window.ethereum) { setStatus("❌ MetaMask not installed", true); return; }
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+        token = new ethers.Contract(CONFIG.TOKEN_ADDRESS, ERC20_ABI, signer);
+        fee = new ethers.Contract(CONFIG.FEE_CONTRACT_ADDRESS, FEE_ABI, signer);
+        decimals = await token.decimals();
+        await fetchFeeAndDecimals();
+        await updateRecord();
+        await loadHistory();
+        const ok = await checkNetwork();
+        if (!ok) return;
+        sendBtn.disabled = false;
+        setStatus("✅ Ready. Enter recipient and amount.");
+        amountInp.addEventListener("input", triggerSimulation);
+        recipientInp.addEventListener("input", triggerSimulation);
+        updateSimulation();
+    }
+
+    // ==================== EVENT LISTENERS ====================
     init().catch(console.error);
-    if (window.ethereum) window.ethereum.on("chainChanged", () => location.reload());
+
+    if (window.ethereum) {
+        window.ethereum.on("chainChanged", () => location.reload());
+        window.ethereum.on("accountsChanged", () => location.reload());
+    }
+
+    sendBtn.onclick = handleSend;
+    unlimitedChk.addEventListener("change", () => {
+        unlimitedWarning.style.display = unlimitedChk.checked ? "block" : "none";
+    });
 </script>
 </body>
 </html>
