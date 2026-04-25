@@ -8,13 +8,13 @@ License: MIT
 Mathematical models covered by the Radiant Protocol Master Formula License (RPML) v1.0.
 
 Features:
-- Retrieval‑augmented generation with cached embeddings.
+- Retrieval‑augmented generation with FAISS vector search.
 - Multi‑faceted scoring: alignment, accuracy (factual + internal consistency),
   distortion, confidence, specificity (anti‑gaming).
 - Soft cap prevents high alignment scores when factual accuracy is low.
-- Iterative self‑improvement loop (up to N attempts).
+- Iterative self‑improvement loop with dynamic depth based on question complexity.
+- GPU acceleration when available.
 - Full type hints and comprehensive error handling.
-- Enhanced knowledge base (local file or built‑in corpus).
 
 Author: Radiant Protocol
 License: MIT (code) / RPML v1.0 (mathematical models)
@@ -24,50 +24,66 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional, Set
+from typing import List, Tuple, Dict, Optional
 
 import numpy as np
+import torch
 from sentence_transformers import SentenceTransformer, util
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+
+# FAISS for scalable vector search
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
+    print("Warning: FAISS not installed. Falling back to brute‑force cosine similarity.")
+
+
+# ============================================================
+# DEVICE CONFIGURATION
+# ============================================================
+DEVICE = 0 if torch.cuda.is_available() else -1
 
 
 # ============================================================
 # MODEL LOADING
 # ============================================================
-# Embedding model for semantic similarity
+# Embedding model
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-# Text generation model (Flan‑T5‑Small)
+# Text generation model
 generator_tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
-generator_model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
+generator_model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small").to(
+    torch.device("cuda" if DEVICE == 0 else "cpu")
+)
 generator = pipeline(
     "text2text-generation",
     model=generator_model,
     tokenizer=generator_tokenizer,
-    device=-1  # CPU; set to 0 for GPU
+    device=DEVICE
 )
 
-# Natural Language Inference model for contradiction detection
+# NLI model
 nli_model = pipeline(
     "text-classification",
     model="roberta-large-mnli",
-    device=-1
+    device=DEVICE
 )
 
-# Claim extraction model (T5‑based) – identifies atomic facts
+# Claim extraction
 claim_extractor = pipeline(
     "text2text-generation",
     model="google/flan-t5-small",
     tokenizer=AutoTokenizer.from_pretrained("google/flan-t5-small"),
-    device=-1
+    device=DEVICE
 )
 
 
 # ============================================================
-# KNOWLEDGE BASE (extended and loadable from file)
+# KNOWLEDGE BASE (loaded from file or built‑in)
 # ============================================================
 def _load_knowledge_base() -> List[str]:
-    """Load knowledge base from a local JSON file or use built‑in corpus."""
     kb_file = Path("radiant_knowledge.json")
     if kb_file.exists():
         try:
@@ -77,7 +93,7 @@ def _load_knowledge_base() -> List[str]:
                     return data
         except Exception:
             pass
-    # Fallback built‑in corpus – extensively expanded for robust testing
+    # Built‑in corpus
     return [
         "Gravity is a force that attracts objects with mass toward each other.",
         "The Earth revolves around the Sun once every 365.25 days.",
@@ -103,27 +119,40 @@ def _load_knowledge_base() -> List[str]:
 
 KNOWLEDGE_BASE: List[str] = _load_knowledge_base()
 
-# Pre‑compute embeddings
-kb_embeddings = embedder.encode(KNOWLEDGE_BASE, convert_to_tensor=True)
-
-# Simple cache for retrieved contexts
-_context_cache: Dict[str, List[str]] = {}
+# ============================================================
+# FAISS INDEX (or fallback to brute force)
+# ============================================================
+context_cache: Dict[str, List[str]] = {}
+if FAISS_AVAILABLE:
+    # Compute embeddings for all documents and build index
+    kb_embeddings = embedder.encode(KNOWLEDGE_BASE, convert_to_tensor=True).cpu().numpy()
+    dimension = kb_embeddings.shape[1]
+    index = faiss.IndexFlatIP(dimension)  # inner product (cosine similarity after normalisation)
+    # Normalize for cosine similarity
+    faiss.normalize_L2(kb_embeddings)
+    index.add(kb_embeddings)
+else:
+    kb_embeddings = embedder.encode(KNOWLEDGE_BASE, convert_to_tensor=True)
 
 
 def retrieve_context(query: str, top_k: int = 3) -> List[str]:
-    """
-    Retrieve top‑k documents from the knowledge base using cosine similarity.
-    Results are cached for identical queries.
-    """
+    """Retrieve top‑k documents using FAISS (or brute‑force)."""
     cache_key = hashlib.md5(query.encode()).hexdigest()
-    if cache_key in _context_cache:
-        return _context_cache[cache_key]
+    if cache_key in context_cache:
+        return context_cache[cache_key]
 
     q_emb = embedder.encode(query, convert_to_tensor=True)
-    scores = util.cos_sim(q_emb, kb_embeddings)[0]
-    top_indices = scores.argsort(descending=True)[:top_k]
-    docs = [KNOWLEDGE_BASE[i] for i in top_indices]
-    _context_cache[cache_key] = docs
+    if FAISS_AVAILABLE:
+        q_emb_np = q_emb.cpu().numpy().reshape(1, -1)
+        faiss.normalize_L2(q_emb_np)
+        scores, indices = index.search(q_emb_np, top_k)
+        docs = [KNOWLEDGE_BASE[i] for i in indices[0] if i >= 0]
+    else:
+        scores = util.cos_sim(q_emb, kb_embeddings)[0]
+        top_indices = scores.argsort(descending=True)[:top_k]
+        docs = [KNOWLEDGE_BASE[i] for i in top_indices]
+
+    context_cache[cache_key] = docs
     return docs
 
 
@@ -131,7 +160,6 @@ def retrieve_context(query: str, top_k: int = 3) -> List[str]:
 # EMBEDDING CACHE
 # ============================================================
 _embedding_cache: Dict[str, np.ndarray] = {}
-
 
 def get_embedding(text: str) -> np.ndarray:
     cache_key = hashlib.md5(text.encode()).hexdigest()
@@ -141,101 +169,75 @@ def get_embedding(text: str) -> np.ndarray:
 
 
 # ============================================================
-# CLAIM EXTRACTION – decompose response into atomic facts
+# CLAIM EXTRACTION
 # ============================================================
 def extract_claims(text: str) -> List[str]:
-    """
-    Heuristically split text into individual claims (sentences / clauses).
-    For a more robust approach, we use a zero‑shot extraction prompt.
-    """
-    # Prompt T5 to list facts
     prompt = f"List all factual statements contained in the following text, one per line:\n{text}\nFacts:"
     try:
         raw = claim_extractor(prompt, max_length=300, temperature=0.0)[0]["generated_text"]
         lines = [line.strip() for line in raw.split("\n") if line.strip()]
-        # Fallback: if output is garbage, split by sentence
         if not lines or len(lines) > 20:
-            # simple sentence splitting
             lines = re.split(r'(?<=[.!?])\s+', text)
             lines = [l.strip() for l in lines if l.strip()]
         return lines
     except Exception:
-        return [text]  # treat entire response as one claim
+        return [text]
 
 
 # ============================================================
-# FACTUAL VERIFICATION – per‑claim NLI + internal consistency
+# FACTUAL VERIFICATION
 # ============================================================
 def verify_claims(claims: List[str], context_docs: List[str]) -> Tuple[float, float, float]:
-    """
-    For each claim:
-      - Determine if it is supported (entailment) by any context document.
-      - Check if any pair of claims contradict each other (internal consistency).
-
-    Returns:
-      factual_accuracy: fraction of claims that are supported (weighted).
-      internal_contradictions: fraction of claim pairs that conflict.
-      specificity: average novelty of response n‑grams vs. context.
-    """
     if not claims:
         return 0.5, 0.0, 0.5
 
-    # 1. Factual support per claim (with neutral leaning)
     support_scores = []
     for claim in claims:
-        best_score = 0.0  # 0 = contradiction, 0.5 = neutral, 1.0 = entailment
+        best = 0.0
         for doc in context_docs:
             result = nli_model(f"{doc} </s> {claim}")[0]
             label = result["label"]
             if label == "ENTAILMENT":
-                best_score = max(best_score, 1.0)
+                best = max(best, 1.0)
             elif label == "NEUTRAL":
-                best_score = max(best_score, 0.5)
-            # CONTRADICTION adds nothing
-        support_scores.append(best_score)
+                best = max(best, 0.5)
+        support_scores.append(best)
+    factual_acc = float(np.mean(support_scores)) if support_scores else 0.5
 
-    factual_accuracy = float(np.mean(support_scores)) if support_scores else 0.5
-
-    # 2. Internal consistency – check claim pairs for contradiction
     contradictions = 0
     total_pairs = 0
     for i in range(len(claims)):
         for j in range(i + 1, len(claims)):
             total_pairs += 1
-            result = nli_model(f"{claims[i]} </s> {claims[j]}")[0]
-            if result["label"] == "CONTRADICTION":
+            res = nli_model(f"{claims[i]} </s> {claims[j]}")[0]
+            if res["label"] == "CONTRADICTION":
                 contradictions += 1
-    internal_contradiction_rate = contradictions / total_pairs if total_pairs else 0.0
+    internal_contra = contradictions / total_pairs if total_pairs else 0.0
 
-    # 3. Specificity – penalise responses that just echo the context
-    # Compute ratio of unique n‑grams (n=1..3) not present in any context doc.
-    response_tokens = re.findall(r'\b\w+\b', " ".join(claims).lower())
+    response_tokens = set(re.findall(r'\b\w+\b', " ".join(claims).lower()))
     context_tokens = set()
     for doc in context_docs:
         context_tokens.update(re.findall(r'\b\w+\b', doc.lower()))
+    novel = len(response_tokens - context_tokens)
+    specificity = novel / len(response_tokens) if response_tokens else 0.5
+    specificity = max(0.0, min(1.0, specificity))
 
-    novel_tokens = sum(1 for tok in response_tokens if tok not in context_tokens)
-    specificity = novel_tokens / len(response_tokens) if response_tokens else 0.5
-    specificity = max(0.0, min(1.0, specificity))  # clamp
-
-    return factual_accuracy, internal_contradiction_rate, specificity
+    return factual_acc, internal_contra, specificity
 
 
 # ============================================================
-# METRICS (enhanced)
+# METRICS
 # ============================================================
 def compute_alignment(response: str, context_docs: List[str]) -> float:
-    """Semantic similarity between response and average context embedding."""
     if not context_docs:
         return 0.5
     r_emb = get_embedding(response)
-    doc_embs = [get_embedding(doc) for doc in context_docs]
-    similarities = [util.cos_sim(r_emb, d_emb).item() for d_emb in doc_embs]
-    return float(np.mean(similarities))
+    doc_embs = [get_embedding(d) for d in context_docs]
+    sims = [util.cos_sim(r_emb, d_emb).item() for d_emb in doc_embs]
+    return float(np.mean(sims))
 
 
 def compute_distortion(response: str) -> float:
-    """Lexical repetition penalty (0 = no repetition, 1 = all words identical)."""
     words = re.findall(r"\b\w+\b", response.lower())
     if not words:
         return 0.0
@@ -243,67 +245,36 @@ def compute_distortion(response: str) -> float:
 
 
 def compute_confidence(response: str, context_docs: List[str]) -> float:
-    """Inverse variance of cosine similarities to context documents."""
     if not context_docs:
         return 0.5
     r_emb = get_embedding(response)
-    sims = [util.cos_sim(r_emb, get_embedding(doc)).item() for doc in context_docs]
-    variance = float(np.var(sims))
-    return 1.0 - min(1.0, variance * 10)  # scale variance appropriately
+    sims = [util.cos_sim(r_emb, get_embedding(d)).item() for d in context_docs]
+    var = float(np.var(sims))
+    return 1.0 - min(1.0, var * 10)
 
 
 def length_penalty(response: str, max_words: int = 300) -> float:
-    """Penalise long‑winded answers, capped at 0.15."""
-    word_count = len(response.split())
-    if word_count <= 30:
+    wc = len(response.split())
+    if wc <= 30:
         return 0.0
-    return min(0.15, (word_count - 30) / max_words)
+    return min(0.15, (wc - 30) / max_words)
 
 
 # ============================================================
-# CIS COMPUTATION (rigorous)
+# CIS COMPUTATION
 # ============================================================
 def compute_cis(user_input: str, response: str) -> Tuple[float, Dict[str, float]]:
-    """
-    Compute the Communication Intelligence Score (CIS) using a mathematically
-    grounded combination of semantic, factual, and structural metrics.
-
-    Decomposition:
-      - Claims extracted from response.
-      - Factual accuracy = fraction of claims entailed/neutral by context.
-      - Internal contradiction = penalty if claims conflict.
-      - Specificity = novelty of response n‑grams vs. context (anti‑gaming).
-      - Alignment = semantic similarity with context.
-      - Distortion = lexical repetition.
-      - Confidence = inverse similarity variance.
-
-    Combined formula:
-      CIS = 10 * (0.4 * alignment
-                + 0.3 * factual_accuracy
-                + 0.15 * neutrality_boost
-                - 0.1 * distortion
-                + 0.05 * confidence
-                - 0.05 * internal_contradiction_rate
-                + 0.05 * specificity)
-            - length_penalty
-    All weights sum to ~1 and are calibrated empirically.
-    """
     context = retrieve_context(user_input)
-
     claims = extract_claims(response)
     factual_acc, contradict_rate, specificity = verify_claims(claims, context)
-
     alignment = compute_alignment(response, context)
-    # Soft cap: alignment cannot exceed factual_acc + 0.2
     alignment = min(alignment, factual_acc + 0.2)
-
     distortion = compute_distortion(response)
     confidence = compute_confidence(response, context)
 
-    # Neutrality boost: reward when factual_acc is near 0.5 (no strong contradiction)
     neutrality_boost = 0.0
-    if factual_acc >= 0.4 and factual_acc <= 0.7:
-        neutrality_boost = 0.2  # small reward for cautious, unclear responses
+    if 0.4 <= factual_acc <= 0.7:
+        neutrality_boost = 0.2
 
     cis = 10.0 * (
         0.4 * alignment
@@ -331,14 +302,13 @@ def compute_cis(user_input: str, response: str) -> Tuple[float, Dict[str, float]
 
 
 # ============================================================
-# SELF‑IMPROVEMENT LOOP
+# SELF‑IMPROVEMENT
 # ============================================================
 def improve_response(user_input: str, response: str) -> str:
     prompt = (
         f"Question: {user_input}\n"
         f"Original answer: {response}\n"
-        "Please improve this answer by making it more accurate, specific, and concise. "
-        "Remove any information not directly supported by reliable knowledge.\n"
+        "Improve the answer to be more accurate, specific, and concise.\n"
         "Improved answer:"
     )
     try:
@@ -349,22 +319,32 @@ def improve_response(user_input: str, response: str) -> str:
 
 
 # ============================================================
-# MAIN BOT CLASS
+# MAIN BOT
 # ============================================================
 class CISTruthBot:
-    def __init__(self, threshold: float = 7.0, max_improvements: int = 3):
+    def __init__(self, threshold: float = 7.0, base_improvements: int = 2):
         self.threshold = threshold
-        self.max_improvements = max_improvements
+        self.base_improvements = base_improvements
+
+    def _question_complexity(self, text: str) -> float:
+        """Heuristic complexity score (0‑1)."""
+        words = text.split()
+        wc = len(words)
+        proper_nouns = len([w for w in words if w[0].isupper() and w.lower() not in {"i"}])
+        # Complexity grows with length and presence of proper nouns
+        return min(1.0, (wc / 50) * 0.5 + (proper_nouns / 3) * 0.5)
 
     def generate(self, user_input: str) -> Tuple[str, float, Dict[str, float]]:
-        # Initial generation
-        prompt = f"Answer the following question concisely and accurately: {user_input}"
+        complexity = self._question_complexity(user_input)
+        max_improvements = min(5, int(self.base_improvements + complexity * 3))
+
+        prompt = f"Answer concisely and accurately: {user_input}"
         raw = generator(prompt, max_length=150, temperature=0.5, do_sample=True)[0]["generated_text"]
-        response = raw.strip() if raw else "I am unable to generate a response."
+        response = raw.strip() if raw else "Unable to generate a response."
 
         cis, metrics = compute_cis(user_input, response)
 
-        for _ in range(self.max_improvements):
+        for _ in range(max_improvements):
             if cis >= self.threshold:
                 break
             improved = improve_response(user_input, response)
@@ -380,28 +360,21 @@ class CISTruthBot:
 # INTERACTIVE DEMO
 # ============================================================
 if __name__ == "__main__":
-    bot = CISTruthBot(threshold=7.0, max_improvements=3)
-
-    print("🌌 CIS Truth Bot v2.0 – Rigorous Falsification‑Resistant Edition")
+    bot = CISTruthBot(threshold=7.0, base_improvements=2)
+    print("🌌 CIS Truth Bot v2.0 – Scalable Edition (FAISS + GPU + Dynamic Depth)")
     print("Type 'exit' to quit.\n")
     while True:
         user_input = input("You: ")
         if user_input.lower() in {"exit", "quit"}:
             break
-
         response, score, metrics = bot.generate(user_input)
-
         print(f"\nAI: {response}")
         print(f"CIS Score: {score:.2f} / 10")
-        print(f"  Alignment:         {metrics['alignment']:.3f}")
-        print(f"  Factual Accuracy:  {metrics['factual_accuracy']:.3f}")
-        print(f"  Internal Contra.:  {metrics['internal_contradiction_rate']:.3f}")
-        print(f"  Specificity:       {metrics['specificity']:.3f}")
-        print(f"  Distortion:        {metrics['distortion']:.3f}")
-        print(f"  Confidence:        {metrics['confidence']:.3f}")
-        print(f"  Neutrality Boost:  {metrics['neutrality_boost']:.3f}")
-        print(f"  Claims extracted:  {metrics['claims_count']}")
-        print("  Retrieved context:")
-        for doc in metrics["context"]:
-            print(f"    - {doc}")
+        for k, v in metrics.items():
+            if isinstance(v, float):
+                print(f"  {k}: {v:.3f}")
+            elif isinstance(v, list):
+                print(f"  {k}:")
+                for item in v:
+                    print(f"    - {item}")
         print()
