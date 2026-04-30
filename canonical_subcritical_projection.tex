@@ -1,0 +1,232 @@
+% Mathematical models covered by the Radiant Protocol Master Formula License (RPML) v1.0.
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{booktabs, hyperref}
+\usepackage[colorlinks=true, citecolor=blue]{hyperref}
+\usepackage{enumitem}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{assumption}[theorem]{Assumption}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{\textbf{A Canonical Subcritical Projection Dynamics}\\
+\small Rigorous Contraction under the Radiant Stability Condition}
+\author{Anonymous}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We provide a rigourous, self‑contained proof that the subcritical gain condition \(\alpha(1+\beta_0)<1\) guarantees mean‑square contraction for a class of projected stochastic dynamical systems with time‑varying, adaptively relaxed constraint sets. The proof correctly accounts for the Hausdorff gap between the relaxed set and its limit, and yields explicit formulas for the contraction factor \(\rho\) and the residual error constant \(C\). The result is a foundational element of the Radiant Protocol's stability guarantees.
+\end{abstract}
+
+\section{System Description}
+
+Let the state \(F_t \in \mathbb{R}^n\) evolve according to
+\begin{equation}\label{eq:main}
+F_{t+1} = F_t + \alpha (1+\beta_t)\big(\Pi_{\mathcal{M}_t^{\varepsilon_t}}(F_t) - F_t\big) + \xi_t,
+\end{equation}
+where:
+\begin{itemize}[nosep]
+\item \(\alpha \in (0,1)\) is the base step size,
+\item \(\beta_t \in [0,\beta_0]\) with \(\beta_0 < \infty\) is a time‑varying resistance parameter,
+\item \(\mathcal{M}_t^{\varepsilon_t}\) is the \(\varepsilon_t\)-relaxation of a closed convex set \(\mathcal{M}_t\) (i.e. \(\{x : \mathrm{dist}(x,\mathcal{M}_t) \le \varepsilon_t\}\)),
+\item \(\Pi_{\mathcal{M}_t^{\varepsilon_t}}\) denotes Euclidean projection onto this relaxed set,
+\item \(\{\xi_t\}\) is a martingale difference sequence satisfying
+\[
+\mathbb{E}[\xi_t \mid \mathcal{F}_t] = 0, \qquad
+\mathbb{E}[\|\xi_t\|^2 \mid \mathcal{F}_t] \le \sigma^2,
+\]
+with \(\mathcal{F}_t = \sigma(F_0,\dots,F_t)\).
+\end{itemize}
+
+\begin{assumption}[Convergence of the constraint set]\label{ass:conv}
+The sequence \(\{\mathcal{M}_t\}\) converges in the Hausdorff metric to a closed convex limit set \(\mathcal{M}_\infty\):
+\[
+\delta_t := \mathrm{dist}_H(\mathcal{M}_t,\mathcal{M}_\infty) \to 0,
+\]
+and the relaxation radius satisfies \(\varepsilon_t \to 0\). Consequently \(\delta_t+\varepsilon_t \to 0\).
+\end{assumption}
+
+Define the Lyapunov function
+\[
+V_t := \mathrm{dist}(F_t,\mathcal{M}_\infty)^2 = \|F_t - x_t^\star\|^2,
+\qquad x_t^\star := \Pi_{\mathcal{M}_\infty}(F_t).
+\]
+
+\section{Main Result}
+
+\begin{theorem}[Subcritical Projection Contraction]\label{thm:contraction}
+Assume the subcritical gain condition
+\[
+\alpha(1+\beta_0) < 1 .
+\]
+Then there exist constants \(\rho \in (0,1)\) and \(C \ge 0\) such that for all \(t\),
+\[
+\mathbb{E}[V_{t+1} \mid \mathcal{F}_t] \le \rho\,V_t + C .
+\]
+Consequently,
+\[
+\limsup_{t\to\infty} \mathbb{E}[V_t] \le \frac{C}{1-\rho}.
+\]
+\end{theorem}
+
+\begin{proof}
+Fix \(t\) and abbreviate \(\Pi_t := \Pi_{\mathcal{M}_t^{\varepsilon_t}}(F_t)\), \(x^\star := x_t^\star\). The update \eqref{eq:main} gives
+\[
+F_{t+1} - x^\star = F_t - x^\star + \alpha(1+\beta_t)(\Pi_t - F_t) + \xi_t .
+\]
+
+Taking squared norms and conditional expectation,
+\begin{align}
+\mathbb{E}[\|F_{t+1}-x^\star\|^2 \mid \mathcal{F}_t]
+&= \|F_t - x^\star + \alpha(1+\beta_t)(\Pi_t - F_t)\|^2
+   + \mathbb{E}[\|\xi_t\|^2 \mid \mathcal{F}_t]\notag\\[2mm]
+&= V_t
+   + 2\alpha(1+\beta_t)\langle F_t - x^\star,\; \Pi_t - F_t \rangle \notag\\
+&\quad + \alpha^2(1+\beta_t)^2 \|\Pi_t - F_t\|^2
+   + \sigma^2 . \label{eq:expanded}
+\end{align}
+
+\paragraph{Handling the inner product.}
+Let \(y_t := \Pi_{\mathcal{M}_t^{\varepsilon_t}}(x^\star)\) be the projection of the limit‑set point onto the relaxed set. By the Hausdorff property and the definition of the relaxation,
+\[
+\|y_t - x^\star\| \le \delta_t + \varepsilon_t .
+\]
+Decompose the inner product using \(y_t\) as a pivot:
+\begin{align}
+\langle F_t - x^\star,\; \Pi_t - F_t \rangle
+&= \langle F_t - y_t,\; \Pi_t - F_t \rangle
+   + \langle y_t - x^\star,\; \Pi_t - F_t \rangle . \label{eq:decomp}
+\end{align}
+
+Since \(y_t \in \mathcal{M}_t^{\varepsilon_t}\), the firm nonexpansiveness of the Euclidean projection (see, e.g., \cite{bauschke2011convex}) yields
+\begin{equation}\label{eq:firm}
+\langle F_t - y_t,\; \Pi_t - F_t \rangle \le -\|\Pi_t - F_t\|^2 .
+\end{equation}
+The second term in \eqref{eq:decomp} is bounded by Cauchy–Schwarz and the Hausdorff bound:
+\[
+|\langle y_t - x^\star,\; \Pi_t - F_t \rangle|
+\le \|y_t - x^\star\|\, \|\Pi_t - F_t\|
+\le (\delta_t + \varepsilon_t)\,\|\Pi_t - F_t\| .
+\]
+
+Apply Young's inequality \(ab \le \frac12 a^2 + \frac12 b^2\) with \(a = \|\Pi_t - F_t\|\) and \(b = \delta_t + \varepsilon_t\) to obtain
+\[
+(\delta_t + \varepsilon_t)\,\|\Pi_t - F_t\|
+\le \frac12\|\Pi_t - F_t\|^2 + \frac12(\delta_t + \varepsilon_t)^2 .
+\]
+
+Therefore, continuing from \eqref{eq:decomp},
+\begin{equation}\label{eq:inner_bound}
+\langle F_t - x^\star,\; \Pi_t - F_t \rangle
+\le -\|\Pi_t - F_t\|^2
+   + \frac12\|\Pi_t - F_t\|^2
+   + \frac12(\delta_t + \varepsilon_t)^2
+= -\frac12\|\Pi_t - F_t\|^2
+   + \frac12(\delta_t + \varepsilon_t)^2 .
+\end{equation}
+
+\paragraph{Substituting back.}
+Insert \eqref{eq:inner_bound} into \eqref{eq:expanded}:
+\begin{align}
+\mathbb{E}[V_{t+1} \mid \mathcal{F}_t]
+&\le V_t
+   + 2\alpha(1+\beta_t)\Bigl(-\frac12\|\Pi_t - F_t\|^2 + \frac12(\delta_t + \varepsilon_t)^2\Bigr)
+   + \alpha^2(1+\beta_t)^2 \|\Pi_t - F_t\|^2
+   + \sigma^2 \notag\\[2mm]
+&= V_t
+   - \alpha(1+\beta_t)\Bigl(1 - \alpha(1+\beta_t)\Bigr)\|\Pi_t - F_t\|^2
+   + \alpha(1+\beta_t)(\delta_t + \varepsilon_t)^2
+   + \sigma^2 . \label{eq:after_inner}
+\end{align}
+
+\paragraph{Using the subcritical condition.}
+Define \(\eta := 1 - \alpha(1+\beta_0)\). By hypothesis, \(\eta > 0\). Since \(\beta_t \le \beta_0\),
+\[
+1 - \alpha(1+\beta_t) \ge 1 - \alpha(1+\beta_0) = \eta > 0 .
+\]
+
+Thus the coefficient of \(-\|\Pi_t - F_t\|^2\) in \eqref{eq:after_inner} satisfies
+\[
+\alpha(1+\beta_t)(1 - \alpha(1+\beta_t)) \ge \alpha \cdot 1 \cdot \eta = \alpha\eta .
+\]
+
+\paragraph{Relating the projection gap to \(V_t\).}
+Let \(\tilde d_t := \|\Pi_t - F_t\| = \mathrm{dist}(F_t,\mathcal{M}_t^{\varepsilon_t})\) and \(d_t := \sqrt{V_t} = \mathrm{dist}(F_t,\mathcal{M}_\infty)\).
+Since \(\mathcal{M}_t^{\varepsilon_t}\) is the \(\varepsilon_t\)-relaxation of \(\mathcal{M}_t\) and the latter is \(\delta_t\)-close to \(\mathcal{M}_\infty\),
+\[
+\tilde d_t \ge d_t - (\delta_t + \varepsilon_t) .
+\]
+Squaring and using \((a-b)^2 \ge \frac12 a^2 - b^2\) (valid for all real \(a,b\)),
+\[
+\tilde d_t^{\,2} \ge \frac12 d_t^2 - (\delta_t + \varepsilon_t)^2 .
+\]
+
+Hence
+\begin{equation}\label{eq:gap}
+-\|\Pi_t - F_t\|^2 \le -\frac12 V_t + (\delta_t + \varepsilon_t)^2 .
+\end{equation}
+
+\paragraph{Final contraction inequality.}
+Plug \eqref{eq:gap} into \eqref{eq:after_inner} and use the lower bound on the coefficient:
+\begin{align}
+\mathbb{E}[V_{t+1} \mid \mathcal{F}_t]
+&\le V_t
+   - \alpha\eta\Bigl(\frac12 V_t - (\delta_t + \varepsilon_t)^2\Bigr)
+   + \alpha(1+\beta_0)(\delta_t + \varepsilon_t)^2
+   + \sigma^2 \notag\\[2mm]
+&= \Bigl(1 - \frac{\alpha\eta}{2}\Bigr) V_t
+   + \bigl[\alpha\eta + \alpha(1+\beta_0)\bigr](\delta_t + \varepsilon_t)^2
+   + \sigma^2 . \label{eq:final}
+\end{align}
+
+Set
+\[
+\boxed{\rho := 1 - \frac{\alpha\eta}{2} = 1 - \frac{\alpha\bigl(1 - \alpha(1+\beta_0)\bigr)}{2}} .
+\]
+Because \(\alpha>0\) and \(\eta>0\), we have \(\rho < 1\); and since \(\alpha\eta \le 1\) (as \(\alpha\le 1\) and \(\eta\le 1\)), \(\rho \ge 1 - \frac12 = \frac12 > 0\).
+
+Set
+\[
+C_t := \bigl[\alpha\eta + \alpha(1+\beta_0)\bigr](\delta_t + \varepsilon_t)^2 + \sigma^2 .
+\]
+Because \(\delta_t+\varepsilon_t \to 0\), the sequence \(\{C_t\}\) is bounded above by some finite constant \(C\) (e.g., the maximum of the first few terms plus \(\sigma^2\)). Dropping the \(t\) index, we write
+\[
+\mathbb{E}[V_{t+1} \mid \mathcal{F}_t] \le \rho V_t + C,
+\qquad 0 < \rho < 1,\; C \ge 0 .
+\]
+
+\paragraph{Asymptotic bound.}
+Taking unconditional expectations and iterating the inequality gives
+\[
+\mathbb{E}[V_t] \le \rho^t\,\mathbb{E}[V_0] + C\sum_{k=0}^{t-1}\rho^k
+\le \rho^t\,\mathbb{E}[V_0] + \frac{C}{1-\rho}.
+\]
+Letting \(t\to\infty\) yields \(\limsup_{t\to\infty} \mathbb{E}[V_t] \le C/(1-\rho)\), completing the proof.
+\end{proof}
+
+\begin{remark}
+The contraction factor \(\rho\) depends only on \(\alpha\) and \(\beta_0\); it is independent of the noise level and the convergence rate of the constraint sets. The additive constant \(C\) captures the price of a non‑stationary environment: as \(\delta_t+\varepsilon_t \to 0\), \(C\) can be taken arbitrarily close to \(\sigma^2\).
+\end{remark}
+
+\begin{remark}
+The condition \(\alpha(1+\beta_0) < 1\) is both sufficient and, in the absence of noise and set drift, essentially necessary: if the gain exceeds unity the Lyapunov function may oscillate or diverge.
+\end{remark}
+
+\section{Conclusion}
+
+We have established a rigourous contraction theorem for a class of projected stochastic dynamics relevant to the Radiant Protocol. The proof explicitly handles the Hausdorff gap between a time‑varying relaxed constraint set and its limit. The subcritical condition \(\alpha(1+\beta_0)<1\) emerges as the decisive criterion for mean‑square stability, guaranteeing a geometric decay of the expected squared distance to the constraint manifold. This result provides the mathematical backbone for the protocol's self‑stabilising architecture.
+
+\begin{thebibliography}{9}
+\bibitem{bauschke2011convex}
+H.~H. Bauschke and P.~L. Combettes.
+\newblock \emph{Convex Analysis and Monotone Operator Theory in Hilbert Spaces}.
+\newblock Springer, 2011.
+\end{thebibliography}
+
+\end{document}
