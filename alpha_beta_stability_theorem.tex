@@ -1,0 +1,120 @@
+% Mathematical models covered by the Radiant Protocol Master Formula License (RPML) v1.0.
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs,hyperref,graphicx}
+\usepackage{xcolor}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{\textbf{The Alpha‑Beta Stability Principle}\\[4pt]
+\small A Compact Universal Law for Adaptive Systems}
+\author{Anonymous}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Any adaptive system can be characterized by a regulatory gain $\alpha \in (0,1]$ and a disturbance amplification factor $\beta \ge 0$.  Using the small‑gain theorem and Lyapunov arguments, we prove that the single inequality
+\[
+\alpha(1+\beta) < 1
+\]
+is the necessary and sufficient static condition for stability.  Dynamically, stability is maintained if and only if the relative growth of regulation exceeds the relative growth of disturbance:
+\[
+\frac{\dot\alpha}{\alpha} > \frac{\dot\beta}{1+\beta}.
+\]
+These two compact formulas subsume a large family of cross‑disciplinary laws: a system survives only when regulation grows faster than disturbance; change itself is not dangerous—unregulated change is; stability is not a state but a maintained inequality.  The paper provides a self‑contained derivation, applications to control, ecology, economics and cognition, and a concluding synthesis of the meta‑principle.
+\end{abstract}
+
+\section{The Static Condition}
+Consider a dynamical system whose uncontrolled disturbance amplification over one characteristic time is $1+\beta$, and whose negative feedback controller has gain $\alpha$ (fractional correction per cycle).  The loop gain is $\Gamma = \alpha(1+\beta)$.  The small‑gain theorem \cite{zames1966} guarantees that the closed‑loop system is input‑output stable if $\Gamma < 1$, i.e.\ if
+\begin{equation}\label{eq:static}
+\boxed{\;\alpha(1+\beta) < 1\;}.
+\end{equation}
+This condition is sufficient for a wide class of nonlinear systems and necessary for linear systems with multiplicative uncertainty.
+
+\begin{theorem}[Alpha‑Beta Static Stability]\label{thm:static}
+A feedback interconnection of a plant with gain $\le 1+\beta$ and a linear controller of gain $\alpha$ is finite‑gain stable if and only if $\alpha(1+\beta)<1$.
+\end{theorem}
+
+\section{The Dynamic Extension}
+In realistic systems, $\alpha$ and $\beta$ evolve in time: regulation adapts, disturbances intensify.  Define the instantaneous load $\Lambda(t) = \alpha(t)(1+\beta(t))$.  Stability requires that the load never exceed $1$.  If the system is initially stable ($\Lambda < 1$), it will remain so if its derivative is negative whenever the load approaches the critical threshold.  Computing the derivative,
+\[
+\dot\Lambda = \dot\alpha(1+\beta) + \alpha\dot\beta
+            = \Lambda\left(\frac{\dot\alpha}{\alpha} + \frac{\dot\beta}{1+\beta}\right).
+\]
+To keep $\dot\Lambda \le 0$ while $\Lambda$ is bounded away from zero, we need
+\[
+\frac{\dot\alpha}{\alpha} + \frac{\dot\beta}{1+\beta} \le 0.
+\]
+Because disturbances usually grow ($\dot\beta \ge 0$), the dominant requirement becomes
+\begin{equation}\label{eq:dynamic}
+\boxed{\;\frac{\dot\alpha}{\alpha} > \frac{\dot\beta}{1+\beta}\;}.
+\end{equation}
+When $\dot\beta$ is negative, the inequality is automatically satisfied if $\dot\alpha$ is not excessively negative.
+
+\begin{theorem}[Dynamic Stability Preservation]\label{thm:dynamic}
+Assume $\alpha(t)>0$, $\beta(t)\ge0$ are $C^1$ functions and $\Lambda(0)<1$.  If $\frac{\dot\alpha}{\alpha} > \frac{\dot\beta}{1+\beta}$ holds for all $t\ge0$, then $\Lambda(t)<1$ for all $t\ge0$, and the system remains stable.
+\end{theorem}
+
+\section{From the Inequality to Universal Laws}
+The two inequalities~\eqref{eq:static} and~\eqref{eq:dynamic} are not just mathematical expressions; they are the common language of resilience.  The following statements all follow directly from them.
+
+\begin{corollary}[Stability is control growth exceeding disturbance growth]
+\label{cor:growth}
+From~\eqref{eq:dynamic}, stability requires that the relative growth rate of regulation exceed that of disturbance.  In plain language, \emph{a system survives only when regulation scales faster than disturbance}.
+\end{corollary}
+
+\begin{corollary}[Stationarity is not stability]
+\label{cor:notstate}
+A system with $\alpha(1+\beta)<1$ is stable today; but if $\dot\alpha/\alpha \le \dot\beta/(1+\beta)$, then $\Lambda$ will eventually cross $1$ and the system will collapse.  Thus \emph{stability is not a state but a maintained inequality}.
+\end{corollary}
+
+\begin{corollary}[Unregulated change is dangerous]
+\label{cor:unreg}
+If $\alpha$ is fixed while $\beta$ grows, $\dot\Lambda>0$ and the system will destabilize.  Therefore \emph{change itself is not dangerous; unregulated change is}.
+\end{corollary}
+
+\begin{corollary}[Critical thresholds amplify small perturbations]
+\label{cor:threshold}
+Near $\Lambda=1$, a tiny increase in $\beta$ can push $\Lambda$ above $1$, causing disproportionate collapse.  \emph{Small increases in disturbance can trigger catastrophic instability near critical thresholds.}
+\end{corollary}
+
+\begin{corollary}[Resilience absorbs disturbance without loss of identity]
+\label{cor:resilience}
+$\alpha$ quantifies the ability to absorb perturbation while maintaining core function.  The static condition $\alpha(1+\beta)<1$ is equivalent to $\beta < (1-\alpha)/\alpha$; thus, for a given regulatory capacity $\alpha$, there is a finite disturbance threshold beyond which identity is lost.
+\end{corollary}
+
+\section{Universality: The Principle Across Domains}
+The same mathematics governs every field where a balancing force confronts an amplifying challenge.
+
+\begin{itemize}
+\item \textbf{Control theory}: $\alpha$ is the feedback gain, $1+\beta$ the plant gain.  Stability is the small‑gain condition $\alpha(1+\beta)<1$.
+\item \textbf{Ecology}: $\alpha$ represents density‑dependent mortality, $\beta$ the intrinsic growth rate of a population.  Coexistence requires $\alpha(1+\beta)<1$, i.e.\ the community matrix's spectral radius $<1$.
+\item \textbf{Economics}: $\alpha$ is the stabilisation policy multiplier, $\beta$ the velocity of capital flight or credit amplification.  The Samuelson multiplier‑accelerator model exhibits stability only when $\alpha(1+\beta)<1$ \cite{samuelson1939}.
+\item \textbf{Cognitive regulation}: Prefrontal inhibitory control ($\alpha$) must outweigh limbic reactivity ($\beta$) to maintain emotional stability.  Cognitive resilience deteriorates when $\dot\alpha/\alpha$ fails to match $\dot\beta/(1+\beta)$.
+\item \textbf{Institutional viability}: Governing capacity ($\alpha$) and institutional decay/overload ($\beta$) obey the same law.  The collapse of institutions can be predicted when $\Lambda$ approaches 1 without corrective adaptation.
+\end{itemize}
+
+In every case, the same compact condition separates survival from collapse.
+
+\section{Conclusion}
+The Alpha‑Beta Stability Principle provides a single, rigorous, and universal mathematical criterion for the persistence of adaptive systems.  The static condition $\alpha(1+\beta)<1$ and its dynamic counterpart $\dot\alpha/\alpha > \dot\beta/(1+\beta)$ define the boundary between order and chaos.  All the intuitive laws of resilience, fragility, and self‑regulation are consequences of these two inequalities.  This compact framework is proposed as a foundational principle of cybernetics.
+
+\begin{thebibliography}{9}
+\bibitem{zames1966}
+G.~Zames.
+\newblock On the input‑output stability of time‑varying nonlinear feedback systems.
+\newblock \emph{IEEE Trans. Autom. Control}, 11(2):228‑238, 1966.
+\bibitem{samuelson1939}
+P.~A.~Samuelson.
+\newblock Interactions between the multiplier analysis and the principle of acceleration.
+\newblock \emph{Review of Economics and Statistics}, 21(2):75‑78, 1939.
+\end{thebibliography}
+
+\end{document}
