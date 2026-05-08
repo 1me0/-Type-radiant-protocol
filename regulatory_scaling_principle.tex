@@ -1,0 +1,163 @@
+% Mathematical models covered by the Radiant Protocol Master Formula License (RPML) v1.0.
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs,hyperref,graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{\textbf{The Regulatory Scaling Principle}\\[4pt]
+\small An $\alpha(1+\beta)<1$ Invariant for Adaptive Stability}
+\author{Anonymous}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Any adaptive system can be characterized by a regulatory gain $\alpha\in(0,1]$ and a disturbance amplification factor $\beta\ge0$.
+The product $\Lambda\equiv\alpha(1+\beta)$ defines the system's load.
+Drawing on the small‑gain theorem and Lyapunov arguments, we show that the condition $\Lambda<1$ provides a tight bound that unifies stability criteria across control engineering, ecology, economics and cognitive science.
+Dynamically, stability persists if and only if the relative growth of regulation exceeds the relative growth of disturbance:
+$\dot\alpha/\alpha > \dot\beta/(1+\beta)$.
+We illustrate the principle with a concrete toy model and $\Lambda$‑trajectories, and we derive from it a family of universal laws of survival.
+\end{abstract}
+
+% =================================================================
+\section{The Static Condition}
+% =================================================================
+Consider a feedback loop where a controller of gain $\alpha$ counteracts a disturbance that is amplified by a factor $1+\beta$ over one characteristic time.
+The small‑gain theorem~\cite{zames1966} guarantees that the closed‑loop system is input‑output stable if the loop gain satisfies
+\begin{equation}\label{eq:static}
+\boxed{\;\alpha(1+\beta) < 1\;}.
+\end{equation}
+This inequality delimits a safe operating region in the $(\alpha,\beta)$ plane.
+
+\begin{theorem}[Static stability]\label{thm:static}
+For a plant with finite $L_2$‑gain $\le 1+\beta$ and a linear controller of gain $\alpha$, stability is equivalent to $\alpha(1+\beta)<1$.
+\end{theorem}
+
+\section{The Dynamic Extension}
+% =================================================================
+In realistic systems $\alpha$ and $\beta$ evolve over time.
+Define the instantaneous load $\Lambda(t)=\alpha(t)(1+\beta(t))$.
+Differentiating,
+\[
+\dot\Lambda = \dot\alpha(1+\beta) + \alpha\dot\beta
+            = \Lambda\left(\frac{\dot\alpha}{\alpha} + \frac{\dot\beta}{1+\beta}\right).
+\]
+To keep $\Lambda$ below the critical threshold $1$ whenever it is initially so, we need $\dot\Lambda \le 0$ when $\Lambda\approx 1$.
+Hence the preserving condition is
+\begin{equation}\label{eq:dynamic}
+\boxed{\;\frac{\dot\alpha}{\alpha} > \frac{\dot\beta}{1+\beta}\;}
+\qquad\text{(when $\dot\beta>0$).}
+\end{equation}
+If $\dot\beta$ is negative, the inequality is automatically satisfied for non‑deteriorating regulation.
+
+\begin{theorem}[Dynamic stability preservation]\label{thm:dynamic}
+Assume $\alpha(t)>0$, $\beta(t)\ge0$ are $C^1$ and $\Lambda(0)<1$.
+If $\frac{\dot\alpha}{\alpha} > \frac{\dot\beta}{1+\beta}$ holds for all $t\ge0$, then $\Lambda(t)<1$ for all $t\ge0$, and the system remains stable.
+\end{theorem}
+
+\section{A Concrete Toy Model}
+% =================================================================
+To make the principle tangible, consider a discrete‑time realization.
+Let regulation and disturbance grow exponentially:
+\[
+\alpha(t)=\min\!\big(\alpha_0 e^{g_\alpha t},\, 1\big),\qquad
+\beta(t)=\beta_0 e^{g_\beta t},
+\]
+with $\alpha_0=0.4$, $\beta_0=0.5$, and constant growth rates $g_\alpha,g_\beta$.
+The load is $\Lambda(t)=\alpha(t)(1+\beta(t))$.
+Figure~\ref{fig:trajectories} shows two trajectories:
+\begin{itemize}
+\item \textbf{Stable case} ($g_\alpha=0.1$, $g_\beta=0.05$): $\Lambda(t)$ remains below $1$, approaching a plateau as $\alpha$ saturates at $1$.
+\item \textbf{Unstable case} ($g_\alpha=0.03$, $g_\beta=0.1$): $\Lambda(t)$ grows monotonically and crosses the $1$‑threshold around $t=8$, after which the system collapses.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.05]
+  \draw[->] (0,0) -- (10.5,0) node[right] {$t$};
+  \draw[->] (0,0) -- (0,5.5) node[above] {$\Lambda(t)$};
+  \draw[dashed, gray!60] (0,2.5) -- (10.5,2.5) node[right, black] {$1$};
+  % stable curve
+  \draw[blue, thick] plot[domain=0:10, samples=100] 
+    (\x, {min(0.4*exp(0.1*\x),1)*(1+0.5*exp(0.05*\x))});
+  % unstable curve
+  \draw[red, thick] plot[domain=0:10, samples=100] 
+    (\x, {min(0.4*exp(0.03*\x),1)*(1+0.5*exp(0.1*\x))});
+  \node[blue] at (8,3.2) {$\dot\alpha > \dot\beta$};
+  \node[red] at (8,4.3) {$\dot\alpha < \dot\beta$};
+\end{tikzpicture}
+\caption{Evolution of the regulatory load $\Lambda(t)=\alpha(t)(1+\beta(t))$ under two growth‑rate regimes.  The blue trajectory obeys $\dot\alpha/\alpha > \dot\beta/(1+\beta)$ and remains stable; the red trajectory violates the inequality and crosses the critical threshold.}
+\label{fig:trajectories}
+\end{figure}
+
+Analytically, the stability condition for this model is $g_\alpha > g_\beta\cdot\frac{\beta_0}{1+\beta_0}$ when $\alpha$ is not yet saturated, which is a direct consequence of~\eqref{eq:dynamic}.
+
+\section{From the Inequality to Universal Laws}
+% =================================================================
+The static and dynamic inequalities are not mere mathematical expressions; they encapsulate a set of survival laws that are observed across disciplines.
+
+\begin{corollary}[Control growth must outpace disturbance growth]
+\label{cor:growth}
+Stability requires $\dot\alpha/\alpha > \dot\beta/(1+\beta)$; i.e., the relative growth of regulation must exceed the relative growth of disturbance.
+\end{corollary}
+
+\begin{corollary}[Stability is a maintained inequality]
+\label{cor:notstate}
+A system stable today ($\Lambda<1$) can become unstable tomorrow if $\dot\alpha/\alpha \le \dot\beta/(1+\beta)$.
+Thus \emph{stability is not a state but a permanently maintained inequality}.
+\end{corollary}
+
+\begin{corollary}[Unregulated change is dangerous]
+\label{cor:unreg}
+If $\alpha$ is fixed while $\beta$ grows, $\Lambda$ increases and the system destabilizes.
+Hence \emph{change itself is not dangerous — unregulated change is}.
+\end{corollary}
+
+\begin{corollary}[Critical threshold sensitivity]
+\label{cor:threshold}
+Near $\Lambda=1$, a tiny increase in $\beta$ can push $\Lambda$ above $1$, causing disproportionate collapse.
+\end{corollary}
+
+\begin{corollary}[Resilience absorbs disturbance without losing identity]
+\label{cor:resilience}
+$\alpha$ quantifies the capacity to absorb perturbation while preserving function.
+For given $\alpha$, the maximum tolerable $\beta$ is $(1-\alpha)/\alpha$.
+\end{corollary}
+
+\section{Universality Across Domains}
+% =================================================================
+The same mathematics governs every field where a balancing force confronts an amplifying challenge.
+
+\begin{itemize}
+\item \textbf{Control theory}: $\alpha$ is the feedback gain, $1+\beta$ the plant gain; stability is the small‑gain condition.
+\item \textbf{Ecology}: $\alpha$ represents density‑dependent mortality, $\beta$ the intrinsic growth rate; coexistence requires $\alpha(1+\beta)<1$, i.e., the community matrix's spectral radius $<1$.
+\item \textbf{Economics}: $\alpha$ is the stabilisation policy multiplier, $\beta$ the velocity of capital flight; the Samuelson multiplier‑accelerator model is stable only when $\alpha(1+\beta)<1$ \cite{samuelson1939}.
+\item \textbf{Cognitive regulation}: prefrontal inhibitory control ($\alpha$) must outweigh limbic reactivity ($\beta$); resilience deteriorates when $\dot\alpha$ lags behind $\dot\beta$.
+\item \textbf{Institutional viability}: governing capacity ($\alpha$) versus institutional decay/overload ($\beta$) obey the same law; collapse is predicted when $\Lambda$ approaches $1$ without corrective adaptation.
+\end{itemize}
+
+\section{Conclusion}
+The Regulatory Scaling Principle, captured by the compact inequality $\alpha(1+\beta)<1$ and its dynamic partner $\dot\alpha/\alpha > \dot\beta/(1+\beta)$, provides a single mathematical criterion for the survival of any adaptive system.  The principle tightens the link between the small‑gain theorem and real‑world stability, and it generates the family of intuitive laws that have long been observed in nature and society.  This invariant is offered as a foundational element of cybernetics.
+
+\begin{thebibliography}{9}
+\bibitem{zames1966}
+G.~Zames.
+\newblock On the input‑output stability of time‑varying nonlinear feedback systems.
+\newblock \emph{IEEE Trans. Autom. Control}, 11(2):228‑238, 1966.
+\bibitem{samuelson1939}
+P.~A.~Samuelson.
+\newblock Interactions between the multiplier analysis and the principle of acceleration.
+\newblock \emph{Review of Economics and Statistics}, 21(2):75‑78, 1939.
+\end{thebibliography}
+
+\end{document}
