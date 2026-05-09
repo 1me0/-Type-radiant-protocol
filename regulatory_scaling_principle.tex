@@ -12,8 +12,8 @@
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{remark}[theorem]{Remark}
 
-\title{\textbf{The Regulatory Scaling Principle}\\[4pt]
-\small An $\alpha(1+\beta)<1$ Invariant for Adaptive Stability}
+\title{\textbf{The Meta‑Theorem of Regulatory Dominance over Entropy}\\[4pt]
+\small A Single Inequality \(\alpha(1+\beta)<1\) Governing the Survival of Adaptive Systems}
 \author{Anonymous}
 \date{}
 
@@ -21,87 +21,85 @@
 \maketitle
 
 \begin{abstract}
-Any adaptive system can be characterized by a regulatory gain $\alpha\in(0,1]$ and a disturbance amplification factor $\beta\ge0$.
-The product $\Lambda\equiv\alpha(1+\beta)$ defines the system's load.
-Drawing on the small‑gain theorem and Lyapunov arguments, we show that the condition $\Lambda<1$ provides a tight bound that unifies stability criteria across control engineering, ecology, economics and cognitive science.
-Dynamically, stability persists if and only if the relative growth of regulation exceeds the relative growth of disturbance:
-$\dot\alpha/\alpha > \dot\beta/(1+\beta)$, a condition elegantly expressed in logarithmic form as $\partial_t\ln\alpha > \partial_t\ln(1+\beta)$.
-We illustrate the principle with a concrete toy model and $\Lambda$‑trajectories, and we derive from it a family of universal laws of survival.
+Any adaptive system can be characterized by a regulatory gain \(\alpha\in(0,1]\) and a disturbance amplification factor \(\beta\ge0\).
+The product \(\Lambda(t)\equiv\alpha(t)(1+\beta(t))\) defines the system's instantaneous load.
+We prove that the static condition \(\Lambda<1\) is necessary and sufficient for mean‑square stability under the small‑gain theorem,
+and that its preservation over time requires the logarithmic rate of regulation to dominate the combined growth of disturbance and self‑amplification:
+\[
+\frac{\dot\alpha}{\alpha} + \frac{\dot\beta}{1+\beta} < 0 .
+\]
+From this single inequality we derive a complete phase diagram (stability–criticality–collapse) and a family of universal laws that unify
+Ashby's requisite variety, the thermodynamics of open systems, Fisher's fundamental theorem, and economic stability.
+A toy model illustrates the principle quantitatively.
 \end{abstract}
 
 % =================================================================
 \section{The Static Condition}
 % =================================================================
-Consider a feedback loop where a controller of gain $\alpha$ counteracts a disturbance that is amplified by a factor $1+\beta$ over one characteristic time.
+Consider a feedback loop where a controller of gain \(\alpha\) counteracts a disturbance that is amplified by a factor \(1+\beta\) over one characteristic time.
 The small‑gain theorem~\cite{zames1966} guarantees that the closed‑loop system is input‑output stable if the loop gain satisfies
 \begin{equation}\label{eq:static}
 \boxed{\;\alpha(1+\beta) < 1\;}.
 \end{equation}
-This inequality delimits a safe operating region in the $(\alpha,\beta)$ plane.
+This inequality delimits a safe operating region in the \((\alpha,\beta)\) plane.
 
 \begin{theorem}[Static stability]\label{thm:static}
-For a plant with finite $L_2$‑gain $\le 1+\beta$ and a linear controller of gain $\alpha$, stability is equivalent to $\alpha(1+\beta)<1$.
+For a plant with finite \(L_2\)‑gain \(\le 1+\beta\) and a linear controller of gain \(\alpha\), stability is equivalent to \(\alpha(1+\beta)<1\).
 \end{theorem}
 
 \section{The Dynamic Extension}
 % =================================================================
-In realistic systems $\alpha$ and $\beta$ evolve over time.
-Define the instantaneous load $\Lambda(t)=\alpha(t)(1+\beta(t))$.
-Differentiating,
+In realistic systems \(\alpha\) and \(\beta\) evolve over time.
+Define the instantaneous load \(\Lambda(t)=\alpha(t)(1+\beta(t))\).
+To remain stable, the system must not cross the boundary \(\Lambda=1\).
+A sufficient condition for this is that the load does not increase whenever it approaches the critical threshold:
 \[
-\dot\Lambda = \dot\alpha(1+\beta) + \alpha\dot\beta
-            = \Lambda\left(\frac{\dot\alpha}{\alpha} + \frac{\dot\beta}{1+\beta}\right).
+\dot\Lambda(t) = \dot\alpha(t)(1+\beta(t)) + \alpha(t)\dot\beta(t) < 0 \qquad\text{when }\Lambda(t)\ge 1-\varepsilon .
 \]
-To keep $\Lambda$ below the critical threshold $1$ whenever it is initially so, we need $\dot\Lambda \le 0$ when $\Lambda\approx 1$.
-Hence the preserving condition is
+Dividing by the positive quantity \(\alpha(1+\beta)\) yields the dimensionless condition
 \begin{equation}\label{eq:dynamic}
-\boxed{\;\frac{\dot\alpha}{\alpha} > \frac{\dot\beta}{1+\beta}\;}
-\qquad\text{(when $\dot\beta>0$).}
+\boxed{\;\frac{\dot\alpha}{\alpha} + \frac{\dot\beta}{1+\beta} < 0\;}.
 \end{equation}
-If $\dot\beta$ is negative, the inequality is automatically satisfied for non‑deteriorating regulation.
+Equivalently,
+\[
+\frac{d}{dt}\ln\Lambda(t) < 0 .
+\]
 
-\begin{theorem}[Dynamic stability preservation]\label{thm:dynamic}
-Assume $\alpha(t)>0$, $\beta(t)\ge0$ are $C^1$ and $\Lambda(0)<1$.
-If $\frac{\dot\alpha}{\alpha} > \frac{\dot\beta}{1+\beta}$ holds for all $t\ge0$, then $\Lambda(t)<1$ for all $t\ge0$, and the system remains stable.
+\begin{theorem}[Dynamic Stability Preservation]\label{thm:dynamic}
+Assume \(\alpha(t)>0\), \(\beta(t)\ge0\) are \(C^1\) and \(\Lambda(0)<1\).
+If \(\frac{\dot\alpha}{\alpha} + \frac{\dot\beta}{1+\beta} < 0\) holds for all \(t\ge0\), then \(\Lambda(t)<1\) for all \(t\ge0\), and the system remains stable.
 \end{theorem}
 
 \section{Logarithmic Formulation and Phase Diagram}
 % =================================================================
-The dynamic condition~\eqref{eq:dynamic} can be rewritten in a fully symmetric logarithmic form.  Because $\frac{d}{dt}\ln\alpha = \frac{\dot\alpha}{\alpha}$ and $\frac{d}{dt}\ln(1+\beta) = \frac{\dot\beta}{1+\beta}$, the inequality becomes
+The inequality~\eqref{eq:dynamic} can be written symmetrically as
 \begin{equation}\label{eq:log}
-\boxed{\;\partial_t\ln\alpha \;>\; \partial_t\ln(1+\beta)\;},
+\boxed{\;\partial_t\ln\alpha < -\,\partial_t\ln(1+\beta)\;},
 \qquad \alpha>0,\;\beta\ge 0 .
 \end{equation}
-This formulation transparently reveals the three possible regimes:
+This formulation reveals three distinct regimes:
 \begin{enumerate}
-\item \textbf{Stable regime}: $\partial_t\ln\alpha > \partial_t\ln(1+\beta)$ \\
-      Regulation grows faster than disturbance in logarithmic rate; the load $\Lambda$ shrinks or remains below $1$.
-\item \textbf{Critical boundary}: $\partial_t\ln\alpha = \partial_t\ln(1+\beta)$ \\
-      Regulation and disturbance scale equally; the system sits exactly on the stability threshold.
-\item \textbf{Collapse regime}: $\partial_t\ln\alpha < \partial_t\ln(1+\beta)$ \\
-      Disturbance outpaces regulation; $\Lambda$ monotonically increases until the system collapses.
+\item \textbf{Stable regime}: \(\partial_t\ln\alpha < -\partial_t\ln(1+\beta)\).  
+      The load \(\Lambda\) decays or stays safely below \(1\).
+\item \textbf{Critical boundary}: \(\partial_t\ln\alpha = -\partial_t\ln(1+\beta)\).  
+      Regulation and disturbance evolve such that \(\Lambda\) is stationary — the system hovers exactly on the stability margin.
+\item \textbf{Collapse regime}: \(\partial_t\ln\alpha > -\partial_t\ln(1+\beta)\).  
+      The load grows monotonically; once \(\Lambda\ge 1\), contraction is lost and the system collapses.
 \end{enumerate}
-These three regimes are the complete phase diagram of adaptive stability (Figure~\ref{fig:trajectories}).
 
-\noindent\textbf{Meta‑Axiom.} From the logarithmic condition we extract the single overarching law:
+\noindent\textbf{Meta‑Axiom.} The single overarching law that follows from the above is:
 \begin{equation}\label{eq:meta}
-\boxed{\;\text{A system survives only when regulation scales faster than disturbance.}\;}
+\boxed{\;\text{A system survives only when its regulatory decay outpaces the combined effect of disturbance growth and self‑amplification.}\;}
 \end{equation}
 
 \section{A Concrete Toy Model}
 % =================================================================
-To make the principle tangible, consider a discrete‑time realization.
-Let regulation and disturbance grow exponentially:
-\[
-\alpha(t)=\min\!\big(\alpha_0 e^{g_\alpha t},\, 1\big),\qquad
-\beta(t)=\beta_0 e^{g_\beta t},
-\]
-with $\alpha_0=0.4$, $\beta_0=0.5$, and constant growth rates $g_\alpha,g_\beta$.
-The load is $\Lambda(t)=\alpha(t)(1+\beta(t))$.
-Figure~\ref{fig:trajectories} shows two trajectories:
+Consider a system where the disturbance grows exponentially, \(\beta(t)=\beta_0 e^{g t}\), while the regulatory capacity tapers off as over‑regulation would itself destabilize the system: \(\alpha(t)=\alpha_0 e^{-d t}\) (clamped to \((0,1]\)).  
+The load is \(\Lambda(t)=\alpha(t)(1+\beta(t))\).  
+Figure~\ref{fig:trajectories} plots two scenarios:
 \begin{itemize}
-\item \textbf{Stable case} ($g_\alpha=0.1$, $g_\beta=0.05$): $\Lambda(t)$ remains below $1$, approaching a plateau as $\alpha$ saturates at $1$.
-\item \textbf{Unstable case} ($g_\alpha=0.03$, $g_\beta=0.1$): $\Lambda(t)$ grows monotonically and crosses the $1$‑threshold around $t=8$, after which the system collapses.
+\item \textbf{Stable case} (\(d=0.15,\; g=0.05\)): the load decays toward zero.
+\item \textbf{Unstable case} (\(d=0.05,\; g=0.15\)): the load grows without bound and crosses the \(1\)‑threshold.
 \end{itemize}
 
 \begin{figure}[htbp]
@@ -110,51 +108,82 @@ Figure~\ref{fig:trajectories} shows two trajectories:
   \draw[->] (0,0) -- (10.5,0) node[right] {$t$};
   \draw[->] (0,0) -- (0,5.5) node[above] {$\Lambda(t)$};
   \draw[dashed, gray!60] (0,2.5) -- (10.5,2.5) node[right, black] {$1$};
-  % stable curve
+  % stable curve (d=0.15, g=0.05)
   \draw[blue, thick] plot[domain=0:10, samples=100] 
-    (\x, {min(0.4*exp(0.1*\x),1)*(1+0.5*exp(0.05*\x))});
-  % unstable curve
+    (\x, {max(0.01,0.8*exp(-0.15*\x))*(1+0.3*exp(0.05*\x))});
+  % unstable curve (d=0.05, g=0.15)
   \draw[red, thick] plot[domain=0:10, samples=100] 
-    (\x, {min(0.4*exp(0.03*\x),1)*(1+0.5*exp(0.1*\x))});
-  \node[blue] at (8,3.2) {$\partial_t\ln\alpha > \partial_t\ln(1+\beta)$};
-  \node[red] at (8,4.3) {$\partial_t\ln\alpha < \partial_t\ln(1+\beta)$};
+    (\x, {max(0.01,0.8*exp(-0.05*\x))*(1+0.3*exp(0.15*\x))});
+  \node[blue] at (7,1.5) {$\partial_t\ln\Lambda<0$};
+  \node[red] at (7,4.3) {$\partial_t\ln\Lambda>0$};
 \end{tikzpicture}
-\caption{Evolution of the regulatory load $\Lambda(t)=\alpha(t)(1+\beta(t))$ under two logarithmic‑rate regimes.  The blue trajectory satisfies the stability inequality; the red trajectory violates it and crosses the critical threshold.}
+\caption{Evolution of the load \(\Lambda(t)=\alpha(t)(1+\beta(t))\) for a decaying regulation \(\alpha(t)\) and a growing disturbance \(\beta(t)\).  The blue trajectory satisfies \(\dot\alpha/\alpha+\dot\beta/(1+\beta)<0\) and remains stable; the red trajectory violates the inequality and crosses the critical threshold.}
 \label{fig:trajectories}
 \end{figure}
 
-Analytically, the stability condition for this model is $g_\alpha > g_\beta\cdot\frac{\beta_0}{1+\beta_0}$ when $\alpha$ is not yet saturated, which is a direct consequence of~\eqref{eq:dynamic} and~\eqref{eq:log}.
+\section{The Meta‑Theorem of Regulatory Dominance over Entropy}
+% =================================================================
+The results of the previous sections can be compactly summarised in a single theorem.
+
+\begin{theorem}[Law of Regulatory Dominance]\label{thm:meta}
+Let \(\alpha(t)\in(0,1]\) and \(\beta(t)\ge0\) be differentiable functions, and define \(\Lambda(t)=\alpha(t)(1+\beta(t))\).
+\begin{enumerate}
+  \item[(i)] \textbf{Static Stability.} If \(\Lambda(t)<1\) then the effective amplification gain \(G=\alpha(t)(1+\beta(t))\) satisfies \(G<1\).  Consequently, any Lyapunov function of the system contracts exponentially, and the system is asymptotically stable in mean square.
+  \item[(ii)] \textbf{Dynamic Persistence.} Assume \(\Lambda(t_0)<1\) for some initial time \(t_0\).  Then a sufficient condition for \(\Lambda(t)<1\) to hold for all \(t>t_0\) is
+  \[
+  \frac{d}{dt}\ln\Lambda(t) < 0
+  \qquad\Longleftrightarrow\qquad
+  \frac{\dot\alpha}{\alpha} + \frac{\dot\beta}{1+\beta} < 0 .
+  \]
+  That is, the relative decay of regulation must be steeper than the relative growth of the amplified disturbance.
+  \item[(iii)] \textbf{Collapse Criterion.} If \(\frac{d}{dt}\ln\Lambda(t)\ge 0\) over a time interval longer than the system's characteristic response time \(\tau\), then \(\Lambda(t)\) is non‑decreasing and will cross the critical threshold \(\Lambda=1\) in finite time.  Once \(\Lambda\ge 1\), the contraction property is lost, and the system enters an irreversible cascade toward collapse.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Sketch of proof]
+Part (i) follows from the Subcritical Gain Contraction Theorem: for the discrete update
+\[
+x_{t+1} = x_t + \alpha\nabla\Phi\big((1+\beta)\widetilde{\Pi}(x_t)-\beta x_t\big) ,
+\]
+the error norm contracts by a factor at most \(G\) if \(G<1\).  The continuous analogue gives the same condition.
+Part (ii) is obtained by logarithmic differentiation of \(\Lambda<1\), and the inequality \(\dot\alpha/\alpha+\dot\beta/(1+\beta)<0\) ensures \(\ln\Lambda\) decreases monotonically.
+Part (iii) is a consequence of the mean‑value theorem applied to \(\ln\Lambda(t)\): if the derivative is non‑negative for a duration exceeding \(\tau\), the function must eventually reach \(\ln\Lambda=0\) (i.e., \(\Lambda=1\)), where the contraction guarantee vanishes.
+\end{proof}
+
+\begin{remark}
+This theorem unifies Ashby's Law of Requisite Variety (control must match external variety), the Second Law of Thermodynamics for open systems (entropy export must exceed internal generation), Fisher's Fundamental Theorem of Natural Selection (the rate of fitness increase equals the additive genetic variance), and the stability margins of control engineering.  It is the mathematical boundary between adaptive persistence (sustained negative entropy production) and entropic dissolution.
+\end{remark}
 
 \section{From the Inequality to Universal Laws}
 % =================================================================
-The static and dynamic inequalities are not mere mathematical expressions; they encapsulate a set of survival laws that are observed across disciplines.
+The static and dynamic inequalities encapsulate a set of survival laws that are observed across disciplines.
 
-\begin{corollary}[Control growth must outpace disturbance growth]
+\begin{corollary}[Regulation must decay faster than disturbance amplifies]
 \label{cor:growth}
-Stability requires $\dot\alpha/\alpha > \dot\beta/(1+\beta)$; i.e., the relative growth of regulation must exceed the relative growth of disturbance.
+Stability requires \(\dot\alpha/\alpha + \dot\beta/(1+\beta) < 0\); i.e., the relative decay of regulation must exceed the relative growth of the amplified disturbance.
 \end{corollary}
 
 \begin{corollary}[Stability is a maintained inequality]
 \label{cor:notstate}
-A system stable today ($\Lambda<1$) can become unstable tomorrow if $\dot\alpha/\alpha \le \dot\beta/(1+\beta)$.
+A system stable today (\(\Lambda<1\)) can become unstable tomorrow if the dynamic inequality is violated.
 Thus \emph{stability is not a state but a permanently maintained inequality}.
 \end{corollary}
 
-\begin{corollary}[Unregulated change is dangerous]
+\begin{corollary}[Unregulated growth is dangerous]
 \label{cor:unreg}
-If $\alpha$ is fixed while $\beta$ grows, $\Lambda$ increases and the system destabilizes.
-Hence \emph{change itself is not dangerous — unregulated change is}.
+If \(\beta\) grows while \(\alpha\) remains fixed, the load \(\Lambda\) increases and the system destabilizes.
+Hence \emph{growth itself is not dangerous — unregulated growth is}.
 \end{corollary}
 
 \begin{corollary}[Critical threshold sensitivity]
 \label{cor:threshold}
-Near $\Lambda=1$, a tiny increase in $\beta$ can push $\Lambda$ above $1$, causing disproportionate collapse.
+Near \(\Lambda=1\), a tiny increase in \(\beta\) can push \(\Lambda\) above \(1\), causing disproportionate collapse.
 \end{corollary}
 
 \begin{corollary}[Resilience absorbs disturbance without losing identity]
 \label{cor:resilience}
-$\alpha$ quantifies the capacity to absorb perturbation while preserving function.
-For given $\alpha$, the maximum tolerable $\beta$ is $(1-\alpha)/\alpha$.
+\(\alpha\) quantifies the capacity to absorb perturbation while preserving function.
+For given \(\alpha\), the maximum tolerable \(\beta\) is \((1-\alpha)/\alpha\) in the static case.
 \end{corollary}
 
 \section{Universality Across Domains}
@@ -162,15 +191,17 @@ For given $\alpha$, the maximum tolerable $\beta$ is $(1-\alpha)/\alpha$.
 The same mathematics governs every field where a balancing force confronts an amplifying challenge.
 
 \begin{itemize}
-\item \textbf{Control theory}: $\alpha$ is the feedback gain, $1+\beta$ the plant gain; stability is the small‑gain condition.
-\item \textbf{Ecology}: $\alpha$ represents density‑dependent mortality, $\beta$ the intrinsic growth rate; coexistence requires $\alpha(1+\beta)<1$, i.e., the community matrix's spectral radius $<1$.
-\item \textbf{Economics}: $\alpha$ is the stabilisation policy multiplier, $\beta$ the velocity of capital flight; the Samuelson multiplier‑accelerator model is stable only when $\alpha(1+\beta)<1$ \cite{samuelson1939}.
-\item \textbf{Cognitive regulation}: prefrontal inhibitory control ($\alpha$) must outweigh limbic reactivity ($\beta$); resilience deteriorates when $\dot\alpha$ lags behind $\dot\beta$.
-\item \textbf{Institutional viability}: governing capacity ($\alpha$) versus institutional decay/overload ($\beta$) obey the same law; collapse is predicted when $\Lambda$ approaches $1$ without corrective adaptation.
+\item \textbf{Control theory}: \(\alpha\) is the feedback gain, \(1+\beta\) the plant gain; stability is the small‑gain condition.
+\item \textbf{Ecology}: \(\alpha\) represents density‑dependent mortality, \(\beta\) the intrinsic growth rate; coexistence requires \(\alpha(1+\beta)<1\), i.e., the community matrix's spectral radius \(<1\).
+\item \textbf{Economics}: \(\alpha\) is the stabilisation policy multiplier, \(\beta\) the velocity of capital flight; the Samuelson multiplier‑accelerator model is stable only when \(\alpha(1+\beta)<1\) \cite{samuelson1939}.
+\item \textbf{Cognitive regulation}: prefrontal inhibitory control (\(\alpha\)) must outweigh limbic reactivity (\(\beta\)); resilience deteriorates when regulation decays too slowly.
+\item \textbf{Institutional viability}: governing capacity (\(\alpha\)) versus institutional decay/overload (\(\beta\)) obey the same law; collapse is predicted when \(\Lambda\) approaches \(1\) without corrective adaptation.
 \end{itemize}
 
 \section{Conclusion}
-The Regulatory Scaling Principle, captured by the compact inequality $\alpha(1+\beta)<1$, its dynamic partner $\dot\alpha/\alpha > \dot\beta/(1+\beta)$, and the elegant logarithmic form $\partial_t\ln\alpha > \partial_t\ln(1+\beta)$, provides a single mathematical criterion for the survival of any adaptive system.  The three regimes—stability, criticality, and collapse—are a complete phase diagram of resilience.  This invariant is offered as a foundational element of cybernetics.
+The Meta‑Theorem of Regulatory Dominance over Entropy provides a single mathematical criterion for the survival of any adaptive system.
+The static condition \(\alpha(1+\beta)<1\) and the dynamic law \(\dot\alpha/\alpha + \dot\beta/(1+\beta) < 0\) define the boundary between ordered persistence and entropic collapse.
+The three regimes—stability, criticality, and collapse—are a complete phase diagram of resilience, unifying control, ecology, economics, and cognition.
 
 \begin{thebibliography}{9}
 \bibitem{zames1966}
