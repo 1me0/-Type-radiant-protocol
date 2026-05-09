@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Radiant Protocol · Demo</title>
     <style>
-        *{box-sizing:border-box;font-family:system-ui,sans-serif}body{background:linear-gradient(135deg,#0a1a2a,#1a2a3a);min-height:100vh;margin:0;padding:20px;color:#fff}.container{max-width:1200px;margin:auto}h1{font-size:2rem;background:linear-gradient(135deg,#fff,#9bb8d4);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{color:#9bb8d4;margin-bottom:24px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}.card{background:rgba(255,255,255,.08);backdrop-filter:blur(10px);border-radius:28px;padding:20px;border:1px solid rgba(255,255,255,.1)}.card h2{font-size:1.3rem;margin:0 0 12px;color:#fff}input,textarea,select{width:100%;padding:10px;border-radius:40px;border:1px solid #2c4a6a;background:rgba(0,0,0,.3);color:#fff;margin-bottom:10px}button{background:#2c7a4d;border:none;padding:8px 16px;border-radius:40px;color:#fff;font-weight:600;cursor:pointer;margin-right:8px;margin-bottom:8px}button:hover{background:#1e5a3a}.btn-secondary{background:#3a5a7a}.btn-secondary:hover{background:#2c4a6a}.reset-btn{background:#8a2a2a}.reset-btn:hover{background:#6a1a1a}.score-badge{background:#1e2a3a;border-radius:30px;padding:8px 16px;margin-top:10px;display:inline-block;border:1px solid #2c4a6a;transition:filter 0.3s ease, background 0.3s ease}.metric-slider{margin:12px 0}.metric-slider label{display:flex;justify-content:space-between;font-size:.8rem;color:#cbd5e0}input[type=range]{width:100%;margin:5px 0}.balance-display{background:rgba(0,0,0,.4);border-radius:30px;padding:8px 16px;margin-bottom:16px;font-size:.9rem}.flex-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}footer{text-align:center;margin-top:30px;color:#5a7a9a;font-size:.75rem}
+        *{box-sizing:border-box;font-family:system-ui,sans-serif}body{background:linear-gradient(135deg,#0a1a2a,#1a2a3a);min-height:100vh;margin:0;padding:20px;color:#fff}.container{max-width:1200px;margin:auto}h1{font-size:2rem;background:linear-gradient(135deg,#fff,#9bb8d4);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{color:#9bb8d4;margin-bottom:24px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}.card{background:rgba(255,255,255,.08);backdrop-filter:blur(10px);border-radius:28px;padding:20px;border:1px solid rgba(255,255,255,.1)}.card h2{font-size:1.3rem;margin:0 0 12px;color:#fff}input,textarea,select{width:100%;padding:10px;border-radius:40px;border:1px solid #2c4a6a;background:rgba(0,0,0,.3);color:#fff;margin-bottom:10px}button{background:#2c7a4d;border:none;padding:8px 16px;border-radius:40px;color:#fff;font-weight:600;cursor:pointer;margin-right:8px;margin-bottom:8px}button:hover{background:#1e5a3a}.btn-secondary{background:#3a5a7a}.btn-secondary:hover{background:#2c4a6a}.reset-btn{background:#8a2a2a}.reset-btn:hover{background:#6a1a1a}.score-badge{background:#1e2a3a;border-radius:30px;padding:8px 16px;margin-top:10px;display:inline-block;border:1px solid #2c4a6a;transition:filter 0.3s ease, background 0.3s ease}.metric-slider{margin:12px 0}.metric-slider label{display:flex;justify-content:space-between;font-size:.8rem;color:#cbd5e0}input[type=range]{width:100%;margin:5px 0}.balance-display{background:rgba(0,0,0,.4);border-radius:30px;padding:8px 16px;margin-bottom:16px;font-size:.9rem}.flex-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}footer{text-align:center;margin-top:30px;color:#5a7a9a;font-size:.75rem}.small-info{font-size:0.8rem;margin-top:8px;color:#9bb8d4}
     </style>
 </head>
 <body>
 <div class="container">
     <h1>✨ Radiant Protocol · Live Demo</h1>
-    <div class="sub">ZK Proof of Presence · CIS · Value Alignment</div>
+    <div class="sub">ZK Proof of Presence · sCIS v2 · Value Alignment</div>
     <div class="grid">
         <!-- Presence -->
         <div class="card">
@@ -21,16 +21,17 @@
             <button id="registerPresenceBtn">✨ Register</button>
             <div id="presenceResult"></div>
         </div>
-        <!-- CIS -->
+        <!-- CIS v2 -->
         <div class="card">
-            <h2>📊 CIS Score</h2>
-            <textarea id="messageText" rows="2" placeholder="Message..."></textarea>
-            <div class="metric-slider"><label>Alignment <span id="alignVal">0.80</span></label><input type="range" id="alignment" min="0" max="1" step="0.01" value="0.8"></div>
-            <div class="metric-slider"><label>Understanding <span id="understandVal">0.80</span></label><input type="range" id="understanding" min="0" max="1" step="0.01" value="0.8"></div>
-            <div class="metric-slider"><label>Accuracy <span id="accuracyVal">0.80</span></label><input type="range" id="accuracy" min="0" max="1" step="0.01" value="0.8"></div>
-            <div class="metric-slider"><label>Distortion <span id="distortVal">0.10</span></label><input type="range" id="distortion" min="0" max="1" step="0.01" value="0.1"></div>
-            <button id="computeCISBtn">🧠 Compute</button>
+            <h2>📊 sCIS v2 (Communication Intelligence)</h2>
+            <textarea id="messageText" rows="2" placeholder="Type a message..."></textarea>
+            <div class="metric-slider"><label>Coherence (S) <span id="cohVal">0.80</span></label><input type="range" id="coherence" min="0" max="1" step="0.01" value="0.8"></div>
+            <div class="metric-slider"><label>Consistency (C) <span id="consVal">0.80</span></label><input type="range" id="consistency" min="0" max="1" step="0.01" value="0.8"></div>
+            <div class="metric-slider"><label>Context Uncertainty (U) <span id="uncVal">0.20</span></label><input type="range" id="uncertainty" min="0" max="1" step="0.01" value="0.2"></div>
+            <button id="computeCISBtn">🧠 Compute sCIS</button>
             <div id="cisResult" class="score-badge"></div>
+            <div class="small-info" id="weightsDisplay"></div>
+            <div class="small-info" id="momentumDisplay"></div>
         </div>
         <!-- Fee Game -->
         <div class="card">
@@ -59,7 +60,7 @@
     <div style="text-align:center;margin-top:20px">
         <button id="resetDemoBtn" class="reset-btn">🗑️ Reset All</button>
     </div>
-    <footer>🔐 Client‑side demo · Integer RAD · LocalStorage · Smooth distortion</footer>
+    <footer>🔐 Client‑side demo · Integer RAD · sCIS v2 with temporal momentum & soft threshold</footer>
 </div>
 <script>
 (function(){
@@ -67,11 +68,13 @@
     let state = {
         presenceId: '', presenceScore: 0, lastRecord: 0,
         userStake: 0, totalStaked: 0, rewardPool: 100,
-        userRewards: 0, userBalance: 1000, architectBalance: 0, treasury: 500
+        userRewards: 0, userBalance: 1000, architectBalance: 0, treasury: 500,
+        momentum: 0   // temporal memory for sCIS v2
     };
     const recipMap = new Map();
     const STORE = {
-        pid:'rp_id', psc:'rp_score', rec:'rp_rec', usk:'rp_usk', tsk:'rp_tsk', rpl:'rp_rpl', urw:'rp_urw', ubl:'rp_ubl', abl:'rp_abl', trs:'rp_trs'
+        pid:'rp_id', psc:'rp_score', rec:'rp_rec', usk:'rp_usk', tsk:'rp_tsk',
+        rpl:'rp_rpl', urw:'rp_urw', ubl:'rp_ubl', abl:'rp_abl', trs:'rp_trs', mom:'rp_mom'
     };
 
     function hash(s){ let h=5381; for(let i=0;i<s.length;i++)h=((h<<5)+h)+s.charCodeAt(i); return (h>>>0)%101; }
@@ -81,6 +84,7 @@
         localStorage.setItem(STORE.tsk, state.totalStaked); localStorage.setItem(STORE.rpl, state.rewardPool);
         localStorage.setItem(STORE.urw, state.userRewards); localStorage.setItem(STORE.ubl, state.userBalance);
         localStorage.setItem(STORE.abl, state.architectBalance); localStorage.setItem(STORE.trs, state.treasury);
+        localStorage.setItem(STORE.mom, state.momentum);
         recipMap.forEach((v,k)=>localStorage.setItem(`bal_${k}`,v));
     }
     function load(){
@@ -94,6 +98,7 @@
         state.userBalance = parseInt(localStorage.getItem(STORE.ubl)||'1000');
         state.architectBalance = parseInt(localStorage.getItem(STORE.abl)||'0');
         state.treasury = parseInt(localStorage.getItem(STORE.trs)||'500');
+        state.momentum = parseFloat(localStorage.getItem(STORE.mom)||'0');
         for(let i=0;i<localStorage.length;i++){ let k=localStorage.key(i); if(k&&k.startsWith('bal_')) recipMap.set(k.slice(4),parseInt(localStorage.getItem(k))); }
     }
     function updateUI(){
@@ -103,6 +108,7 @@
         document.getElementById('balanceDisplay').innerHTML = `💎 You: ${state.userBalance} · Architect: ${state.architectBalance} · Treasury: ${state.treasury}`;
         if(state.presenceId) document.getElementById('presenceResult').innerHTML = `<div class="score-badge">✅ ${state.presenceId.slice(0,10)}… Score: ${state.presenceScore}</div>`;
         else document.getElementById('presenceResult').innerHTML = '';
+        document.getElementById('momentumDisplay').innerText = `Momentum M: ${state.momentum.toFixed(2)}`;
     }
 
     // Presence
@@ -112,26 +118,76 @@
         state.presenceId = id; state.presenceScore = hash(id);
         persist(); updateUI();
     };
-    // CIS sliders + distortion visualization
-    const sliders = ['alignment','understanding','accuracy','distortion'];
-    sliders.forEach(id=>{
-        let s = document.getElementById(id), sp = document.getElementById(id+'Val');
-        s.oninput = ()=> { sp.innerText = parseFloat(s.value).toFixed(2); }
-    });
+
+    // sCIS v2
+    const sliders = { coherence: 'cohVal', consistency: 'consVal', uncertainty: 'uncVal' };
+    for(let [id, valId] of Object.entries(sliders)){
+        let s = document.getElementById(id), sp = document.getElementById(valId);
+        s.oninput = ()=> sp.innerText = parseFloat(s.value).toFixed(2);
+    }
+
+    function computeRichness(text){
+        if(!text.trim()) return 0.2;
+        let words = text.toLowerCase().match(/\b\w+\b/g) || [''];
+        let n = words.length;
+        let unique = new Set(words).size;
+        let D = unique / n;                          // lexical diversity
+        let L = Math.min(1, n / 15);                 // length factor
+        // normalized entropy
+        let freq = {};
+        words.forEach(w=> freq[w] = (freq[w]||0)+1);
+        let H = 0;
+        let total = n;
+        for(let w in freq){
+            let p = freq[w]/total;
+            H -= p * Math.log2(p);
+        }
+        let H_norm = (unique>1) ? H / Math.log2(unique) : 0;
+        return 0.4 * H_norm + 0.4 * D + 0.2 * L;
+    }
+
+    function softplus(x, theta=0.2){ return Math.log(1 + Math.exp(x - theta)); }
+
     function updateCISResult(){
-        let a = +document.getElementById('alignment').value,
-            u = +document.getElementById('understanding').value,
-            c = +document.getElementById('accuracy').value,
-            d = +document.getElementById('distortion').value;
-        let cis = Math.min(10, Math.max(0, (0.2*a + 0.3*u + 0.4*c - 0.1*d)*10 ));
+        let S = parseFloat(document.getElementById('coherence').value);
+        let C = parseFloat(document.getElementById('consistency').value);
+        let U = parseFloat(document.getElementById('uncertainty').value);
+        let msg = document.getElementById('messageText').value;
+        // adaptive weights
+        let alpha = 0.5 * (1 + Math.tanh(2 * U));
+        let beta  = 0.3 * (1 - Math.tanh(2 * U));
+        let gamma = 0.2 * (1 - Math.tanh(2 * U));
+        let delta = 0.1;
+        let lambda = 0.05;
+        // richness
+        let R = computeRichness(msg);
+        // gradient penalty & soft threshold
+        let PG = Math.max(0, S - C);
+        let penalty = softplus(PG, 0.2); // theta=0.2
+        // base score before momentum
+        let raw = alpha * S + beta * C + gamma * R - delta * penalty + lambda * state.momentum;
+        let cis = 10 * Math.tanh(raw);
+        cis = Math.min(10, Math.max(0, cis));
+
+        // distortion from message (lexical repetition)
+        let words = msg ? msg.toLowerCase().match(/\b\w+\b/g) || [msg] : [''];
+        let uniqueWords = new Set(words).size;
+        let distortion = words.length ? 1 - uniqueWords / words.length : 0;
+        let blurAmount = Math.min(distortion * 8, 8);
+
         let resEl = document.getElementById('cisResult');
-        resEl.innerHTML = `CIS: ${cis.toFixed(2)} / 10`;
-        // Apply blur proportional to distortion (max 8px blur)
-        let blurAmount = d * 8;
+        resEl.innerHTML = `sCIS: ${cis.toFixed(2)} / 10`;
         resEl.style.filter = `blur(${blurAmount}px)`;
+        document.getElementById('weightsDisplay').innerHTML = `α(S)=${alpha.toFixed(3)}, β(C)=${beta.toFixed(3)}, γ(R)=${gamma.toFixed(3)}, PG penalty=${penalty.toFixed(3)}`;
+
+        // update temporal momentum for next time
+        let kappa = 0.1, eta = 0.8;
+        state.momentum = (1 - kappa) * state.momentum + eta * cis;
+        persist();
+        updateUI();
     }
     document.getElementById('computeCISBtn').onclick = updateCISResult;
-    document.getElementById('distortion').oninput = updateCISResult;
+    // initial compute
     updateCISResult();
 
     // Fee game
@@ -179,18 +235,21 @@
     document.getElementById('resetDemoBtn').onclick = ()=>{
         if(confirm('Reset all data?')){
             localStorage.clear();
-            state = {presenceId:'',presenceScore:0,lastRecord:0,userStake:0,totalStaked:0,rewardPool:100,userRewards:0,userBalance:1000,architectBalance:0,treasury:500};
+            state = {presenceId:'',presenceScore:0,lastRecord:0,userStake:0,totalStaked:0,rewardPool:100,userRewards:0,userBalance:1000,architectBalance:0,treasury:500,momentum:0};
             recipMap.clear(); persist(); updateUI();
             document.getElementById('presenceId').value='';
-            document.getElementById('distortion').value = 0.1;
-            document.getElementById('distortVal').innerText = '0.10';
+            document.getElementById('coherence').value=0.8; document.getElementById('cohVal').innerText='0.80';
+            document.getElementById('consistency').value=0.8; document.getElementById('consVal').innerText='0.80';
+            document.getElementById('uncertainty').value=0.2; document.getElementById('uncVal').innerText='0.20';
             updateCISResult();
         }
     };
     // Init
     load(); updateUI();
+    document.getElementById('cohVal').innerText = parseFloat(document.getElementById('coherence').value).toFixed(2);
+    document.getElementById('consVal').innerText = parseFloat(document.getElementById('consistency').value).toFixed(2);
+    document.getElementById('uncVal').innerText = parseFloat(document.getElementById('uncertainty').value).toFixed(2);
     if(state.presenceId) document.getElementById('presenceId').value = state.presenceId;
-    sliders.forEach(id=>{ let s=document.getElementById(id); document.getElementById(id+'Val').innerText = parseFloat(s.value).toFixed(2); });
     updateCISResult();
 })();
 </script>
