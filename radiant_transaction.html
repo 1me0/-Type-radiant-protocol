@@ -26,7 +26,6 @@
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .balance-preview { margin-top: 8px; font-size: 0.8rem; color: #2c3e50; background: #e6f7e6; padding: 6px 12px; border-radius: 20px; display: inline-block; }
-        .dark-mode-toggle { float: right; background: transparent; border: 1px solid #cbd5e1; color: inherit; }
     </style>
 </head>
 <body>
@@ -35,7 +34,7 @@
     <div class="info">
         <strong>Architect Fee: <span id="feePercent">--</span>%</strong><br>
         If your transaction amount > Architect's last record → you keep the fee.<br>
-        Otherwise, the fee goes to the architect.
+        Otherwise, the fee (5%) goes to the architect.
     </div>
     <div id="recordInfo" class="info"></div>
     <div id="simBox" class="simulation" style="display:none"></div>
@@ -70,7 +69,7 @@
         FEE_CONTRACT_ADDRESS: "0xYourFeeContractAddress",
         EXPECTED_CHAIN_ID: 11155111,          // Sepolia testnet
         EXPECTED_CHAIN_NAME: "Sepolia",
-        SIMULATION_DEBOUNCE_MS: 300           // debounce time for simulation updates
+        SIMULATION_DEBOUNCE_MS: 300
     };
 
     // ==================== ABIs ====================
@@ -90,7 +89,7 @@
 
     // ==================== GLOBAL STATE ====================
     let provider, signer, token, fee, userAddress;
-    let feeBasisPoints = 5000n, decimals = 18, lastRecord = 0n, loading = false;
+    let feeBasisPoints = 500n, decimals = 18, lastRecord = 0n, loading = false;
     let simulationTimer = null;
 
     // ==================== DOM ELEMENTS ====================
@@ -122,7 +121,6 @@
         sendBtn.innerHTML = load ? '<span class="spinner"></span> Processing...' : 'Send Transaction';
     }
 
-    /** Debounce helper: invokes `fn` after `delay` ms of inactivity. */
     function debounce(fn, delay) {
         if (simulationTimer) clearTimeout(simulationTimer);
         simulationTimer = setTimeout(fn, delay);
@@ -152,8 +150,8 @@
             feeSpan.innerText = percent;
         } catch (e) {
             console.warn('Error fetching fee basis points:', e);
-            feeBasisPoints = 5000n; // default 50%
-            feeSpan.innerText = "50 (default)";
+            feeBasisPoints = 500n;   // 5% default
+            feeSpan.innerText = "5 (default)";
         }
     }
 
@@ -170,17 +168,12 @@
         }
     }
 
-    /**
-     * Off‑chain simulation using the current record.
-     * Returns an object: { willBeat: boolean, fee: bigint, currentRecord: bigint }
-     */
     async function contractSimulate(amount) {
         const feeAmount = (amount * feeBasisPoints) / 10000n;
         const willBeat = amount > lastRecord;
         return { willBeat, fee: feeAmount, currentRecord: lastRecord };
     }
 
-    /** Refresh simulation and balance preview after user input */
     async function updateSimulation() {
         const amtStr = amountInp.value.trim();
         if (!amtStr || parseFloat(amtStr) <= 0 || !fee) {
@@ -211,7 +204,6 @@
         }
     }
 
-    // Trigger simulation with debounce on user input
     const triggerSimulation = () => debounce(updateSimulation, CONFIG.SIMULATION_DEBOUNCE_MS);
 
     async function loadHistory() {
@@ -250,7 +242,6 @@
             const balance = await token.balanceOf(userAddress);
             if (balance < totalNeeded) throw new Error(`Insufficient balance: need ${ethers.formatUnits(totalNeeded, decimals)} tokens.`);
 
-            // Approve tokens if needed
             const approvalRequired = unlimitedChk.checked ? ethers.MaxUint256 : totalNeeded;
             const currentAllowance = await token.allowance(userAddress, CONFIG.FEE_CONTRACT_ADDRESS);
             if (currentAllowance < totalNeeded) {
@@ -259,7 +250,6 @@
                 await approveTx.wait();
             }
 
-            // Estimate gas with buffer
             let gasEst;
             try {
                 gasEst = await fee.transferWithFee.estimateGas(recipient, amount, requireWinChk.checked);
@@ -309,7 +299,6 @@
         updateSimulation();
     }
 
-    // ==================== EVENT LISTENERS ====================
     init().catch(console.error);
 
     if (window.ethereum) {
