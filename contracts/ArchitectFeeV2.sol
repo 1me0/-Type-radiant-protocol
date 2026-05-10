@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 /**
  * @title ArchitectFeeV2
  * @notice Competitive fee game contract:
- *         - Configurable fee on token transfers (default 50%, max 50%).
+ *         - Configurable fee on token transfers (default 5%, max 5%).
  *         - If transfer amount > last recorded amount, sender receives a bonus equal to the fee (paid from treasury).
  *         - Governance roles with timelock on sensitive parameters (fee, architect address).
  *         - Treasury can be funded by fee managers.
@@ -24,8 +24,8 @@ contract ArchitectFeeV2 is AccessControl, ReentrancyGuard, Pausable {
     IERC20 public token;
     address public architect;
     uint256 public lastRecordAmount;
-    uint256 public feeBasisPoints;        // e.g., 5000 = 50%
-    uint256 public constant MAX_FEE_BASIS_POINTS = 5000; // 50% max
+    uint256 public feeBasisPoints;                 // e.g., 500 = 5%
+    uint256 public constant MAX_FEE_BASIS_POINTS = 500;   // 5% max
 
     // Timelock for fee change
     struct PendingFee {
