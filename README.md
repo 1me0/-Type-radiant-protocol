@@ -1,4 +1,3 @@
-
 ```markdown
 # Radiant Protocol
 
@@ -11,7 +10,7 @@
 
 **Proof of Presence via Recursive Zero‑Knowledge Arguments**
 
-Radiant Protocol turns *presence*—the fact that you were actively responsive within a specific time window—into a verifiable, composable, and valuable resource, without revealing sensitive information. It’s the foundation for a new internet where your attention and real‑time participation are **provable assets**.
+Radiant Protocol turns *presence*—the fact that you were actively responsive within a specific time window—into a verifiable, composable, and valuable resource, without revealing sensitive information. It is the foundation for a new internet where your attention and real‑time participation are **provable assets**.
 
 ---
 
@@ -40,7 +39,7 @@ Radiant Protocol turns *presence*—the fact that you were actively responsive w
 
 ## 🌟 What is Radiant?
 
-Today’s systems know **who you are** (identity) and **what you own** (assets).  
+Today's systems know **who you are** (identity) and **what you own** (assets).  
 But they don’t know **whether you are actually here, right now**.
 
 Radiant fills that gap. It uses **zero‑knowledge proofs** and **blockchain randomness** to prove that an entity was **actively responsive within a constrained time window**—without revealing any private data.
@@ -129,11 +128,11 @@ You can try several demo apps **right now**, no installation needed:
 
 | Demo | File | Description |
 |------|------|-------------|
-| **Proof of Presence** | `RadiantPresence.html` | Register a presence score from your wallet or name |
-| **Transaction Fee Game** | `RadiantDemo.html` | Send RAD, break the record, earn a bonus |
-| **CIS‑Gated Social Feed** | `RadiantSocial.html` | Post content rated by high‑CIS users; backed by IPFS |
+| **Cybernetic Dashboard** | `RadiantDemo.html` | sCIS v2 scoring, presence, staking, fee game, and live Alpha‑Beta stability monitor |
+| **Social Feed** | `RadiantSocial.html` | CIS‑gated social feed with IPFS, wallet‑based identity, weighted ratings, and P2P (GossipSub) |
+| **Proof of Presence** | `RadiantPresence.html` | Register a deterministic presence score from your wallet or name |
 
-Just open any of these HTML files in your browser (they run locally).  
+Just open any HTML file in your browser (they run locally).  
 For the social feed, you’ll need a Pinata JWT (or enable P2P mode) to upload images.
 
 ### Run the Full Stack Locally
@@ -168,7 +167,7 @@ After deployment, update the contract addresses in the frontend .env.
 Contract Responsibility
 Radiant.sol Core protocol: staking, proofs, rewards, slashing, council governance
 RadiantShares.sol ERC‑20 token with max supply 100M, 1% transfer tax, mint timelock
-ArchitectFee.sol Competitive fee game: 50% fee to architect, record‑breaking bonus
+ArchitectFee.sol Competitive fee game: 5% fee to architect, record‑breaking bonus
 Registry.sol Canonical address registry (all contracts discoverable here)
 RadiantIdentity.sol Library implementing the formal theorem of non‑duality (𝕀)
 LicenseRegistry.sol On‑chain license enforcement for commercial use
@@ -181,7 +180,7 @@ All contracts are Solidity ^0.8.19 and use OpenZeppelin libraries.
 
 HTML File Description
 RadiantPresence.html Deterministic presence score, local storage, and on‑chain anchoring
-RadiantDemo.html Full protocol simulation: presence, CIS scoring, transfer fee game, staking
+RadiantDemo.html Full cybernetic dashboard: sCIS v2 scoring, presence, transfer fee game, staking, and live stability monitor
 RadiantSocial.html Decentralised social feed with IPFS, wallet‑based identity, weighted ratings, and togglable P2P (GossipSub)
 
 These demos are self‑contained and run entirely in your browser. They communicate with smart contracts only if you choose to set a contract address.
@@ -208,13 +207,13 @@ See RadiantSDK.ts for full documentation.
 
 📚 In-Depth Documentation
 
-· 📘 Whitepaper (LaTeX) – formal protocol definition, security proofs, adversarial analysis.
-· 📝 Release Notes – what’s new in v0.1.0.
-· 🔧 Tutorial – detailed setup guide for local and testnet deployment.
-· 🛡️ Security & Threat Model – known risks, mitigations, and responsible disclosure.
-· 🧬 Threat Model – systematic analysis of attack vectors.
-· 🤝 Contributing Guidelines – how to get involved.
-· 💎 Code of Conduct – community standards.
+· 📘 Whitepaper (paper.tex) – formal protocol definition, security proofs, adversarial analysis.
+· 📝 Release Notes (RELEASE.md) – what’s new in v0.1.0.
+· 🔧 Tutorial (TUTORIAL.md) – detailed setup guide for local and testnet deployment.
+· 🛡️ Security & Threat Model (SECURITY.md) – known risks, mitigations, and responsible disclosure.
+· 🧬 Threat Model (THREAT_MODEL.md) – systematic analysis of attack vectors.
+· 🤝 Contributing Guidelines (CONTRIBUTING.md) – how to get involved.
+· 💎 Code of Conduct (CODE_OF_CONDUCT.md) – community standards.
 
 ---
 
